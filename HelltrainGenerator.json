@@ -1,0 +1,56 @@
+{
+  "Debug": true,
+  "Factions": {
+    "PMC": {
+      "MinWagons": 2,
+      "MaxWagons": 4,
+      "Compositions": {
+        "pmc": 1.0
+      },
+      "WagonPools": {
+        "wagon_pmc_a": 1.0,
+        "wagon_pmc_b": 1.0,
+        "wagon_pmc_c": 1.0
+      },
+      "Limits": {
+        "wagon_pmc_a": 2,
+        "wagon_pmc_b": 2,
+        "wagon_pmc_c": 1
+      }
+    },
+    "BANDIT": {
+      "MinWagons": 2,
+      "MaxWagons": 4,
+      "Compositions": {
+        "bandit": 1.0
+      },
+      "WagonPools": {
+        "wagon_bandit_a": 1.0,
+        "wagon_bandit_b": 1.0,
+        "wagon_bandit_c": 1.0
+      },
+      "Limits": {
+        "wagon_bandit_a": 2,
+        "wagon_bandit_b": 2,
+        "wagon_bandit_c": 1
+      }
+    },
+    "COBLAB": {
+      "MinWagons": 2,
+      "MaxWagons": 4,
+      "Compositions": {
+        "coblab": 1.0
+      },
+      "WagonPools": {
+        "wagon_coblab_a": 1.0,
+        "wagon_coblab_b": 1.0,
+        "wagon_coblab_c": 1.0
+      },
+      "Limits": {
+        "wagon_coblab_a": 2,
+        "wagon_coblab_b": 2,
+        "wagon_coblab_c": 1
+      }
+    }
+  }
+}
