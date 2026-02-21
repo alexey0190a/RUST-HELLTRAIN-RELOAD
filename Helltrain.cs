@@ -55,6 +55,8 @@ private const string LAPTOP_PREFAB_PATH = "assets/prefabs/misc/laptop_deployable
 private void Broadcast(string msg) => Server.Broadcast(msg);
 // CORE ownership: пока идёт сборка состава — никакой параллельный cleanup/stop
 private bool _isBuildingTrain = false;
+// build cancel: если во время сборки пришёл force cleanup — корутина должна выйти
+private bool _cancelBuildRequested = false;
 // Anti-stuck immunity window (warmup phase)
 private float _antiStuckIgnoreUntil = 0f;
 private bool _abortRequested = false;
@@ -813,6 +815,10 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+    // если force cleanup пришёл во время build — помечаем отмену корутины
+    if (_isBuildingTrain && force)
+        _cancelBuildRequested = true;
+
     if (_isBuildingTrain && !force)
     {
         PrintWarning($"[Helltrain] Cleanup suppressed during train build ({reason})");
@@ -2481,6 +2487,13 @@ if (wagons != null && wagons.Count > 0)
 var layoutName = !string.IsNullOrEmpty(_activeLayoutName) ? _activeLayoutName : inferredLayoutName;
 var compositionKey = _lastResolvedCompositionKey ?? "null";
 
+// если во время build пришёл stop/force cleanup — прекращаем сборку
+if (_cancelBuildRequested)
+{
+    PrintWarning("[Helltrain] Build canceled (force cleanup requested).");
+    yield break;
+}
+
 if (!Gen_BuildPopulatePlan(factionKey, compositionKey, layoutName, _spawnedCars, out var planObj, out var planReason))
 {
     AbortRequest(planReason ?? "BuildPopulatePlan failed", factionKey, layoutName, compositionKey);
@@ -2533,7 +2546,15 @@ Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundN
     }
     
     yield return new WaitForSeconds(20f);
-    StartEngine(trainEngine);
+
+// если stop/cleanup был во время ожидания — выходим
+if (_cancelBuildRequested || trainEngine == null || trainEngine.IsDestroyed)
+{
+    PrintWarning("[Helltrain] Build canceled before StartEngine (engine missing).");
+    yield break;
+}
+
+StartEngine(trainEngine);
 	
 // ✅ ИНИЦИАЛИЗАЦИЯ LIFECYCLE
 _trainLifecycle = new TrainLifecycle(
@@ -2564,6 +2585,7 @@ Puts($"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartInde
     {
         _suppressHooks = prevSuppress;
         _isBuildingTrain = false;
+        _cancelBuildRequested = false;
     }
 }
         private struct SpawnPosition
