@@ -2355,7 +2355,9 @@ trainCar.SendNetworkUpdate();
             if (Time.realtimeSinceStartup - coupleReadyStart >= coupleReadyTimeout)
             {
               			  PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
-               			  EventLog($"[COUPLING TIMEOUT] {coupleMissing} prefab='{prefab}' wagon='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+	            		  EventLog($"[COUPLING TIMEOUT] {coupleMissing} prefab='{prefab}' wagon='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+
+						KillEventTrainCars($"coupling_init_timeout:{coupleMissing}", force: true);
 						
 						// аварийный фейл сборки: короткая задержка + ожидание чистого рантайма (чтобы lifecycle не умирал)
               if (config.AutoRespawn)
