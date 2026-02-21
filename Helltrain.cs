@@ -1593,6 +1593,17 @@ private class TrainLayout
 
     [JsonProperty("Shelves")]
     public List<ShelfSpec> Shelves { get; set; }
+
+    // ✅ HEAVY (variant C): точки спавна боевых сущностей (локальные)
+    // wagonC_<faction> может быть обычной платформой (normal) — тогда эти поля просто не используются.
+    [JsonProperty("BradleySlot")]
+    public SlotSpec BradleySlot { get; set; }   // 1 точка под Bradley (PMC heavy)
+
+    [JsonProperty("SamSiteSlot")]
+    public SlotSpec SamSiteSlot { get; set; }   // 1 точка под SAM (PMC heavy)
+
+    [JsonProperty("TurretSlots")]
+    public List<SlotSpec> TurretSlots { get; set; } // несколько точек под турели (COBLAB heavy)
 }
 
 class SlotSpec
