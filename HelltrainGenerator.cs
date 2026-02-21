@@ -49,6 +49,9 @@ private class HelltrainRootCfg
     public Dictionary<string, HelltrainCompositionCfg> Compositions = new Dictionary<string, HelltrainCompositionCfg>(StringComparer.OrdinalIgnoreCase);
 
     public HelltrainGeneratorCfg Generator = new HelltrainGeneratorCfg();
+
+    // HEAVY (optional): отдельная система поверх Limits.C
+    public HelltrainHeavyCfg Heavy = new HelltrainHeavyCfg();
 }
 
 
@@ -64,6 +67,23 @@ private class HelltrainFactionGenCfg
 }
 
 
+// -----------------------------
+// HEAVY config (optional)
+// -----------------------------
+private class HelltrainHeavyCfg
+{
+    public Dictionary<string, HelltrainHeavyFactionCfg> Factions = new Dictionary<string, HelltrainHeavyFactionCfg>(StringComparer.OrdinalIgnoreCase);
+}
+
+private class HelltrainHeavyFactionCfg
+{
+    // keys: "0","1","2"... values: weights
+    public Dictionary<string, float> CountWeights = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
+    // keys: "bradley","samsite" values: weights (PMC only)
+    public Dictionary<string, float> KindWeights = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+}
+
 private class HelltrainCompositionCfg
 {
     public int MinWagons = 1;
@@ -77,6 +97,11 @@ private class HelltrainCompositionCfg
 }
 
 private HelltrainRootCfg _helltrainCfg;
+
+// ---- HEAVY runtime (last resolve snapshot) ----
+private string _lastHeavyFactionKey = null;          // upper
+private string _lastHeavyCompositionKey = null;      // as returned
+private List<string> _lastHeavyAssignmentsWagons = null; // aligned to wagons list (NO ENGINE)
 
 // ---- Layout snapshot (planner-only) ----
 private const string LayoutDir = "Helltrain/Layouts";
@@ -730,6 +755,110 @@ private string FormatTypeLimits(Dictionary<string, int> limits)
 }
 
 
+// -----------------------------
+// HEAVY planner helpers
+// -----------------------------
+private int PickHeavyCount(string factionKeyUpper)
+{
+    // Defaults (contract):
+    // BANDIT: 0
+    // COBLAB: 0..1 (if configured)
+    // PMC: 1..2 (if configured)
+    if (_helltrainCfg == null || _helltrainCfg.Heavy == null || _helltrainCfg.Heavy.Factions == null)
+        return 0;
+
+    if (!_helltrainCfg.Heavy.Factions.TryGetValue(factionKeyUpper, out var hf) || hf == null || hf.CountWeights == null)
+        return 0;
+
+    // sanitize weights: keep only int keys >=0 with weight >0
+    var tmp = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+    foreach (var kv in hf.CountWeights)
+    {
+        if (kv.Value <= 0f) continue;
+        if (!int.TryParse(kv.Key, out var n)) continue;
+        if (n < 0) continue;
+        tmp[kv.Key] = kv.Value;
+    }
+
+    if (tmp.Count == 0) return 0;
+
+    var picked = PickWeightedKey(tmp);
+    if (!int.TryParse(picked, out var count)) return 0;
+
+    // clamp by faction rules
+    if (string.Equals(factionKeyUpper, "BANDIT", StringComparison.OrdinalIgnoreCase))
+        return 0;
+
+    if (string.Equals(factionKeyUpper, "COBLAB", StringComparison.OrdinalIgnoreCase))
+        return Mathf.Clamp(count, 0, 1);
+
+    if (string.Equals(factionKeyUpper, "PMC", StringComparison.OrdinalIgnoreCase))
+        return Mathf.Clamp(count, 0, 2);
+
+    return 0;
+}
+
+private string PickHeavyKind(string factionKeyUpper)
+{
+    // BANDIT запрещён
+    if (string.Equals(factionKeyUpper, "BANDIT", StringComparison.OrdinalIgnoreCase))
+        return "None";
+
+    // COBLAB всегда turret
+    if (string.Equals(factionKeyUpper, "COBLAB", StringComparison.OrdinalIgnoreCase))
+        return "turret";
+
+    // PMC: bradley XOR samsite (весами)
+    if (!string.Equals(factionKeyUpper, "PMC", StringComparison.OrdinalIgnoreCase))
+        return "None";
+
+    if (_helltrainCfg == null || _helltrainCfg.Heavy == null || _helltrainCfg.Heavy.Factions == null)
+        return "None";
+
+    if (!_helltrainCfg.Heavy.Factions.TryGetValue(factionKeyUpper, out var hf) || hf == null || hf.KindWeights == null)
+        return "None";
+
+    var tmp = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+    foreach (var kv in hf.KindWeights)
+    {
+        if (kv.Value <= 0f) continue;
+        var k = (kv.Key ?? "").Trim().ToLowerInvariant();
+        if (k != "bradley" && k != "samsite") continue;
+        tmp[k] = kv.Value;
+    }
+
+    if (tmp.Count == 0) return "None";
+
+    var picked = (PickWeightedKey(tmp) ?? "").Trim().ToLowerInvariant();
+    return (picked == "bradley" || picked == "samsite") ? picked : "None";
+}
+
+private void ApplyHeavyToWagons(string factionKeyUpper, string compositionKey, ref List<string> wagons, out List<string> heavyAssignmentsWagons)
+{
+    heavyAssignmentsWagons = new List<string>(wagons?.Count ?? 0);
+    if (wagons == null) return;
+
+    // start with "None" for all existing wagons
+    for (int i = 0; i < wagons.Count; i++)
+        heavyAssignmentsWagons.Add("None");
+
+    int heavyCount = PickHeavyCount(factionKeyUpper);
+    if (heavyCount <= 0) return;
+
+    // Heavy uses the same prefab/layout as wagonC_<composition>
+    var heavyWagonKey = CanonicalizeWagonKey($"wagonC_{(compositionKey ?? "").Trim().ToLowerInvariant()}");
+
+    for (int n = 0; n < heavyCount; n++)
+    {
+        var kind = PickHeavyKind(factionKeyUpper);
+        if (kind == "None")
+            break;
+
+        wagons.Add(heavyWagonKey);
+        heavyAssignmentsWagons.Add(kind);
+    }
+}
+
 private object ResolveCompositionKey(string activeFactionKey, string overrideKey)
 {
     if (string.IsNullOrWhiteSpace(activeFactionKey))
@@ -833,7 +962,16 @@ Puts($"[RESOLVE OK] faction={fk} compositionKey={compositionKey} target={target}
 
 
 
-return new object[] { true, compositionKey, wagons, "OK" };
+// HEAVY: apply on top of normal wagons (does NOT count into Limits.C)
+List<string> heavyAssignmentsWagons;
+ApplyHeavyToWagons(fk, compositionKey, ref wagons, out heavyAssignmentsWagons);
+
+// snapshot for BuildPopulatePlan (post-spawn)
+_lastHeavyFactionKey = fk;
+_lastHeavyCompositionKey = compositionKey;
+_lastHeavyAssignmentsWagons = heavyAssignmentsWagons;
+
+return new object[] { true, compositionKey, wagons, "OK", heavyAssignmentsWagons };
 
 }
 
@@ -1095,6 +1233,52 @@ if (totalNpcSlots > 0 && npcAssignedCount == 0)
     npcDegradeReason = npcDegradeReason ?? "NPC_ALL_EMPTY";
 }
 
+// HEAVY assignments (aligned to trainCars indices; ENGINE => "None")
+var heavyAssignmentsCars = new List<string>(carsCount);
+bool heavyDegraded = false;
+string heavyDegradeReason = null;
+
+for (int i = 0; i < carsCount; i++)
+    heavyAssignmentsCars.Add("None");
+
+if (!string.IsNullOrWhiteSpace(_lastHeavyFactionKey) &&
+    !string.IsNullOrWhiteSpace(_lastHeavyCompositionKey) &&
+    string.Equals(_lastHeavyFactionKey, activeFactionKey.Trim().ToUpperInvariant(), StringComparison.OrdinalIgnoreCase) &&
+    string.Equals(_lastHeavyCompositionKey, compositionKey, StringComparison.OrdinalIgnoreCase) &&
+    _lastHeavyAssignmentsWagons != null)
+{
+    int wagonCursor = 0;
+    for (int c = 0; c < carsCount; c++)
+    {
+        var car = trainCars[c];
+        if (car == null || car is TrainEngine)
+            continue;
+
+        if (wagonCursor < _lastHeavyAssignmentsWagons.Count)
+        {
+            heavyAssignmentsCars[c] = _lastHeavyAssignmentsWagons[wagonCursor] ?? "None";
+        }
+        else
+        {
+            heavyDegraded = true;
+            heavyDegradeReason = heavyDegradeReason ?? "HEAVY_CURSOR_OOB";
+            heavyAssignmentsCars[c] = "None";
+        }
+
+        wagonCursor++;
+    }
+
+    if (wagonCursor != _lastHeavyAssignmentsWagons.Count)
+    {
+        heavyDegraded = true;
+        heavyDegradeReason = heavyDegradeReason ?? $"HEAVY_WAGONCOUNT_MISMATCH expected={_lastHeavyAssignmentsWagons.Count} actual={wagonCursor}";
+    }
+}
+else
+{
+    // no snapshot or mismatch => all None (safe)
+}
+
             // План: мета + контрактные поля crates
             var plan = new Dictionary<string, object>
             {
@@ -1103,6 +1287,9 @@ if (totalNpcSlots > 0 && npcAssignedCount == 0)
                 ["CompositionKey"] = compositionKey,
                 ["LayoutName"] = layoutName,
                 ["CarCount"] = trainCars?.Count ?? 0,
+                ["HeavyAssignments"] = heavyAssignmentsCars,
+                ["HeavyDegraded"] = heavyDegraded,
+                ["HeavyDegradeReason"] = heavyDegradeReason,
 				["NpcAssignments"] = npcAssignments,
 ["NpcDegraded"] = npcDegraded,
 ["NpcDegradeReason"] = npcDegradeReason,
