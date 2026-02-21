@@ -121,6 +121,9 @@ private class NpcAssignRt
 private List<NpcAssignRt> _activeNpcAssignments = null; // index -> kitKey
 private int _activeNpcSlotCursor = 0; // глобальный NPC slot index
 
+// HEAVY assignments runtime (CORE): index == trainCars index (engine index 0 => "None")
+private List<string> _activeHeavyAssignments = null;
+
 
 
 private readonly Dictionary<ulong, string> _crateTypeName = new Dictionary<ulong, string>(); // netId -> CrateTypeName
@@ -270,12 +273,12 @@ private int PlanPipe_GetPlanSlots(object planObj)
 private void ApplyPopulatePlan(object planObj)
 {
     _activeCrateAssignments = null;
-_activeCrateSlotCursor = 0;
+    _activeCrateSlotCursor = 0;
 
-_activeNpcAssignments = null;
-_activeNpcSlotCursor = 0;
+    _activeNpcAssignments = null;
+    _activeNpcSlotCursor = 0;
 
-
+    _activeHeavyAssignments = null;
 
 
 int parsedPlanSlots = PlanPipe_GetPlanSlots(planObj);
@@ -286,6 +289,29 @@ Puts($"[PLAN PIPE] applyCalled=true parsedPlanSlots={parsedPlanSlots}");
     // Generator возвращает Dictionary<string, object>
 if (planObj is Dictionary<string, object> dict)
 {
+    // HeavyAssignments: ["None","bradley","samsite","turret",...]
+    if (dict.TryGetValue("HeavyAssignments", out var ha) && ha != null)
+    {
+        if (ha is System.Collections.IList anyList)
+        {
+            var tmp = new List<string>(anyList.Count);
+            foreach (var o in anyList)
+                tmp.Add((o as string) ?? "None");
+
+            _activeHeavyAssignments = tmp;
+        }
+        else if (ha is string[] arrS)
+        {
+            _activeHeavyAssignments = new List<string>(arrS);
+        }
+        else if (ha is object[] arrO)
+        {
+            var tmp = new List<string>(arrO.Length);
+            foreach (var o in arrO) tmp.Add((o as string) ?? "None");
+            _activeHeavyAssignments = tmp;
+        }
+    }
+
     if (dict.TryGetValue("CrateAssignments", out var ca) && ca != null)
     {
         // New/legacy: IList (List<object>, List<Dictionary<..>>, etc.)
@@ -541,7 +567,8 @@ private void CacheSplines()
  private const string PREFAB_CRATE_COBLAB = "assets/bundled/prefabs/radtown/crate_normal.prefab";
         private const string SCIENTIST_PREFAB = "assets/rust.ai/agents/npcplayer/humannpc/scientist/scientistnpc_cargo_turret_any.prefab";
         private const string SAMSITE_PREFAB = "assets/prefabs/npc/sam_site_turret/sam_static.prefab";
-       private const string TURRET_PREFAB = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
+private const string TURRET_PREFAB = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
+private const string BRADLEY_PREFAB = "assets/prefabs/npc/m2bradley/bradleyapc.prefab";
         private const string HACKABLE_CRATE_PREFAB = "assets/prefabs/deployable/chinooklockedcrate/codelockedhackablecrate.prefab";
        public string HackableCratePrefab => HACKABLE_CRATE_PREFAB;
 	   private string GetCratePrefabForFaction(string faction)
@@ -1705,6 +1732,7 @@ public float hack_timer_max = 0f;   // если >0 — верхняя грани
 }
 
 private static Vector3 V3(float[] p) => (p != null && p.Length == 3) ? new Vector3(p[0], p[1], p[2]) : Vector3.zero;
+private static Quaternion Q3(float[] r) => (r != null && r.Length == 3) ? Quaternion.Euler(r[0], r[1], r[2]) : Quaternion.identity;
 
 // ВСЁ ОСТАЛЬНОЕ В ЭТОМ РЕГИОНЕ ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ
 // (CreateDefaultLayouts, LoadLayouts, GetLayout и т.д. - копируй как есть)
@@ -2631,6 +2659,7 @@ Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundN
             if (wagonCar != null && !wagonCar.IsDestroyed)
             {
                 SpawnLayoutObjects(wagonCar, wagonLayout);
+                ApplyHeavyForCar(positionIndex, wagonCar, wagonLayout);
               //  Puts($"   🎯 Объекты вагона [{i}] заспавнены из лэйаута: {wagonName}");
             }
         }
@@ -4429,6 +4458,112 @@ private void ScanRailwayNetwork()
 		
 
 #region HT.LAYOUT.OBJECTS
+
+private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layout)
+{
+    if (_activeHeavyAssignments == null) return;
+    if (carIndex < 0 || carIndex >= _activeHeavyAssignments.Count) return;
+
+    var raw = _activeHeavyAssignments[carIndex] ?? "None";
+    var kind = raw.Trim().ToLowerInvariant();
+    if (string.IsNullOrEmpty(kind) || kind == "none") return;
+
+    // Fail-fast / Downgrade (по умолчанию): если слота нет — ничего не спавним, логируем.
+    if (kind == "bradley")
+    {
+        if (layout?.BradleySlot == null)
+        {
+            Puts($"[HEAVY] downgrade kind=bradley carIndex={carIndex} reason=NO_BradleySlot layout={layout?.name ?? "NULL"}");
+            return;
+        }
+
+        var ent = GameManager.server.CreateEntity(BRADLEY_PREFAB, wagonCar.transform.position) as BradleyAPC;
+        if (ent == null)
+        {
+            Puts($"[HEAVY] fail kind=bradley carIndex={carIndex} reason=CreateEntity_NULL");
+            return;
+        }
+
+        ent.enableSaving = false;
+        ent.SetParent(wagonCar);
+        ent.transform.localPosition = V3(layout.BradleySlot.pos);
+        ent.transform.localRotation = Q3(layout.BradleySlot.rot);
+        ent.Spawn();
+
+        // важно: AI НЕ отключаем, Invoke НЕ отменяем (как ты требуешь)
+        // но физику можно заморозить, чтобы он не "ехал" по вагону
+        if (ent.myRigidBody != null)
+        {
+            ent.myRigidBody.isKinematic = true;
+            ent.myRigidBody.interpolation = RigidbodyInterpolation.None;
+        }
+
+        Track(ent);
+        Puts($"[HEAVY] spawned kind=bradley carIndex={carIndex} layout={layout?.name ?? "NULL"}");
+        return;
+    }
+
+    if (kind == "samsite")
+    {
+        if (layout?.SamSiteSlot == null)
+        {
+            Puts($"[HEAVY] downgrade kind=samsite carIndex={carIndex} reason=NO_SamSiteSlot layout={layout?.name ?? "NULL"}");
+            return;
+        }
+
+        var ent = GameManager.server.CreateEntity(SAMSITE_PREFAB, wagonCar.transform.position) as BaseEntity;
+        if (ent == null)
+        {
+            Puts($"[HEAVY] fail kind=samsite carIndex={carIndex} reason=CreateEntity_NULL");
+            return;
+        }
+
+        ent.enableSaving = false;
+        ent.SetParent(wagonCar);
+        ent.transform.localPosition = V3(layout.SamSiteSlot.pos);
+        ent.transform.localRotation = Q3(layout.SamSiteSlot.rot);
+        ent.Spawn();
+
+        Track(ent);
+        Puts($"[HEAVY] spawned kind=samsite carIndex={carIndex} layout={layout?.name ?? "NULL"}");
+        return;
+    }
+
+    if (kind == "turret")
+    {
+        var slots = layout?.TurretSlots;
+        if (slots == null || slots.Count == 0)
+        {
+            Puts($"[HEAVY] downgrade kind=turret carIndex={carIndex} reason=NO_TurretSlots layout={layout?.name ?? "NULL"}");
+            return;
+        }
+
+        int spawned = 0;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            var s = slots[i];
+            if (s == null) continue;
+
+            var ent = GameManager.server.CreateEntity(TURRET_PREFAB, wagonCar.transform.position) as BaseEntity;
+            if (ent == null) continue;
+
+            ent.enableSaving = false;
+            ent.SetParent(wagonCar);
+            ent.transform.localPosition = V3(s.pos);
+            ent.transform.localRotation = Q3(s.rot);
+            ent.Spawn();
+
+            Track(ent);
+            spawned++;
+        }
+
+        Puts($"[HEAVY] spawned kind=turret carIndex={carIndex} count={spawned} layout={layout?.name ?? "NULL"}");
+        return;
+    }
+
+    // неизвестный тип => безопасно игнор
+    Puts($"[HEAVY] ignore carIndex={carIndex} kind='{raw}' reason=UNKNOWN_KIND");
+}
 
 private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
 {
