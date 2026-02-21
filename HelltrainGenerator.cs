@@ -114,7 +114,7 @@ private class NpcSlotSpec
 }
 
 
-private bool TryLoadLayout(string layoutName, out TrainLayoutLegacy layout, out string reason)
+private bool TryLoadLayoutLegacy(string layoutName, out TrainLayoutLegacy layout, out string reason)
 {
     layout = null;
     reason = null;
@@ -910,7 +910,7 @@ for (int c = 0; c < carsCount; c++)
         continue;
     }
 
-    if (!TryLoadLayout(wagonKey, out TrainLayoutLegacy carLayout, out var carLayoutReason))
+    if (!TryLoadLayoutLegacy(wagonKey, out TrainLayoutLegacy carLayout, out var carLayoutReason))
     {
         // Layout missing for this wagonKey -> no slots counted (degrade, no fallback)
         slotsDegraded = true;
