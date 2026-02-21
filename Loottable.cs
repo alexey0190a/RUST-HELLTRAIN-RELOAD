@@ -3620,14 +3620,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
             private void CreateView()
             {
-                using var cui = Cui.Create(Instance, Anchor.Fill, UiColor.Black, UiParentLayer.OverlayNonScaled, UiFlags.MouseAndKeyboard);
+                using var cui = Cui.Create(Instance, PluginComponents.Loottable.Cui.Anchor.Fill, UiColor.Black, UiParentLayer.OverlayNonScaled, UiFlags.MouseAndKeyboard);
 
-                cui.AddLabel(Anchor.Relative(0.3f, 0.7f, 0, 1), "<size=48>:(</size>\n\nYour Loottable encountered an error and needs a restart.\nPlease report any errors in the server console to the developer");
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.3f, 0.7f, 0, 1), "<size=48>:(</size>\n\nYour Loottable encountered an error and needs a restart.\nPlease report any errors in the server console to the developer");
 
-                using (cui.CreateContainer(Anchor.Relative(0, 1, 0.95f, 1f), Style.ColorGrey))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.95f, 1f), Style.ColorGrey))
                 {
-                    cui.AddLabel(Anchor.Padding(0.1f, 0.1f), $"Loottable v{Instance?.Version}{(!DEBUG ? String.Empty : "-debug")}", Style.TextHeading);
-                    cui.AddButton(Anchor.Relative(0.972f, 0.99f, 0.15f, 0.75f), "\u2717", _ =>
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Padding(0.1f, 0.1f), $"Loottable v{Instance?.Version}{(!DEBUG ? String.Empty : "-debug")}", Style.TextHeading);
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.972f, 0.99f, 0.15f, 0.75f), "\u2717", _ =>
                     {
                         Destroy();
                         if (Instance?.state?.AutoLootRefresh ?? false)
@@ -3637,7 +3637,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }, Style.ButtonRed);
                 }
 
-                using (cui.CreateContainer(Anchor.Relative(0, 1, 0, 0.95f), new UiColor(0.08f, 0.08f, 0.08f)))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 0.95f), new UiColor(0.08f, 0.08f, 0.08f)))
                 {
                     mainContainer = cui.CurrentRef;
                 }
@@ -3656,18 +3656,18 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                using (cui.CreateContainer(Anchor.Relative(0, 0.15f, 0, 1), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0, 0.15f, 0, 1), Style.ColorGrey05))
                 {
                     var move = MovingAnchorProperties.Create(0.03f, 1, 0.94f, 0.05f, 0, 0.01f);
 
-                    cui.AddLabel(Anchor.MoveColumn(ref move), TU("loot"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.MoveColumn(ref move), TU("loot"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
                     foreach (var tab in Instance.manager.GetTabsVanilla())
                     {
                         home_currentTab ??= tab;
-                        cui.AddButton(Anchor.MoveColumn(ref move), T(tab), _ => SwitchTab(tab), home_currentTab == tab ? Style.ButtonBlue : Style.ButtonGrey);
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveColumn(ref move), T(tab), _ => SwitchTab(tab), home_currentTab == tab ? Style.ButtonBlue : Style.ButtonGrey);
                     }
 
-                    var labelAnchor = Anchor.MoveColumn(ref move);
+                    var labelAnchor = PluginComponents.Loottable.Cui.Anchor.MoveColumn(ref move);
                     cui.AddLabel(labelAnchor, TU("plugins"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
 
                     const int plugins_per_page = 6;
@@ -3696,7 +3696,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     foreach (var tab in plugins.Skip(plugins_per_page * home_pluginPage).Take(plugins_per_page))
                     {
-                        cui.AddButton(Anchor.MoveColumn(ref move), tab.Substring(1).WithSpaceBeforeUppercase(), _ => SwitchTab(tab), home_currentTab == tab ? Style.ButtonBlue : Style.ButtonGrey);
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveColumn(ref move), tab.Substring(1).WithSpaceBeforeUppercase(), _ => SwitchTab(tab), home_currentTab == tab ? Style.ButtonBlue : Style.ButtonGrey);
                     }
 
                     // if (DEBUG)
@@ -3746,20 +3746,20 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         continue;
                     }
 
-                    using (cui.CreateContainer(Anchor.MoveRow(ref move, 5), Style.ColorLightGrey05))
+                    using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 5), Style.ColorLightGrey05))
                     {
                         var png = Instance.imageHelper.GetPng(lootable.ImageKey);
-                        cui.AddImage(Anchor.AbsoluteCentered(0.15f, 0.5f, 60, 60), png);
-                        cui.AddLabel(Anchor.Relative(0.31f, 0.98f, 0.35f, 0.95f), lootable.GetDisplayName(Lang, Player), Style.TextNormal with { TextAnchor = TextAnchor.MiddleLeft });
+                        cui.AddImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered(0.15f, 0.5f, 60, 60), png);
+                        cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.31f, 0.98f, 0.35f, 0.95f), lootable.GetDisplayName(Lang, Player), Style.TextNormal with { TextAnchor = TextAnchor.MiddleLeft });
 
                         var cfg = Instance.manager.GetConfig(lootable.Id);
                         var (color, text) = GetConfigInfo(cfg, lootable.IsCustom);
-                        using (cui.CreateContainer(Anchor.Relative(0.31f, 0.8f, 0.05f, 0.3f), color))
+                        using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.31f, 0.8f, 0.05f, 0.3f), color))
                         {
-                            cui.AddLabel(Anchor.Fill, T(text), Style.TextNormal with { TextAnchor = TextAnchor.MiddleCenter });
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Fill, T(text), Style.TextNormal with { TextAnchor = TextAnchor.MiddleCenter });
                         }
 
-                        cui.AddButton(Anchor.Fill, String.Empty, _ => SelectLootable(lootable.Id), Style.ButtonTransparent);
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ => SelectLootable(lootable.Id), Style.ButtonTransparent);
                     }
                 }
 
@@ -3824,25 +3824,25 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 cui.AddButton((0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), Exit, Style.ButtonGreen);
                 cui.AddLabel((BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("editor_head", lootable.GetDisplayName(Lang, Player), pluginTitle), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
-                using (cui.CreateContainer(Anchor.Relative(BOUNDS_X_L, 0.8f, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L, 0.8f, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     if (editor_config.HasFlag(LootConfigFlags.Dispenser) || isGrowable)
                     {
                         Assert.NotNull(editor_config.ItemMultipliers, $"ItemMultipliers is null for config {editor_config.Id}");
                         
-                        cui.AddLabel(Anchor.Relative(0.01f, 1, 0.940f, 0.980f), isGrowable ? T("gather_multipliers_growable") : T("gather_multipliers"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                        cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 1, 0.940f, 0.980f), isGrowable ? T("gather_multipliers_growable") : T("gather_multipliers"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
                         
                         var move = MovingAnchorProperties.Create(0.003f, 0.925f, 0.12f, 0.07f, 0.007f, 0.015f);
                         foreach (var multiplier in editor_config.ItemMultipliers!)
                         {
-                            using (cui.CreateContainer(Anchor.MoveRow(ref move, 7), Style.ColorGrey))
+                            using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 7), Style.ColorGrey))
                             {
-                                cui.AddItemImage(Anchor.AbsoluteCentered(0.2f, 0.5f, 30, 30), multiplier.Key);
+                                cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered(0.2f, 0.5f, 30, 30), multiplier.Key);
 
                                 var isOverride = !Mathf.Approximately(multiplier.Value, 1);
-                                using (cui.CreateContainer(Anchor.Relative(0.2f, 0.9f, 0.15f, 0.85f, 15 + 10), isOverride ? Style.ColorYellow05 : Style.ColorLightGrey05))
+                                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.2f, 0.9f, 0.15f, 0.85f, 15 + 10), isOverride ? Style.ColorYellow05 : Style.ColorLightGrey05))
                                 {
-                                    cui.AddInputField(Anchor.Fill with { OffsetXMin = 5 }, multiplier.Value.ToString(CultureInfo.InvariantCulture), (_, s) =>
+                                    cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill with { OffsetXMin = 5 }, multiplier.Value.ToString(CultureInfo.InvariantCulture), (_, s) =>
                                     {
                                         if (Single.TryParse(s, out var newMpl))
                                         {
@@ -3858,9 +3858,9 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             }
                         }
                         
-                        cui.AddLabel(Anchor.Relative(0.01f, 1, 0.79f, 0.83f), isGrowable ? T("items") : T("gather_additions"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                        cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 1, 0.79f, 0.83f), isGrowable ? T("items") : T("gather_additions"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
                         
-                        using (cui.CreateContainer(Anchor.Fill with { OffsetYMax = -130, OffsetYMin = -130 }, UiColor.Transparent))
+                        using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Fill with { OffsetYMax = -130, OffsetYMin = -130 }, UiColor.Transparent))
                         {
                             Editor_DrawItemPanel(cui, true);
                         }
@@ -3871,12 +3871,12 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }
                 }
 
-                using (cui.CreateContainer(Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 {
-                    cui.AddButton(Anchor.Relative(0.05f, 0.95f, 0.94f, 0.98f), TU("btn_additem"), _ => Editor__EditItem(default), Style.ButtonBlue);
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.05f, 0.95f, 0.94f, 0.98f), TU("btn_additem"), _ => Editor__EditItem(default), Style.ButtonBlue);
 
                     var canLoadDefaultConfig = isCustomLoot && lootable.HasDefaultConfig;
-                    cui.AddButton(Anchor.Relative(0.52f, 0.95f, 0.885f, 0.925f), TU("btn_ltdefault"), _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.52f, 0.95f, 0.885f, 0.925f), TU("btn_ltdefault"), _ =>
                     {
                         if (canLoadDefaultConfig)
                         {
@@ -3917,9 +3917,9 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }, editor_clipboardConfig != null ? Style.ButtonBlue : Style.ButtonDisabled);
 
 
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.79f, 0.84f), T("editor_settings"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.79f, 0.84f), T("editor_settings"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
 
-                    CreateInputButton(cui, Anchor.Relative(0.05f, 0.48f, 0.71f, 0.79f), T("enabled"), editor_config.Enabled, b =>
+                    CreateInputButton(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.05f, 0.48f, 0.71f, 0.79f), T("enabled"), editor_config.Enabled, b =>
                     {
                         var successful = editor_config.SetEnabled(b, out var error);
                         Editor();
@@ -3930,7 +3930,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     });
 
                     var canChangeLootType = editor_config.HasFlag(LootConfigFlags.CanChangeLootType);
-                    CreateInputButton(cui, Anchor.Relative(0.52f, 0.95f, 0.71f, 0.79f), T("editor_loot_type"), editor_config.LootType.ToString().ToUpper(), canChangeLootType ? Style.ButtonBlue : Style.ButtonDisabled, () =>
+                    CreateInputButton(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.52f, 0.95f, 0.71f, 0.79f), T("editor_loot_type"), editor_config.LootType.ToString().ToUpper(), canChangeLootType ? Style.ButtonBlue : Style.ButtonDisabled, () =>
                     {
                         if (canChangeLootType)
                         {
@@ -3943,7 +3943,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editor_config.LootType == LootType.Custom && !editor_config.HasFlag(LootConfigFlags.Quarry) && !editor_config.HasFlag(LootConfigFlags.Dispenser))
                     {
-                        CreateInputField(cui, Anchor.Relative(0.05f, 0.95f, 0.63f, 0.71f), T("editor_total_amount"), editor_config.Amount.ToString(), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.05f, 0.95f, 0.63f, 0.71f), T("editor_total_amount"), editor_config.Amount.ToString(), s =>
                         {
                             if (MinMax.TryParse(s, out var result))
                             {
@@ -3955,7 +3955,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editor_config.HasFlag(LootConfigFlags.Npc))
                     {
-                        CreateInputButton(cui, Anchor.Relative(0.05f, 0.48f, 0.55f, 0.63f), T("editor_remove_corpse"), editor_config.NpcRemoveCorpse, b =>
+                        CreateInputButton(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.05f, 0.48f, 0.55f, 0.63f), T("editor_remove_corpse"), editor_config.NpcRemoveCorpse, b =>
                         {
                             editor_config.NpcRemoveCorpse = b;
                             Editor();
@@ -3997,7 +3997,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                 if (!isSelecting)
                 {
-                    cui.AddButton(Anchor.Relative(0.01f, 0.1f, 0.940f, 0.980f), TU("btn_select"), _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.1f, 0.940f, 0.980f), TU("btn_select"), _ =>
                     {
                         editor_selection = Pool.Get<List<LootItemCategory>>();
                         Editor();
@@ -4007,9 +4007,9 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 {
                     var anySelected = editor_selection != null && editor_selection.Count > 0;
 
-                    cui.AddButton(Anchor.Relative(0.01f, 0.1f, 0.940f, 0.980f), TU("btn_done"), _ => Editor__EndSelect(), Style.ButtonLightGrey);
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.1f, 0.940f, 0.980f), TU("btn_done"), _ => Editor__EndSelect(), Style.ButtonLightGrey);
 
-                    cui.AddButton(Anchor.Relative(0.11f, 0.16f, 0.940f, 0.980f), TU("btn_all"), _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.11f, 0.16f, 0.940f, 0.980f), TU("btn_all"), _ =>
                     {
                         editor_selection.Clear();
                         editor_selection.AddRange(editor_config.GetAllItems(Instance.IsCIDLoaded));
@@ -4020,7 +4020,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editor_config.LootType == LootType.Custom && editor_config.CategoryCount > 0)
                     {
-                        cui.AddButton(Anchor.MoveRow(ref btnMove), TU("btn_moveto"), _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref btnMove), TU("btn_moveto"), _ =>
                         {
                             if (anySelected)
                             {
@@ -4035,7 +4035,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editor_config.LootType != LootType.Blacklist)
                     {
-                        cui.AddButton(Anchor.MoveRow(ref btnMove), TU("btn_multiply"), _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref btnMove), TU("btn_multiply"), _ =>
                         {
                             if (anySelected)
                             {
@@ -4047,7 +4047,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             }
                         }, anySelected ? Style.ButtonBlue : Style.ButtonDisabled);
 
-                        cui.AddButton(Anchor.MoveRow(ref btnMove), TU("btn_set_amount"), _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref btnMove), TU("btn_set_amount"), _ =>
                         {
                             if (anySelected)
                             {
@@ -4059,7 +4059,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             }
                         }, anySelected ? Style.ButtonBlue : Style.ButtonDisabled);
 
-                        cui.AddButton(Anchor.MoveRow(ref btnMove), TU("btn_set_chance"), _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref btnMove), TU("btn_set_chance"), _ =>
                         {
                             if (anySelected)
                             {
@@ -4072,7 +4072,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         }, anySelected ? Style.ButtonBlue : Style.ButtonDisabled);
                     }
 
-                    cui.AddButton(Anchor.MoveRow(ref btnMove), TU("btn_delete"), _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref btnMove), TU("btn_delete"), _ =>
                     {
                         CreateConfirmDialog(T("delete_title"), T("delete_desc"), () =>
                         {
@@ -4088,8 +4088,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                 if (editor_config.LootType != LootType.Blacklist)
                 {
-                    cui.AddLabel(Anchor.Relative(0.8f, 0.87f, 0.940f, 0.980f), T("order_label"), Style.TextNormal with { TextAnchor = TextAnchor.MiddleRight });
-                    cui.AddButton(Anchor.Relative(0.88f, 0.99f, 0.940f, 0.980f), TU(editor_ordering.ToString()), _ =>
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.8f, 0.87f, 0.940f, 0.980f), T("order_label"), Style.TextNormal with { TextAnchor = TextAnchor.MiddleRight });
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.88f, 0.99f, 0.940f, 0.980f), TU(editor_ordering.ToString()), _ =>
                     {
                         editor_ordering = editor_ordering.Next();
                         Editor();
@@ -4138,19 +4138,19 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editor_config.LootType == LootType.Blacklist)
                     {
-                        CreateItemPanel(cui, Anchor.MoveRow(ref move, row_size), item.ItemId, 0ul, String.Empty, OnItemClick, backgroundOverride: bgOverride);
+                        CreateItemPanel(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, row_size), item.ItemId, 0ul, String.Empty, OnItemClick, backgroundOverride: bgOverride);
                     }
                     else
                     {
                         var hideChance = editor_flags.HasFlag(ItemEditorFlags.DisableChance);
-                        CreateItemPanel(cui, Anchor.MoveRow(ref move, row_size), item.Category, item.Item, OnItemClick, bgOverride, hideChance);
+                        CreateItemPanel(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, row_size), item.Category, item.Item, OnItemClick, bgOverride, hideChance);
                     }
                 }
 
                 float y = smallPanel ? 0.23f : 0.01f;
                 var maxPage = Mathf.CeilToInt((float)itemList.Count / (row_size * col_size));
-                cui.AddLabel(Anchor.Relative(0, 1, y, y + 0.03f), T("pagecount", editor_itemPage + 1, maxPage));
-                cui.AddButton(Anchor.Relative(0.01f, 0.1f, y, y + 0.03f), "<--", _ =>
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, y, y + 0.03f), T("pagecount", editor_itemPage + 1, maxPage));
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.1f, y, y + 0.03f), "<--", _ =>
                 {
                     if (editor_itemPage > 0)
                     {
@@ -4158,7 +4158,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         Editor();
                     }
                 }, editor_itemPage > 0 ? Style.ButtonBlue : Style.ButtonDisabled);
-                cui.AddButton(Anchor.Relative(0.9f, 0.99f, y, y + 0.03f), "-->", _ =>
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, 0.99f, y, y + 0.03f), "-->", _ =>
                 {
                     if (editor_itemPage + 1 < maxPage)
                     {
@@ -4207,21 +4207,21 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
             private void Editor_DrawCategories(Cui cui)
             {
-                cui.AddLabel(Anchor.Relative(0, 1, 0.50f, 0.54f), T("categories"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.50f, 0.54f), T("categories"), Style.TextHeading with { TextAnchor = TextAnchor.LowerCenter });
 
                 var move = MovingAnchorProperties.Create(0.05f, 0.49f, 0.9f, 0.08f, 0, 0.01f);
                 foreach (var cat in editor_config.GetCategories())
                 {
-                    using (cui.CreateContainer(Anchor.MoveColumn(ref move), Style.ColorLightGrey05))
+                    using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.MoveColumn(ref move), Style.ColorLightGrey05))
                     {
-                        cui.AddBox(Anchor.Relative(0, 0.05f, 0, 0.98f), Style.GetCategoryColor(cat.Id));
+                        cui.AddBox(PluginComponents.Loottable.Cui.Anchor.Relative(0, 0.05f, 0, 0.98f), Style.GetCategoryColor(cat.Id));
 
                         if (DEBUG)
                         {
-                            cui.AddLabel(Anchor.Relative(0, 0.2f, 0, 1), cat.Id.ToString());
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 0.2f, 0, 1), cat.Id.ToString());
                         }
 
-                        CreateInputField(cui, Anchor.Relative(0.1f, 0.5f, 0.1f, 0.95f), T("chance_percent"), (cat.Chance * 100).ToString(CultureInfo.InvariantCulture), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.1f, 0.5f, 0.1f, 0.95f), T("chance_percent"), (cat.Chance * 100).ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var result))
                             {
@@ -4230,7 +4230,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             Editor();
                         }, labelStyle: Style.TextNormalBold);
 
-                        CreateInputField(cui, Anchor.Relative(0.55f, 0.95f, 0.1f, 0.95f), T("amount"), cat.Amount.ToString(), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.55f, 0.95f, 0.1f, 0.95f), T("amount"), cat.Amount.ToString(), s =>
                         {
                             if (MinMax.TryParse(s, out var result) && result.Min >= 0)
                             {
@@ -4239,7 +4239,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             Editor();
                         }, labelStyle: Style.TextNormalBold);
 
-                        cui.AddButton(Anchor.Relative(0.9f, 0.95f, 0.65f, 0.9f), "\u2717", _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, 0.95f, 0.65f, 0.9f), "\u2717", _ =>
                         {
                             editor_config.RemoveCategory(cat.Id);
                             Editor();
@@ -4249,7 +4249,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                 if (editor_config.CategoryCount < 6 && !editor_config.HasFlag(LootConfigFlags.DisableCategories))
                 {
-                    cui.AddButton(Anchor.Relative(0.25f, 0.75f, move.YMin() + 0.02f, move.YMax() - 0.01f), TU("btn_new_cat"), _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.25f, 0.75f, move.YMin() + 0.02f, move.YMax() - 0.01f), TU("btn_new_cat"), _ =>
                     {
                         editor_config.AddCategory();
                         Editor();
@@ -4269,14 +4269,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 }
 
                 using var cui = Cui.Create(Instance, rootView);
-                cui.AddButton(Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
-                using (cui.CreateContainer(Anchor.Relative(0.4f, 0.6f, 0.5f, 0.7f), Style.ColorGrey))
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.4f, 0.6f, 0.5f, 0.7f), Style.ColorGrey))
                 {
                     cui.AddLabel((0, 1, 0.8f, 0.95f), T("multiply_title"), Style.TextHeading);
 
                     using (cui.CreateContainer((0.05f, 0.95f, 0.5f, 0.7f), Style.ColorLightGrey))
                     {
-                        cui.AddInputField(Anchor.Fill, editor_multiplierOverlay_mpl.ToString(CultureInfo.InvariantCulture), (_, s) =>
+                        cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill, editor_multiplierOverlay_mpl.ToString(CultureInfo.InvariantCulture), (_, s) =>
                         {
                             if (Single.TryParse(s, out var result))
                             {
@@ -4310,19 +4310,19 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             private void Editor_DrawCategoryOverlay()
             {
                 using var cui = Cui.Create(Instance, rootView);
-                cui.AddButton(Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
-                using (cui.CreateContainer(Anchor.Relative(0.4f, 0.6f, 0.4f, 0.7f), Style.ColorGrey))
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.4f, 0.6f, 0.4f, 0.7f), Style.ColorGrey))
                 {
                     cui.AddLabel((0, 1, 0.85f, 1), T("category_select"), Style.TextHeading);
 
                     var move = MovingAnchorProperties.Create(0.025f, 0.8f, 0.45f, 0.15f, 0.05f, 0.05f);
-                    cui.AddButton(Anchor.MoveX(ref move, 0.85f, true), T("category_default"), _ => ChangeCategory(LootConfig.DEFAULT_CATEGORY_ID), Style.ColorLightGrey, Style.TextButton);
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveX(ref move, 0.85f, true), T("category_default"), _ => ChangeCategory(LootConfig.DEFAULT_CATEGORY_ID), Style.ColorLightGrey, Style.TextButton);
                     move.NextRow(true);
 
                     int catIdx = 0;
                     foreach (var cat in editor_config.GetCategories())
                     {
-                        cui.AddButton(Anchor.MoveRow(ref move, 2), T("category_id", catIdx + 1), _ => ChangeCategory(cat.Id), Style.GetCategoryColor(catIdx), Style.TextButton);
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 2), T("category_id", catIdx + 1), _ => ChangeCategory(cat.Id), Style.GetCategoryColor(catIdx), Style.TextButton);
                         catIdx++;
                     }
                 }
@@ -4358,14 +4358,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 }
 
                 using var cui = Cui.Create(Instance, rootView);
-                cui.AddButton(Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
-                using (cui.CreateContainer(Anchor.Relative(0.4f, 0.6f, 0.5f, 0.7f), Style.ColorGrey))
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.4f, 0.6f, 0.5f, 0.7f), Style.ColorGrey))
                 {
                     cui.AddLabel((0, 1, 0.8f, 0.95f), T("amount_overlay_title"), Style.TextHeading);
 
                     using (cui.CreateContainer((0.05f, 0.95f, 0.5f, 0.7f), Style.ColorLightGrey))
                     {
-                        cui.AddInputField(Anchor.Fill, editor_amountOverlay_amount.ToString(), (_, s) =>
+                        cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill, editor_amountOverlay_amount.ToString(), (_, s) =>
                         {
                             if (MinMax.TryParse(s, out var result))
                             {
@@ -4406,14 +4406,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 }
 
                 using var cui = Cui.Create(Instance, rootView);
-                cui.AddButton(Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
-                using (cui.CreateContainer(Anchor.Relative(0.4f, 0.6f, 0.5f, 0.7f), Style.ColorGrey))
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.4f, 0.6f, 0.5f, 0.7f), Style.ColorGrey))
                 {
                     cui.AddLabel((0, 1, 0.8f, 0.95f), T("set_chance_title"), Style.TextHeading);
 
                     using (cui.CreateContainer((0.05f, 0.95f, 0.5f, 0.7f), Style.ColorLightGrey))
                     {
-                        cui.AddInputField(Anchor.Fill, (editor_chanceOverlay_val * 100).ToString(CultureInfo.InvariantCulture) + "%", (_, s) =>
+                        cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill, (editor_chanceOverlay_val * 100).ToString(CultureInfo.InvariantCulture) + "%", (_, s) =>
                         {
                             if (Single.TryParse(s.Replace("%", String.Empty), out var result))
                             {
@@ -4470,17 +4470,17 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 var itemName = Instance.GetItemNameTranslated(editItem?.ItemId ?? itemEditor_item.ItemId, Lang.GetLanguage(Player));
                 
                 using var cui = Cui.Create(Instance, mainContainer);
-                cui.AddButton(Anchor.Relative(0.7f, 0.795f, 0.95f, 0.99f), TU("btn_delete"), _ => Back(delete: true), Style.ButtonRed);
-                cui.AddButton(Anchor.Relative(0.8f, 0.895f, 0.95f, 0.99f), TU("btn_cancel"), _ => Back(), Style.ButtonRed);
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), _ => Back(save: true), Style.ButtonGreen);
-                cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), isExtraItem ? T("ieditor_head_extra") : T("ieditor_head", itemName, editor_config.Id),
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.7f, 0.795f, 0.95f, 0.99f), TU("btn_delete"), _ => Back(delete: true), Style.ButtonRed);
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.8f, 0.895f, 0.95f, 0.99f), TU("btn_cancel"), _ => Back(), Style.ButtonRed);
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), _ => Back(save: true), Style.ButtonGreen);
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), isExtraItem ? T("ieditor_head_extra") : T("ieditor_head", itemName, editor_config.Id),
                     Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
-                using (cui.CreateContainer(Anchor.Relative(BOUNDS_X_L, 0.4975f, 0.01f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L, 0.4975f, 0.01f, 0.94f), Style.ColorGrey05))
                 {
                     var move = MovingAnchorProperties.Create(0, 0.99f, 0.28f, 0.09f, 0.02f, 0.01f);
 
-                    CreateInputField(cui, Anchor.MoveRow(ref move), T("shortname"), (editItem?.ItemDefinition ?? itemEditor_item.ItemDefinition).shortname, s =>
+                    CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("shortname"), (editItem?.ItemDefinition ?? itemEditor_item.ItemDefinition).shortname, s =>
                     {
                         var def = ItemManager.FindItemDefinition(s);
                         if (def != null)
@@ -4492,7 +4492,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableBlueprint))
                     {
-                        CreateInputButton(cui, Anchor.MoveX(ref move, 0.12f, true), T("blueprint"), editItem.IsBlueprint, b =>
+                        CreateInputButton(cui, PluginComponents.Loottable.Cui.Anchor.MoveX(ref move, 0.12f, true), T("blueprint"), editItem.IsBlueprint, b =>
                         {
                             editItem.IsBlueprint = b;
                             ItemEditor();
@@ -4501,7 +4501,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableAmount))
                     {
-                        CreateInputField(cui, Anchor.MoveRow(ref move), T("amount"), editItem.Amount.ToString(), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("amount"), editItem.Amount.ToString(), s =>
                         {
                             if (MinMax.TryParse(s, out var result) && result.Min > 0 && (IsNotEnabled(ItemEditorFlags.DisableRangedAmount) || result.IsFixed))
                             {
@@ -4513,7 +4513,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableCondition) && editItem.ItemDefinition.condition.enabled)
                     {
-                        CreateInputField(cui, Anchor.MoveRow(ref move), T("condition_percent"), (editItem.Condition * 100).ToString("N0"), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("condition_percent"), (editItem.Condition * 100).ToString("N0"), s =>
                         {
                             if (MinMaxFloat.TryParse(s, out var result))
                             {
@@ -4527,7 +4527,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableSkinId))
                     {
-                        CreateInputField(cui, Anchor.MoveRow(ref move), T("skinid"), editItem.SkinId.ToString(), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("skinid"), editItem.SkinId.ToString(), s =>
                         {
                             if (UInt64.TryParse(s, out var result))
                             {
@@ -4539,7 +4539,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableChance) && !isExtraItem)
                     {
-                        CreateInputField(cui, Anchor.MoveRow(ref move), T("chance_percent"), (editItem.Chance * 100).ToString(CultureInfo.InvariantCulture), s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("chance_percent"), (editItem.Chance * 100).ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var result))
                             {
@@ -4553,7 +4553,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableCustomName))
                     {
-                        CreateInputField(cui, Anchor.MoveRow(ref move), T("customname"), editItem.CustomName, s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("customname"), editItem.CustomName, s =>
                         {
                             editItem.CustomName = s;
                             ItemEditor();
@@ -4566,7 +4566,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableCustomName))
                     {
-                        CreateInputField(cui, Anchor.MoveRow(ref move), T("text"), editItem.Text, s =>
+                        CreateInputField(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move), T("text"), editItem.Text, s =>
                         {
                             editItem.Text = s;
                             ItemEditor();
@@ -4579,14 +4579,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
                     if (editItem != null)
                     {
-                        cui.AddLabel(Anchor.Relative(0.45f, 0.55f, 0.65f, 0.7f), T("preview"));
+                        cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.45f, 0.55f, 0.65f, 0.7f), T("preview"));
                         var hideChance = editor_flags.HasFlag(ItemEditorFlags.DisableChance);
-                        CreateItemPanel(cui, Anchor.Relative(0.45f, 0.55f, 0.53f, 0.65f), -1, editItem, _ => { }, hideChance: hideChance);
+                        CreateItemPanel(cui, PluginComponents.Loottable.Cui.Anchor.Relative(0.45f, 0.55f, 0.53f, 0.65f), -1, editItem, _ => { }, hideChance: hideChance);
                     }
 
                     if (editItem != null && IsNotEnabled(ItemEditorFlags.DisableExtras) && itemEditor_item_l2 == null)
                     {
-                        using (cui.CreateContainer(Anchor.Relative(0.01f, 0.99f, 0.02f, 0.45f), Style.ColorGrey05))
+                        using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.99f, 0.02f, 0.45f), Style.ColorGrey05))
                         {
                             cui.AddLabel((0.01f, 0.5f, 0.9f, 0.98f), T("ieditor_extra"), Style.TextLabel);
                             cui.AddButton((0.8f, 0.99f, 0.9f, 0.98f), TU("btn_add"), _ =>
@@ -4603,7 +4603,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                                 move = MovingAnchorProperties.Create(0, 0.87f, 0.11f, 0.29f, 0.01f, 0.025f);
                                 foreach (var item in editItem.Extras)
                                 {
-                                    CreateItemPanel(cui, Anchor.MoveRow(ref move, 9), -1, item, _ =>
+                                    CreateItemPanel(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 9), -1, item, _ =>
                                     {
                                         EditExtraItem(item);
                                         ItemEditor();
@@ -4614,7 +4614,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }
                 }
 
-                using (cui.CreateContainer(Anchor.Relative(0.5025f, BOUNDS_X_R, 0.01f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.5025f, BOUNDS_X_R, 0.01f, 0.94f), Style.ColorGrey05))
                 {
                     var textStyle = new LabelStyle
                     {
@@ -4624,16 +4624,16 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         TextColor = UiColor.White
                     };
 
-                    cui.AddLabel(Anchor.Relative(0.005f, 0.99f, 0.96f, 1f), T("item_list"), Style.TextHeading);
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.005f, 0.99f, 0.96f, 1f), T("item_list"), Style.TextHeading);
 
                     using (cui.CreateContainer((0.6f, 0.99f, 0.965f, 0.995f), Style.ColorGrey05))
                     {
                         if (String.IsNullOrEmpty(itemEditor_search))
                         {
-                            cui.AddLabel(Anchor.Fill  with { OffsetXMin = 5 }, T("search"), Style.TextNormal with { TextColor = Style.ColorLightGrey });
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Fill  with { OffsetXMin = 5 }, T("search"), Style.TextNormal with { TextColor = Style.ColorLightGrey });
                         }
                         
-                        cui.AddInputField(Anchor.Fill with { OffsetXMin = 5 }, itemEditor_search, (_, s) =>
+                        cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill with { OffsetXMin = 5 }, itemEditor_search, (_, s) =>
                         {
                             itemEditor_search = s;
                             itemEditor_itemTab = CustomItemManager.SEARCH_TAB;
@@ -4647,7 +4647,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     {
                         itemEditor_itemTab ??= tab;
 
-                        cui.AddButton(Anchor.MoveRow(ref move, 8), tab.ToUpper(), _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 8), tab.ToUpper(), _ =>
                         {
                             itemEditor_itemTab = tab;
                             itemEditor_search = String.Empty;
@@ -4667,11 +4667,11 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             move.NextRow();
                             if (lastPlugin != Instance.Name)
                             {
-                                cui.AddLabel(Anchor.MoveOffsetY(ref move, 0.08f, true) with { XMax = 0.8f }, lastPlugin.WithSpaceBeforeUppercase(), Style.TextNormalBold with { TextAnchor = TextAnchor.LowerLeft });
+                                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.MoveOffsetY(ref move, 0.08f, true) with { XMax = 0.8f }, lastPlugin.WithSpaceBeforeUppercase(), Style.TextNormalBold with { TextAnchor = TextAnchor.LowerLeft });
                             }
                         }
 
-                        CreateItemPanel(cui, Anchor.MoveRow(ref move, 10), item.ItemId, item.SkinId, item.GetDisplayName(Lang, Player), _ =>
+                        CreateItemPanel(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 10), item.ItemId, item.SkinId, item.GetDisplayName(Lang, Player), _ =>
                         {
                             var itemDef = item.GetItemDefinition();
                             if (ItemHelper.IsDLCItem(itemDef))
@@ -4714,8 +4714,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }
 
                     var maxPage = Mathf.CeilToInt((float)itemCount / itemEditor_itemsPerPage);
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.01f, 0.035f), T("pagecount", itemEditor_itemPage + 1, maxPage));
-                    cui.AddButton(Anchor.Relative(0.01f, 0.1f, 0.01f, 0.035f), "<--", _ =>
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.01f, 0.035f), T("pagecount", itemEditor_itemPage + 1, maxPage));
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.1f, 0.01f, 0.035f), "<--", _ =>
                     {
                         if (itemEditor_itemPage > 0)
                         {
@@ -4723,7 +4723,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             ItemEditor();
                         }
                     }, itemEditor_itemPage > 0 ? Style.ButtonBlue : Style.ButtonDisabled);
-                    cui.AddButton(Anchor.Relative(0.9f, 0.99f, 0.01f, 0.035f), "-->", _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, 0.99f, 0.01f, 0.035f), "-->", _ =>
                     {
                         if (itemEditor_itemPage + 1 < maxPage)
                         {
@@ -4818,8 +4818,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), Exit, Style.ButtonBlue);
-                //cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("stack_size_control"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), Exit, Style.ButtonBlue);
+                //cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("stack_size_control"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
                 CreateInputButton(cui, (BOUNDS_X_L, 0.12f, 0.92f, 1), T("seditor_enabled"), Instance.stackSizeController.Enabled, b =>
                 {
@@ -4848,15 +4848,15 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     foreach (var entry in Instance.stackSizeController.GetEntries())
                     {
                         var isDefault = IsDefault(entry);
-                        using (cui.CreateContainer(Anchor.MoveRow(ref move, 2), entry == stackSize_entry ? Style.ColorBlue : Style.ColorGrey05))
+                        using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 2), entry == stackSize_entry ? Style.ColorBlue : Style.ColorGrey05))
                         {
-                            cui.AddLabel(Anchor.Relative(0, 1, 0.5f, 1, 8), isDefault ? "<i>DEFAULT</i>" : entry.GetDisplayName(T), Style.TextLabel);
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.5f, 1, 8), isDefault ? "<i>DEFAULT</i>" : entry.GetDisplayName(T), Style.TextLabel);
 
                             var label = isDefault ? T("seditor_default_desc") : T("seditor_prefab_count", entry.Prefabs.Count);
-                            cui.AddLabel(Anchor.Relative(0, 1, 0, 0.5f, 8), label, Style.TextNormal);
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 0.5f, 8), label, Style.TextNormal);
 
 
-                            cui.AddButton(Anchor.Fill, String.Empty, _ =>
+                            cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ =>
                             {
                                 stackSize_entry = entry;
                                 StackSize();
@@ -4901,14 +4901,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             var move = MovingAnchorProperties.Create(0.05f, 0.73f, 0.9f, 0.05f, 0, 0.005f);
                             foreach (var prefabId in stackSize_entry.Prefabs)
                             {
-                                using (cui.CreateContainer(Anchor.MoveColumn(ref move), UiColor.Transparent))
+                                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.MoveColumn(ref move), UiColor.Transparent))
                                 {
-                                    cui.AddButton(Anchor.Absolute(0, 0.5f, 0, 20, -10, 10), "X", _ =>
+                                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Absolute(0, 0.5f, 0, 20, -10, 10), "X", _ =>
                                     {
                                         stackSize_entry.Prefabs.Remove(prefabId);
                                         StackSize();
                                     }, Style.ButtonRed);
-                                    cui.AddLabel(Anchor.Relative(0, 1, 0, 1, 30), StringPool.Get(prefabId), Style.TextNormal);
+                                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 1, 30), StringPool.Get(prefabId), Style.TextNormal);
                                 }
                             }
                         }
@@ -4916,7 +4916,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }
                     else
                     {
-                        cui.AddLabel(Anchor.Fill, T("seditor_no_group"), Style.TextLabel with { TextAnchor = TextAnchor.MiddleCenter });
+                        cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Fill, T("seditor_no_group"), Style.TextLabel with { TextAnchor = TextAnchor.MiddleCenter });
                     }
                 }
 
@@ -4946,16 +4946,16 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 var isDefault = false;//Instance.stackSizeController.GetDefaultEntry() == stackSize_entry;
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), Exit, Style.ButtonGreen);
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), Exit, Style.ButtonGreen);
                 var head = T("stack_size_control"); //T("seditor_head", !isDefault ? stackSize_entry.GetDisplayName(T) : "<i>DEFAULT</i>");
-                cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), head, Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), head, Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
-                using (cui.CreateContainer(Anchor.Relative(BOUNDS_X_L, 0.8f, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L, 0.8f, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     var move = MovingAnchorProperties.Create(0, 1, 1f / 7, 0.04f, 0, 0);
                     foreach (var category in stackSize_itemCategories.Value.Keys)
                     {
-                        cui.AddButton(Anchor.MoveRow(ref move, 7), T(category.ToString().ToLower()), _ =>
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 7), T(category.ToString().ToLower()), _ =>
                         {
                             stackSize_tab = category;
                             stackSize_tabPage = 0;
@@ -4969,10 +4969,10 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     {
                         if (String.IsNullOrEmpty(stackSize_search))
                         {
-                            cui.AddLabel(Anchor.Fill  with { OffsetXMin = 5 }, T("search"), Style.TextNormal with { TextColor = Style.ColorLightGrey });
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Fill  with { OffsetXMin = 5 }, T("search"), Style.TextNormal with { TextColor = Style.ColorLightGrey });
                         }
 
-                        cui.AddInputField(Anchor.Fill with { OffsetXMin = 5 }, stackSize_search ?? String.Empty, (_, s) =>
+                        cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill with { OffsetXMin = 5 }, stackSize_search ?? String.Empty, (_, s) =>
                         {
                             stackSize_search = s;
                             stackSize_tab = (ItemCategory)(-1);
@@ -4989,9 +4989,9 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     var items = Enum.IsDefined(typeof(ItemCategory), stackSize_tab) ? stackSize_itemCategories.Value[stackSize_tab] : stackSize_searchResults;
                     foreach (var item in items.Skip(stackSize_tabPage * row_size * col_size).Take(row_size * col_size))
                     {
-                        using (cui.CreateContainer(Anchor.MoveRow(ref itemMove, row_size), Style.ColorGrey))
+                        using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.MoveRow(ref itemMove, row_size), Style.ColorGrey))
                         {
-                            cui.AddItemImage(Anchor.AbsoluteCentered(0.2f, 0.5f, image_size, image_size), item.itemid);
+                            cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered(0.2f, 0.5f, image_size, image_size), item.itemid);
 
                             var vss = Instance.stackSizeController.GetVanillaStackSize(item.itemid);
                             cui.AddLabel((0.4f, 0.65f, 0.55f, 0.9f), $"{T("vanilla")}:", Style.TextNormal with { TextAnchor = TextAnchor.MiddleRight });
@@ -5001,7 +5001,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             cui.AddLabel((0.4f, 0.65f, 0.1f, 0.45f), $"{T("custom")}:", Style.TextNormal with { TextAnchor = TextAnchor.MiddleRight });
                             using (cui.CreateContainer((0.7f, 0.95f, 0.1f, 0.45f), css > 0 ? Style.ColorYellow05 : Style.ColorLightGrey05))
                             {
-                                cui.AddInputField(Anchor.Fill, css > 0 ? css.ToString() : String.Empty, (_, s) =>
+                                cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Fill, css > 0 ? css.ToString() : String.Empty, (_, s) =>
                                 {
                                     if (Int32.TryParse(s, out var result) && result > 0)
                                     {
@@ -5015,13 +5015,13 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                                 });
                             }
 
-                            cui.AddLabel(Anchor.Absolute(0.2f, 0.5f, -image_size, image_size / 2f, -image_size / 2f, 0), stackSize_entry.GetStackSize(vss, item).ToString("N0"), Style.TextLabel with { TextAnchor = TextAnchor.LowerRight });
+                            cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Absolute(0.2f, 0.5f, -image_size, image_size / 2f, -image_size / 2f, 0), stackSize_entry.GetStackSize(vss, item).ToString("N0"), Style.TextLabel with { TextAnchor = TextAnchor.LowerRight });
                         }
                     }
 
                     var maxPage = Mathf.CeilToInt((float)items.Count / (row_size * col_size));
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.01f, 0.04f), T("pagecount", stackSize_tabPage + 1, maxPage));
-                    cui.AddButton(Anchor.Relative(0.01f, 0.1f, 0.01f, 0.04f), "<--", _ =>
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.01f, 0.04f), T("pagecount", stackSize_tabPage + 1, maxPage));
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.1f, 0.01f, 0.04f), "<--", _ =>
                     {
                         if (stackSize_tabPage > 0)
                         {
@@ -5029,7 +5029,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             StackSizeEditor();
                         }
                     }, stackSize_tabPage > 0 ? Style.ButtonBlue : Style.ButtonDisabled);
-                    cui.AddButton(Anchor.Relative(0.9f, 0.99f, 0.01f, 0.04f), "-->", _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, 0.99f, 0.01f, 0.04f), "-->", _ =>
                     {
                         if (stackSize_tabPage + 1 < maxPage)
                         {
@@ -5039,7 +5039,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     }, stackSize_tabPage + 1 < maxPage ? Style.ButtonBlue : Style.ButtonDisabled);
                 }
 
-                using (cui.CreateContainer(Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     CreateInputButton(cui, (0.05f, 0.95f, 0.9f, 0.98f), T("enabled"), Instance.stackSizeController.Enabled /*stackSize_entry.Enabled || isDefault*/, b =>
                     {
@@ -5155,16 +5155,16 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), _ => Home(), Style.ButtonBlue);
-                cui.AddButton(Anchor.Relative(0.79f, 0.89f, 0.95f, 0.99f), TU("btn_addcustom"), _ => EditItem(CustomItemDefinition.Create(963906841, 2979393128, "Hampter")), Style.ButtonGreen);
-                cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("custom_item_manager"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), _ => Home(), Style.ButtonBlue);
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.79f, 0.89f, 0.95f, 0.99f), TU("btn_addcustom"), _ => EditItem(CustomItemDefinition.Create(963906841, 2979393128, "Hampter")), Style.ButtonGreen);
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("custom_item_manager"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
-                using (cui.CreateContainer(Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     cui.AddLabel((0.05f, 0.95f, 0.6f, 0.98f), T("custom_item_info"), Style.TextNormal with { TextAnchor = TextAnchor.UpperLeft });
                 }
 
-                using (cui.CreateContainer(Anchor.Relative(BOUNDS_X_L, 0.8f, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L, 0.8f, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     var move = MovingAnchorProperties.Create(0, 0.98f, 0.07f, 0.119f, 0.01f, 0.013f);
                     var pageCount = 0;
@@ -5186,7 +5186,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                                 EditItem(item);
                             } : null;
 
-                            CreateItemPanel(cui, Anchor.MoveRow(ref move, 14), item.ItemId, item.SkinId, item.GetDisplayName(Lang, Player), callback);
+                            CreateItemPanel(cui, PluginComponents.Loottable.Cui.Anchor.MoveRow(ref move, 14), item.ItemId, item.SkinId, item.GetDisplayName(Lang, Player), callback);
                         }
                         else if (def.Instruction == PageInstruction.PAGE_COUNT && def.Data is int count)
                         {
@@ -5194,8 +5194,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         }
                     }
 
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.01f, 0.035f), T("pagecount", customItems_itemPage + 1, pageCount));
-                    cui.AddButton(Anchor.Relative(0.01f, 0.1f, 0.01f, 0.035f), "<--", _ =>
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.01f, 0.035f), T("pagecount", customItems_itemPage + 1, pageCount));
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.1f, 0.01f, 0.035f), "<--", _ =>
                     {
                         if (customItems_itemPage > 0)
                         {
@@ -5203,7 +5203,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                             CustomItems();
                         }
                     }, customItems_itemPage > 0 ? Style.ButtonBlue : Style.ButtonDisabled);
-                    cui.AddButton(Anchor.Relative(0.9f, 0.99f, 0.01f, 0.035f), "-->", _ =>
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, 0.99f, 0.01f, 0.035f), "-->", _ =>
                     {
                         if (customItems_itemPage + 1 < pageCount)
                         {
@@ -5231,8 +5231,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             private void CustomItems_EditOverlay()
             {
                 using var cui = Cui.Create(Instance, rootView);
-                cui.AddButton(Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
-                using (cui.CreateContainer(Anchor.Relative(0.3f, 0.7f, 0.5f, 0.8f), Style.ColorGrey))
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, _ => Destroy(), Style.ButtonTransparentDark);
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.3f, 0.7f, 0.5f, 0.8f), Style.ColorGrey))
                 {
                     cui.AddLabel((0, 1, 0.85f, 0.98f), T("custom_items_edit"), Style.TextHeading);
 
@@ -5314,15 +5314,15 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), _ => Home(), Style.ButtonBlue);
-                cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("settings"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), _ => Home(), Style.ButtonBlue);
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("settings"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
-                // using (cui.CreateContainer(Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                // using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 // {
                 //     cui.AddLabel((0.05f, 0.95f, 0.6f, 0.98f), T("custom_item_info"), Style.TextNormal with { TextAnchor = TextAnchor.UpperLeft });
                 // }
 
-                using (cui.CreateContainer(Anchor.Relative(BOUNDS_X_L, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     CreateInputButton(cui, (0.02f, 0.13f, 0.9f, 0.99f), T("loot_refresh"), Instance.state.AutoLootRefresh, b =>
                     {
@@ -5381,14 +5381,14 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), _ =>
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_save"), _ =>
                 {
                     Instance.configurations.Save();
                     Instance.configurations.Initialize();
                     Instance.UpdateConfigSubscriptions();
                     Home();
                 }, Style.ButtonGreen);
-                cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("configuration"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("configuration"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
                 const float h = 0.08f;
                 const float hi = 0.06f;
@@ -5418,7 +5418,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1999722522);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1999722522);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_furnace_small"), sc.SmallFurnaceSpeed.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5429,7 +5429,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1992717673);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1992717673);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_furnace_large"), sc.LargeFurnaceSpeed.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5440,7 +5440,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1196547867);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1196547867);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_furnace_electric"), sc.ElectricFurnaceSpeed.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5451,7 +5451,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1293296287);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1293296287);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_refinery"), sc.RefinerySpeed.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5462,7 +5462,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), 1099314009);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), 1099314009);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_bbq"), sc.BBQSpeed.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5473,7 +5473,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), 1946219319);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), 1946219319);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_campfire"), sc.CampfireSpeed.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5484,7 +5484,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         i -= d;
                         
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), 1259919256);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), 1259919256);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_mixing_table"), sc.MixingSpeedMultiplier.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var mpl))
@@ -5495,7 +5495,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         
                         i -= (d + 0.03f);
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1938052175);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1938052175);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("charcoal_chance_percent"), (sc.CharcoalChance * 100).ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Single.TryParse(s, out var chance))
@@ -5506,7 +5506,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                         });
                         
                         i -= d;
-                        cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1938052175);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -1938052175);
                         CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("charcoal_amount"), sc.CharcoalAmount.ToString(CultureInfo.InvariantCulture), s =>
                         {
                             if (Int32.TryParse(s, out var amount))
@@ -5642,7 +5642,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     });
                     
                     i -= d;
-                    cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3036100875);
+                    cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3036100875);
                     CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_speed"), sc.RecyclerSpeed.ToString(CultureInfo.InvariantCulture), s =>
                     {
                         if (Single.TryParse(s, out var mpl))
@@ -5653,7 +5653,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     });
 
                     i -= d;
-                    cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3036100875);
+                    cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3036100875);
                     CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_efficiency_percent"), (sc.RecyclerEfficiency * 100).ToString(CultureInfo.InvariantCulture), s =>
                     {
                         if (Single.TryParse(s, out var efficiency))
@@ -5664,7 +5664,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     });
                     
                     i -= (d + 0.03f);
-                    cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3456406890);
+                    cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3456406890);
                     CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_sz_speed"), sc.RecyclerSafeSpeed.ToString(CultureInfo.InvariantCulture), s =>
                     {
                         if (Single.TryParse(s, out var mpl))
@@ -5675,7 +5675,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                     });
 
                     i -= d;
-                    cui.AddItemImage(Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3456406890);
+                    cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered((ds / 2) + (wi / 2), i + (hi / 2), si, si), -180129657, 3456406890);
                     CreateInputField(cui, (wi + di, 1 - ds, i, i + h), T("sp_sz_efficiency_percent"), (sc.RecyclerSafeEfficiency * 100).ToString(CultureInfo.InvariantCulture), s =>
                     {
                         if (Single.TryParse(s, out var efficiency))
@@ -5697,16 +5697,16 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using var cui = Cui.Create(Instance, mainContainer);
 
-                cui.AddButton(Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), _ => Exit(), Style.ButtonBlue);
-                cui.AddLabel(Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("stack_size_control_advanced"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0.9f, BOUNDS_X_R, 0.95f, 0.99f), TU("btn_done"), _ => Exit(), Style.ButtonBlue);
+                cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L_TEXT, 0.4f, 0.95f, 0.99f), T("stack_size_control_advanced"), Style.TextHeading with { TextAnchor = TextAnchor.MiddleLeft });
 
-                // using (cui.CreateContainer(Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                // using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.805f, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 // {
                 //     cui.AddLabel((0.05f, 0.95f, 0.6f, 0.98f), T("custom_item_info"), Style.TextNormal with { TextAnchor = TextAnchor.UpperLeft });
                 // }
 
                 string plugInRef;
-                using (cui.CreateContainer(Anchor.Relative(BOUNDS_X_L, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(BOUNDS_X_L, BOUNDS_X_R, 0.02f, 0.94f), Style.ColorGrey05))
                 {
                     plugInRef = cui.CurrentRef.Name;
                 }
@@ -5738,36 +5738,36 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 using (cui.CreateContainer(anchor, background))
                 {
                     var imgSize = isBlueprint ? 50 : 40;
-                    cui.AddItemImage(Anchor.AbsoluteCentered(hasCondition ? 0.58f : 0.5f, 0.66f, imgSize, imgSize), isBlueprint ? -996920608 : itemId, isBlueprint ? 0 : skinId);
+                    cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered(hasCondition ? 0.58f : 0.5f, 0.66f, imgSize, imgSize), isBlueprint ? -996920608 : itemId, isBlueprint ? 0 : skinId);
                     if (isBlueprint)
                     {
-                        cui.AddItemImage(Anchor.AbsoluteCentered(0.5f, 0.66f, 38, 38), itemId, skinId);
+                        cui.AddItemImage(PluginComponents.Loottable.Cui.Anchor.AbsoluteCentered(0.5f, 0.66f, 38, 38), itemId, skinId);
                     }
 
-                    cui.AddLabel(Anchor.Relative(0.01f, 0.99f, 0.005f, 0.39f), text, Style.TextItem);
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.01f, 0.99f, 0.005f, 0.39f), text, Style.TextItem);
                     if (bulletCount > 0)
                     {
-                        cui.AddLabel(Anchor.Relative(0.05f, 0.9f, 0.6f, 1), new string('\u2022', bulletCount), new LabelStyle { FontSize = 18, TextAnchor = TextAnchor.UpperRight});
+                        cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0.05f, 0.9f, 0.6f, 1), new string('\u2022', bulletCount), new LabelStyle { FontSize = 18, TextAnchor = TextAnchor.UpperRight});
                     }
 
                     if (hasCondition)
                     {
-                        using (cui.CreateContainer(Anchor.Absolute(0.58f, 0.65f, -28, -25, -20, 20), UiColor.Transparent))
+                        using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Absolute(0.58f, 0.65f, -28, -25, -20, 20), UiColor.Transparent))
                         {
-                            cui.AddBox(Anchor.Fill, new UiColor(0.16f, 0.16f, 0.16f));
+                            cui.AddBox(PluginComponents.Loottable.Cui.Anchor.Fill, new UiColor(0.16f, 0.16f, 0.16f));
 
                             if (!condition.IsFixed)
                             {
-                                cui.AddBox(Anchor.Relative(0, 1, 0, condition.Max), new UiColor(0.541f, 0.788f, 0.149f, 0.5f));
+                                cui.AddBox(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, condition.Max), new UiColor(0.541f, 0.788f, 0.149f, 0.5f));
                             }
 
-                            cui.AddBox(Anchor.Relative(0, 1, 0, condition.Min), new UiColor(0.541f, 0.788f, 0.149f, 1f));
+                            cui.AddBox(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, condition.Min), new UiColor(0.541f, 0.788f, 0.149f, 1f));
                         }
                     }
 
                     if (onClick != null)
                     {
-                        cui.AddButton(Anchor.Fill, String.Empty, onClick, Style.ButtonTransparent);
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, onClick, Style.ButtonTransparent);
                     }
                 }
             }
@@ -5777,15 +5777,15 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using (cui.CreateContainer(anchor, UiColor.Transparent))
                 {
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.55f, 1f), label, labelStyle == default ? Style.TextLabel : labelStyle);
-                    using (cui.CreateContainer(Anchor.Relative(0, 1, 0, 0.5f), Style.ColorLightGrey05))
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.55f, 1f), label, labelStyle == default ? Style.TextLabel : labelStyle);
+                    using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 0.5f), Style.ColorLightGrey05))
                     {
-                        cui.AddInputField(Anchor.Relative(0, 1, 0, 1, 10), value ?? String.Empty, (_, s) => onChange(s), Style.TextNormal, flags);
+                        cui.AddInputField(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 1, 10), value ?? String.Empty, (_, s) => onChange(s), Style.TextNormal, flags);
                     }
 
                     if (buttonText != null && onButton != null)
                     {
-                        cui.AddButton(Anchor.Relative(buttonXMin, 1, 0, 0.5f), buttonText, _ => onButton(), new ButtonStyle
+                        cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(buttonXMin, 1, 0, 0.5f), buttonText, _ => onButton(), new ButtonStyle
                         {
                             ButtonColor = buttonColor ?? Style.ColorLightGrey,
                             TextStyle = new LabelStyle
@@ -5804,8 +5804,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using (cui.CreateContainer(anchor, UiColor.Transparent))
                 {
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.55f, 1f), label, Style.TextLabel);
-                    cui.AddButton(Anchor.Relative(0, 1, 0, 0.5f), value ? TU("enabled") : TU("disabled"), _ => onChange(!value), value ? (enabledStyle ?? Style.ButtonGreen) : (disabledStyle ?? Style.ButtonRed));
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.55f, 1f), label, Style.TextLabel);
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 0.5f), value ? TU("enabled") : TU("disabled"), _ => onChange(!value), value ? (enabledStyle ?? Style.ButtonGreen) : (disabledStyle ?? Style.ButtonRed));
                 }
             }
 
@@ -5813,8 +5813,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
             {
                 using (cui.CreateContainer(anchor, UiColor.Transparent))
                 {
-                    cui.AddLabel(Anchor.Relative(0, 1, 0.55f, 1f), label, Style.TextLabel);
-                    cui.AddButton(Anchor.Relative(0, 1, 0, 0.5f), value, _ => onClick(), style);
+                    cui.AddLabel(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0.55f, 1f), label, Style.TextLabel);
+                    cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Relative(0, 1, 0, 0.5f), value, _ => onClick(), style);
                 }
             }
 
@@ -5824,8 +5824,8 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 cancelColor = cancelColor == default ? Style.ColorRed : cancelColor;
 
                 using var cui = Cui.Create(Instance, rootView, "assets/content/ui/uibackgroundblur.mat", 0.3f);
-                cui.AddButton(Anchor.Fill, String.Empty, Destroy, Style.ButtonTransparentDark);
-                using (cui.CreateContainer(Anchor.Relative(0.38f, 0.62f, 0.45f, 0.7f), Style.ColorGrey))
+                cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, String.Empty, Destroy, Style.ButtonTransparentDark);
+                using (cui.CreateContainer(PluginComponents.Loottable.Cui.Anchor.Relative(0.38f, 0.62f, 0.45f, 0.7f), Style.ColorGrey))
                 {
                     cui.AddLabel((0.05f, 0.95f, 0.8f, 0.95f), title, Style.TextHeading);
                     cui.AddLabel((0.05f, 0.95f, 0.35f, 0.8f), text, Style.TextNormal);
@@ -10780,7 +10780,7 @@ true;
 #else
 false;
 #endif
-public static BasePlayer DebugPlayer=>DEBUG?BasePlayer.activePlayerList.FirstOrDefault(x=>!x.IsNpc):null;public static string PluginName=>Instance?.Name??"NULL";public static BasePlugin Instance{get;private set;}protected virtual UnityEngine.Color ChatColor=>default;protected virtual string ChatPrefix=>ChatColor!=default?$"<color=#{ColorUtility.ToHtmlStringRGB(ChatColor)}>[{Title}]</color>":$"[{Title}]";[HookMethod("Init")]protected virtual void Init(){Instance=this;foreach(var field in GetType().GetFields(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static)){if(field.IsLiteral&&!field.IsInitOnly&&field.FieldType==typeof(string)&&field.HasAttribute(typeof(PermAttribute))){if(field.GetValue(null)is string perm){LogDebug($"Auto-registered permission '{perm}'");permission.RegisterPermission(perm,this);}}}foreach(var method in GetType().GetMethods(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public)){if(method.GetCustomAttributes(typeof(UniversalCommandAttribute),true).FirstOrDefault()is UniversalCommandAttribute attribute){var commandName=attribute.Name??method.Name.ToLower().Replace("cmd",string.Empty);if(attribute.Permission!=null){LogDebug($"Auto-registered command '{commandName}' with permission '{attribute.Permission??"<null>"}'");}else{LogDebug($"Auto-registered command '{commandName}'");}AddUniversalCommand(commandName,method.Name,attribute.Permission);}}}[HookMethod("Unload")]protected virtual void Unload(){Instance=null;}[HookMethod("OnServerInitialized")]protected virtual void OnServerInitialized(bool initial){OnServerInit();timer.In(OSI_DELAY,OnDelayedServerInit);}protected virtual void OnServerInit(){}protected virtual void OnDelayedServerInit(){}public static void Log(string s){if(Instance!=null){Interface.Oxide.LogInfo($"[{Instance.Title}] {s}");}}[Conditional("DEBUG")]public static void LogDebug(string s){if(DEBUG&&Instance!=null){if(CARBONARA){LogWarning("[DEBUG] "+s);}else{Interface.Oxide.LogDebug($"[{Instance.Title}] {s}");}}}public static void LogWarning(string s){if(Instance!=null){Interface.Oxide.LogWarning($"[{Instance.Title}] {s}");}}public static void LogError(string s){if(Instance!=null){Interface.Oxide.LogError($"[{Instance.Title}] {s}");}}private Dictionary<string,CommandCallback>uiCallbacks;private string uiCommandBase;private void PrepareCommandHandler(){if(uiCallbacks==null){uiCallbacks=new Dictionary<string,CommandCallback>();uiCommandBase=$"{Title.ToLower()}.cmd_ui";cmd.AddConsoleCommand(uiCommandBase,this,HandleCommand);}}private bool HandleCommand(ConsoleSystem.Arg arg){var cmd=arg.GetString(0);if(uiCallbacks.TryGetValue(cmd,out var callback)){var player=arg.Player();try{callback.ButtonCallback?.Invoke(player);callback.InputCallback?.Invoke(player,String.Join(' ',arg.Args?.Skip(1)??Enumerable.Empty<string>()));}catch(Exception ex){PrintError($"Failed to run UI command {cmd}: {ex}");}}return false;}public string CreateUiCommand(string guid,Action<BasePlayer>callback,bool singleUse){PrepareCommandHandler();uiCallbacks.Add(guid,new CommandCallback(callback,singleUse));return$"{uiCommandBase} {guid}";}public string CreateUiCommand(string guid,Action<BasePlayer,string>callback,bool singleUse){PrepareCommandHandler();uiCallbacks.Add(guid,new CommandCallback(callback,singleUse));return$"{uiCommandBase} {guid}";}private readonly struct CommandCallback{public readonly bool SingleUse;public readonly Action<BasePlayer>ButtonCallback;public readonly Action<BasePlayer,string>InputCallback;public CommandCallback(Action<BasePlayer>buttonCallback,bool singleUse){ButtonCallback=buttonCallback;InputCallback=null;SingleUse=singleUse;}public CommandCallback(Action<BasePlayer,string>inputCallback,bool singleUse){ButtonCallback=null;InputCallback=inputCallback;SingleUse=singleUse;}}public void ChatMessage(BasePlayer player,string message){if(player){player.SendConsoleCommand("chat.add",2,0,$"{ChatPrefix} {message}");}}}public interface IChatPrefix{[JsonProperty("Custom prefix for chat messages")][CanBeNull]public string ChatMessagePrefix{get;set;}}}namespace PluginComponents.Loottable.Cui{using System;using UnityEngine;using PluginComponents.Loottable;using Facepunch;using Oxide.Game.Rust.Cui;using PluginComponents.Loottable.Core;using PluginComponents.Loottable.Cui.Style;using System.Collections.Generic;using UnityEngine.UI;public readonly record struct Anchor{public float XMin{get;init;}public float XMax{get;init;}public float YMin{get;init;}public float YMax{get;init;}public float OffsetXMin{get;init;}public float OffsetXMax{get;init;}public float OffsetYMin{get;init;}public float OffsetYMax{get;init;}internal readonly string Min()=>$"{XMin:N3} {YMin:N3}";internal readonly string Max()=>$"{XMax:N3} {YMax:N3}";internal readonly string OffsetMin()=>$"{OffsetXMin:N3} {OffsetYMin:N3}";internal readonly string OffsetMax()=>$"{OffsetXMax:N3} {OffsetYMax:N3}";public Anchor WithOffsetY(float offset){return this with{YMax=YMax+offset,YMin=YMin+offset};}public Anchor WithOffset(float xMin=0,float xMax=0,float yMin=0,float yMax=0){return this with{XMin=XMin+xMin,XMax=XMax+xMax,YMin=YMin+yMin,YMax=YMax+yMax,};}public override string ToString(){return$"(X: {XMin}-{XMax}, Y: {YMin}-{YMax})";}public static readonly Anchor Fill=Relative(0,1,0,1);public static Anchor Padding(float horizontal,float vertical){return Relative(horizontal,1-horizontal,vertical,1-vertical);}public static Anchor Relative(float xMin,float xMax,float yMin,float yMax,float offsetXMin=0,float offsetXMax=0,float offsetYMin=0,float offsetYMax=0){return new Anchor{XMin=xMin,XMax=xMax,YMin=yMin,YMax=yMax,OffsetXMin=offsetXMin,OffsetXMax=offsetXMax,OffsetYMin=offsetYMin,OffsetYMax=offsetYMax};}public static Anchor Absolute(float centerX,float centerY,float xMin,float xMax,float yMin,float yMax){return new Anchor{XMin=centerX,XMax=centerX,YMin=centerY,YMax=centerY,OffsetXMin=xMin,OffsetXMax=xMax,OffsetYMin=yMin,OffsetYMax=yMax};}public static Anchor AbsoluteCentered(float centerX,float centerY,float height,float width){return new Anchor{XMin=centerX,XMax=centerX,YMin=centerY,YMax=centerY,OffsetXMin=-width/2f,OffsetXMax=width/2f,OffsetYMin=-height/2f,OffsetYMax=height/2f};}public static Anchor MoveRow(ref MovingAnchorProperties p,int max=-1){var anchor=p.Anchor();p.StepColumn(max);return anchor;}public static Anchor MoveColumn(ref MovingAnchorProperties p,int max=-1){var anchor=p.Anchor();p.StepRow(max);return anchor;}public static Anchor MoveOffsetY(ref MovingAnchorProperties p,float offset,bool breakRow=false){var anchor=p.Anchor();p.offsetY+=offset;if(breakRow){p.NextRow(true);}return anchor with{YMin=anchor.YMin+offset};}public static Anchor MoveX(ref MovingAnchorProperties p,float offsetX,bool resetOnNewRow){var anchor=p.Anchor();anchor=anchor with{XMax=anchor.XMin+offsetX};p.offsetX+=offsetX+p.SpaceX;p.resetOffset=resetOnNewRow;return anchor;}public static implicit operator Anchor(in ValueTuple<float,float,float,float>tuple){return Relative(tuple.Item1,tuple.Item2,tuple.Item3,tuple.Item4);}public static Anchor FillOffset(float xMin,float xMax,float yMin,float yMax){return new Anchor{XMin=0,YMin=0,XMax=1,YMax=1,OffsetXMin=xMin,OffsetXMax=xMax,OffsetYMin=yMin,OffsetYMax=yMax,};}public static float CenteredDistribution(int i,int count,float d=1,float pivot=0){var even=count%2==0;var s=i%2==0?-1:1;var x=Mathf.FloorToInt((i+(even?2:1))/2)*s*d-(even?s*d*0.5f:0);return pivot+x;}}public struct MovingAnchorProperties{public int row;public int column;public float offsetX;public float offsetY;public bool resetOffset;public float StartX{get;init;}public float StartY{get;init;}public float Width{get;init;}public float Height{get;init;}public float SpaceX{get;init;}public float SpaceY{get;init;}public void NextRow(bool force=false){if(column!=0||force){row++;column=0;ResetOffsets();}}public void NextColumn(bool force=false){if(row!=0||force){column++;row=0;ResetOffsets();}}public void StepRow(int max){row++;if(row>=max&&max>0){row=0;column++;ResetOffsets();}}public void StepColumn(int max){column++;if(column>=max&&max>0){column=0;row++;ResetOffsets();}}private void ResetOffsets(){if(resetOffset){offsetX=0;offsetY=0;resetOffset=false;}}public readonly float XMin(){if(Width<0){return StartX+offsetX+(column+1)*Width;}return StartX+offsetX+SpaceX+column*Width;}public readonly float XMax(){if(Width<0){return StartX+offsetX+SpaceX+column*Width;}return StartX+offsetX+(column+1)*Width;}public readonly float YMin(){return StartY+offsetY+SpaceY-(row+1)*Height;}public readonly float YMax(){return StartY+offsetY-row*Height;}public readonly Anchor Anchor(){return PluginComponents.Loottable.Cui.Anchor.Relative(XMin(),XMax(),YMin(),YMax());}public readonly bool CheckBoundsY(){return YMin()>=0&&YMax()<=1;}public static MovingAnchorProperties Create(float startX,float startY,float width,float height,float spaceX,float spaceY){return new MovingAnchorProperties{StartX=startX,StartY=startY,Width=width,Height=height,SpaceX=spaceX,SpaceY=spaceY};}}public sealed class Cui:IDisposable{private readonly BasePlugin plugin;private readonly Stack<string>parents;private List<CuiElement>elements;private string Parent=>parents.Peek();public UiRef CurrentRef=>new UiRef(Parent);public UiRef RootRef{get;private set;}private Cui(BasePlugin plugin,string parent){this.plugin=plugin;elements=Pool.Get<List<CuiElement>>();parents=new Stack<string>();parents.Push(parent);RootRef=CurrentRef;}public void AddBox(in Anchor anchor,in UiColor color){CreateContainer(anchor,color,0).Dispose();}public IDisposable CreateContainer(in Anchor anchor)=>CreateContainer(anchor,UiColor.Black,0);public IDisposable CreateContainer(in Anchor anchor,in UiColor background)=>CreateContainer(anchor,background,0);public IDisposable CreateContainer(in Anchor anchor,in UiColor background,float fadeOutTime){var element=CuiPool.GetElement(Guid(),Parent,anchor);element.FadeOut=fadeOutTime;var img=CuiPool.GetComponent<CuiImageComponent>();img.Color=background;AddElement(element.WithComponent(img));return CreateParentScope(element.Name);}public IDisposable CreateContainer(in Anchor anchor,in UiColor background,out UiRef self){var container=CreateContainer(anchor,background);self=CurrentRef;return container;}[Obsolete("Use CreateOrUpdateContainer(Anchor, UiColor, string) instead")]public IDisposable CreateOrUpdateContainer(in Anchor anchor,in UiColor background,ref UiRef self){return CreateOrUpdateContainer(anchor,background,self.Name??Guid());}public IDisposable CreateOrUpdateContainer(in Anchor anchor,in UiColor background,string name){var element=CuiPool.GetElement(name,Parent,anchor);element.DestroyUi=name;var img=CuiPool.GetComponent<CuiImageComponent>();img.Color=background;AddElement(element.WithComponent(img));return CreateParentScope(element.Name);}public IDisposable CreateScrollContainer(in Anchor anchor,in Anchor contentAnchor,in ScrollViewOptions options){var element=CuiPool.GetElement(Guid(),Parent,anchor);var scroll=CuiPool.GetComponent<CuiScrollViewComponent>();scroll.MovementType=options.ScrollType;scroll.Elasticity=options.Elasticity;scroll.Horizontal=options.HorizontalScrollBar!=null;scroll.HorizontalScrollbar=options.HorizontalScrollBar;scroll.Vertical=options.VerticalScrollBar!=null;scroll.VerticalScrollbar=options.VerticalScrollBar;scroll.ScrollSensitivity=options.ScrollSensitivity;scroll.ContentTransform=CuiPool.GetTransform(contentAnchor);AddElement(element.WithComponent(scroll));return CreateParentScope(element.Name);}public IDisposable CreateScrollContainer(in Anchor anchor,in Anchor contentAnchor,in ScrollViewOptions options,out UiRef self){var container=CreateScrollContainer(anchor,contentAnchor,options);self=CurrentRef;return container;}private void CreateRootContainer(in Anchor anchor,in UiColor background,float fadeOutTime,bool keyboard,bool mouse,string material){var element=CuiPool.GetElement(Guid(),Parent,anchor);element.FadeOut=fadeOutTime;var img=CuiPool.GetComponent<CuiImageComponent>();img.Color=background;img.Material=material;AddElement(element.WithComponent(img).WithCursor(mouse).WithKeyboard(keyboard));parents.Push(element.Name);RootRef=CurrentRef;}public void AddImage(in Anchor anchor,string png){var image=CuiPool.GetComponent<CuiRawImageComponent>();image.Png=png;var el=CuiPool.GetElement(Guid(),Parent,anchor);AddElement(el.WithComponent(image));}public void AddImageUrl(in Anchor anchor,string url){var image=CuiPool.GetComponent<CuiRawImageComponent>();image.Url=url;var el=CuiPool.GetElement(Guid(),Parent,anchor);AddElement(el.WithComponent(image));}public void AddItemImage(in Anchor anchor,int itemId)=>AddItemImage(anchor,itemId,0);public void AddItemImage(in Anchor anchor,int itemId,ulong skinId){var el=CuiPool.GetElement(Guid(),Parent,anchor);var image=CuiPool.GetComponent<CuiImageComponent>();image.ItemId=itemId;image.SkinId=skinId;AddElement(el.WithComponent(image));}public void AddLabel(in Anchor anchor,string text)=>AddLabel(anchor,text,LabelStyle.Default);public void AddLabel(in Anchor anchor,string text,in LabelStyle style){var element=CuiPool.GetElement(Guid(),Parent,anchor);var textComp=CuiPool.GetComponent<CuiTextComponent>();textComp.Text=text;textComp.Color=style.TextColor;textComp.Align=style.TextAnchor;textComp.Font=style.Font;textComp.FontSize=style.FontSize;if(style.Outline!=default){var outlineComp=CuiPool.GetComponent<CuiOutlineComponent>();outlineComp.Color=style.Outline;outlineComp.Distance=$"{style.OutlineDistance.x} {style.OutlineDistance.y}";element.WithComponent(outlineComp);}AddElement(element.WithComponent(textComp));}public void AddButton(in Anchor anchor,string text,Action<BasePlayer>callback,bool singleUse=true)=>AddButton(anchor,text,callback,ButtonStyle.Default,singleUse);public void AddButton(in Anchor anchor,string text,Action<BasePlayer>callback,in ButtonStyle style,bool singleUse=true)=>AddButton(anchor,text,callback,style.ButtonColor,style.TextStyle,singleUse);public void AddButton(in Anchor anchor,string text,Action<BasePlayer>callback,in UiColor color,in LabelStyle textStyle,bool singleUse=true){var buttonGuid=Guid();var buttonComp=CuiPool.GetComponent<CuiButtonComponent>();buttonComp.Color=color;buttonComp.Command=callback==null?null:plugin.CreateUiCommand(buttonGuid,callback,singleUse);var button=CuiPool.GetElement(buttonGuid,Parent,anchor);AddElement(button.WithComponent(buttonComp));var textComp=CuiPool.GetComponent<CuiTextComponent>();textComp.Text=text;textComp.Color=textStyle.TextColor;textComp.Align=textStyle.TextAnchor;textComp.Font=textStyle.Font;textComp.FontSize=textStyle.FontSize;var textElement=CuiPool.GetElement(Guid(),buttonGuid,Anchor.Fill);AddElement(textElement.WithComponent(textComp));}public void AddInputField(in Anchor anchor,string value,Action<BasePlayer,string>callback,InputFieldFlags flags=InputFieldFlags.None,bool singleUse=true)=>AddInputField(anchor,value,callback,LabelStyle.Default,flags,singleUse);public void AddInputField(in Anchor anchor,string value,Action<BasePlayer,string>callback,in LabelStyle style,InputFieldFlags flags=InputFieldFlags.None,bool singleUse=true){var guid=Guid();var inputComp=CuiPool.GetComponent<CuiInputFieldComponent>();inputComp.Command=plugin.CreateUiCommand(guid,callback,singleUse);inputComp.Text=value;inputComp.Color=style.TextColor;inputComp.Align=style.TextAnchor;inputComp.Font=style.Font;inputComp.FontSize=style.FontSize;inputComp.Autofocus=flags.HasFlag(InputFieldFlags.Autofocus);inputComp.ReadOnly=flags.HasFlag(InputFieldFlags.ReadOnly);inputComp.HudMenuInput=flags.HasFlag(InputFieldFlags.HudMenuInput);inputComp.IsPassword=flags.HasFlag(InputFieldFlags.Password);if(flags.HasFlag(InputFieldFlags.MultiLine)){inputComp.LineType=InputField.LineType.MultiLineNewline;}else if(flags.HasFlag(InputFieldFlags.WordWrap)){inputComp.LineType=InputField.LineType.MultiLineSubmit;}var element=CuiPool.GetElement(guid,Parent,anchor);AddElement(element.WithComponent(inputComp));}public UiRef Send(BasePlayer player)=>Send(player,default);public UiRef Send(BasePlayer player,UiRef old){if(old.IsValid&&elements.Count>0){elements[0].DestroyUi=old.Name;}CuiHelper.AddUi(player,elements);return RootRef;}public void Send(BasePlayer player,ref UiRef containerRef){containerRef=Send(player,containerRef);}public static Cui Create(BasePlugin plugin,UiRef parent)=>Create(plugin,parent,null,0);public static Cui Create(BasePlugin plugin,UiRef parent,string material,float opacity){var cui=new Cui(plugin,parent.Name);cui.CreateRootContainer(Anchor.Fill,new UiColor(0,0,0,opacity),0,false,false,material);return cui;}public static Cui CreateWithoutContainer(BasePlugin plugin,UiParentLayer parent){var parentName=parent switch{UiParentLayer.Overlay=>"Overlay",UiParentLayer.OverlayNonScaled=>"OverlayNonScaled",UiParentLayer.Hud=>"Hud",UiParentLayer.Menu=>"Hud.Menu",_=>"Under"};return new Cui(plugin,parentName);}public static Cui CreateWithoutContainer(BasePlugin plugin,UiRef parent){return new Cui(plugin,parent.Name);}public static Cui Create(BasePlugin plugin,in Anchor anchor,in UiColor background,UiParentLayer parent,UiFlags flags=UiFlags.None,float fadeOutTime=0,string material=null){var parentName=parent switch{UiParentLayer.Overlay=>"Overlay",UiParentLayer.OverlayNonScaled=>"OverlayNonScaled",UiParentLayer.Hud=>"Hud",UiParentLayer.Menu=>"Hud.Menu",_=>"Under"};var cui=new Cui(plugin,parentName);cui.CreateRootContainer(anchor,background,fadeOutTime,flags.HasFlag(UiFlags.Keyboard),flags.HasFlag(UiFlags.Mouse),material);return cui;}public static void Destroy(BasePlayer player,UiRef cuiRef){if(cuiRef.IsValid){CuiHelper.DestroyUi(player,cuiRef.Name);}}public static void Destroy(BasePlayer player,ref UiRef cuiRef){if(cuiRef.IsValid){CuiHelper.DestroyUi(player,cuiRef.Name);}cuiRef=default;}public void Dispose(){CuiPool.FreeElements(elements);Pool.FreeUnmanaged(ref elements);}private IDisposable CreateParentScope(string parent){parents.Push(parent);return DisposeAction.Create(()=>parents.Pop());}private void AddElement(CuiElement element){elements.Add(element);}private static string Guid(){return System.Guid.NewGuid().ToString();}private struct DisposeAction:IDisposable{private Action action;private DisposeAction(Action action){this.action=action;}public void Dispose(){action?.Invoke();action=null;}public static IDisposable Create(Action action){return new DisposeAction(action);}}}public readonly struct UiRef{public string Name{get;init;}public bool IsValid{get;init;}public UiRef(string name){Name=name;IsValid=true;}}public enum UiParentLayer{Overlay,Hud,Menu,Under,OverlayNonScaled}[Flags]public enum UiFlags{None=0,Mouse=1,Keyboard=2,MouseAndKeyboard=Mouse|Keyboard,}public enum InputFieldFlags{None=0,ReadOnly=1<<0,Password=1<<1,Autofocus=1<<2,HudMenuInput=1<<3,MultiLine=1<<4,WordWrap=1<<5,}public struct ScrollViewOptions{public CuiScrollbar VerticalScrollBar{get;set;}public CuiScrollbar HorizontalScrollBar{get;set;}public ScrollRect.MovementType ScrollType{get;set;}public float Elasticity{get;set;}public float ScrollSensitivity{get;set;}}internal static class CuiElementEx{private static CuiNeedsCursorComponent cursorComponent;private static CuiNeedsKeyboardComponent keyboardComponent;internal static CuiElement WithKeyboard(this CuiElement element,bool enabled=true){if(!enabled){return element;}keyboardComponent??=new CuiNeedsKeyboardComponent();element.Components.Add(keyboardComponent);return element;}internal static CuiElement WithCursor(this CuiElement element,bool enabled=true){if(!enabled){return element;}cursorComponent??=new CuiNeedsCursorComponent();element.Components.Add(cursorComponent);return element;}internal static CuiElement WithComponent(this CuiElement element,ICuiComponent component){element.Components.Add(component);return element;}}internal static class CuiPool{public static void FreeElements(List<CuiElement>elements){for(int i=0;i<elements.Count;i++){var el=elements[i];FreeElement(ref el);elements[i]=null;}}public static CuiElement GetElement(string name,string parent,Anchor anchor){var el=Pool.Get<CuiElement>();el.Name=name;el.Parent=parent;el.Components.Add(GetTransform(anchor));return el;}public static CuiRectTransformComponent GetTransform(Anchor anchor){var transform=Pool.Get<CuiRectTransformComponent>();transform.AnchorMin=anchor.Min();transform.AnchorMax=anchor.Max();transform.OffsetMin=anchor.OffsetMin();transform.OffsetMax=anchor.OffsetMax();return transform;}public static T GetComponent<T>()where T:class,ICuiComponent,new(){return Pool.Get<T>();}public static void FreeElement(ref CuiElement element){for(int i=0;i<element.Components.Count;i++){var comp=element.Components[i];if(comp is CuiRectTransformComponent rect){FreeComponent(ref rect);}else if(comp is CuiImageComponent image){FreeComponent(ref image);}else if(comp is CuiRawImageComponent rawImage){FreeComponent(ref rawImage);}else if(comp is CuiTextComponent text){FreeComponent(ref text);}else if(comp is CuiButtonComponent button){FreeComponent(ref button);}element.Components[i]=null;}element.Components.Clear();element.DestroyUi=default;element.FadeOut=default;element.Name=default;element.Parent=default;element.Update=default;Pool.FreeUnsafe(ref element);}public static void FreeComponent<T>(ref T component)where T:class,ICuiComponent,new(){if(component is CuiNeedsCursorComponent||component is CuiNeedsKeyboardComponent){return;}foreach(var prop in component.GetType().GetProperties()){if(prop.CanWrite){prop.SetValue(component,null);}}Pool.FreeUnsafe(ref component);}}}namespace PluginComponents.Loottable.Cui.Style{using System;using UnityEngine;using PluginComponents.Loottable;using PluginComponents.Loottable.Cui;public readonly record struct ButtonStyle{public UiColor ButtonColor{get;init;}public LabelStyle TextStyle{get;init;}public static ButtonStyle Default{get;}=new ButtonStyle{ButtonColor=Color.blue,TextStyle=LabelStyle.Default};public static implicit operator ButtonStyle(in ValueTuple<UiColor,LabelStyle>valueTuple){return new ButtonStyle{ButtonColor=valueTuple.Item1,TextStyle=valueTuple.Item2};}}public readonly record struct LabelStyle{public TextAnchor TextAnchor{get;init;}public UiColor TextColor{get;init;}public UiFont Font{get;init;}public int FontSize{get;init;}public UiColor Outline{get;init;}public Vector2 OutlineDistance{get;init;}public LabelStyle(){Font=UiFont.robotoRegular;TextColor=UiColor.White;OutlineDistance=new Vector2(1,-1);}public static readonly LabelStyle Default=new LabelStyle{TextAnchor=TextAnchor.MiddleCenter,TextColor=Color.white,Font=UiFont.robotoRegular,FontSize=12};}public readonly record struct UiColor{public float R{get;init;}public float G{get;init;}public float B{get;init;}public float Opacity{get;init;}public UiColor(float r,float g,float b,float opacity=1f){R=r;G=g;B=b;Opacity=opacity;}public static implicit operator Color(UiColor color){return new Color(color.R,color.G,color.B,color.Opacity);}public static implicit operator UiColor(Color color){return new UiColor(color.r,color.g,color.b,color.a);}public static implicit operator string(UiColor color){return color.ToString();}public static UiColor operator*(UiColor color,float f){return new UiColor(Mathf.Clamp01(color.R*f),Mathf.Clamp01(color.G*f),Mathf.Clamp01(color.B*f),color.Opacity);}public override string ToString(){return$"{R:N3} {G:N3} {B:N3} {Opacity:N3}";}public static readonly UiColor Transparent=new UiColor(0f,0f,0f,0f);public static readonly UiColor White=new UiColor(1f,1f,1f,1f);public static readonly UiColor Black=new UiColor(0f,0f,0f,1f);}public class UiFont{public static readonly UiFont robotoRegular=new UiFont("robotocondensed-regular.ttf");public static readonly UiFont robotoBold=new UiFont("robotocondensed-bold.ttf");public static readonly UiFont permanentMarker=new UiFont("permanentmarker.ttf");public static readonly UiFont droidSansMono=new UiFont("droidsansmono.ttf");public string ResourceFile{get;}private UiFont(string resourceFile){ResourceFile=resourceFile;}public static implicit operator string(UiFont font){return font.ResourceFile;}}}namespace PluginComponents.Loottable.Cui.Images{using PluginComponents.Loottable;using PluginComponents.Loottable.Cui;using Oxide.Core.Plugins;using PluginComponents.Loottable.Core;using PluginComponents.Loottable.DoubleDictionary;using System;using System.Collections.Generic;using System.Text;public interface IImage{string ImageUrl{get;}string ImageKey{get;set;}}public class ImageHelper{public readonly string PlaceholderKey;private readonly BasePlugin plugin;public bool Update{get;set;}public bool Initialized{get;private set;}
+public static BasePlayer DebugPlayer=>DEBUG?BasePlayer.activePlayerList.FirstOrDefault(x=>!x.IsNpc):null;public static string PluginName=>Instance?.Name??"NULL";public static BasePlugin Instance{get;private set;}protected virtual UnityEngine.Color ChatColor=>default;protected virtual string ChatPrefix=>ChatColor!=default?$"<color=#{ColorUtility.ToHtmlStringRGB(ChatColor)}>[{Title}]</color>":$"[{Title}]";[HookMethod("Init")]protected virtual void Init(){Instance=this;foreach(var field in GetType().GetFields(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static)){if(field.IsLiteral&&!field.IsInitOnly&&field.FieldType==typeof(string)&&field.HasAttribute(typeof(PermAttribute))){if(field.GetValue(null)is string perm){LogDebug($"Auto-registered permission '{perm}'");permission.RegisterPermission(perm,this);}}}foreach(var method in GetType().GetMethods(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public)){if(method.GetCustomAttributes(typeof(UniversalCommandAttribute),true).FirstOrDefault()is UniversalCommandAttribute attribute){var commandName=attribute.Name??method.Name.ToLower().Replace("cmd",string.Empty);if(attribute.Permission!=null){LogDebug($"Auto-registered command '{commandName}' with permission '{attribute.Permission??"<null>"}'");}else{LogDebug($"Auto-registered command '{commandName}'");}AddUniversalCommand(commandName,method.Name,attribute.Permission);}}}[HookMethod("Unload")]protected virtual void Unload(){Instance=null;}[HookMethod("OnServerInitialized")]protected virtual void OnServerInitialized(bool initial){OnServerInit();timer.In(OSI_DELAY,OnDelayedServerInit);}protected virtual void OnServerInit(){}protected virtual void OnDelayedServerInit(){}public static void Log(string s){if(Instance!=null){Interface.Oxide.LogInfo($"[{Instance.Title}] {s}");}}[Conditional("DEBUG")]public static void LogDebug(string s){if(DEBUG&&Instance!=null){if(CARBONARA){LogWarning("[DEBUG] "+s);}else{Interface.Oxide.LogDebug($"[{Instance.Title}] {s}");}}}public static void LogWarning(string s){if(Instance!=null){Interface.Oxide.LogWarning($"[{Instance.Title}] {s}");}}public static void LogError(string s){if(Instance!=null){Interface.Oxide.LogError($"[{Instance.Title}] {s}");}}private Dictionary<string,CommandCallback>uiCallbacks;private string uiCommandBase;private void PrepareCommandHandler(){if(uiCallbacks==null){uiCallbacks=new Dictionary<string,CommandCallback>();uiCommandBase=$"{Title.ToLower()}.cmd_ui";cmd.AddConsoleCommand(uiCommandBase,this,HandleCommand);}}private bool HandleCommand(ConsoleSystem.Arg arg){var cmd=arg.GetString(0);if(uiCallbacks.TryGetValue(cmd,out var callback)){var player=arg.Player();try{callback.ButtonCallback?.Invoke(player);callback.InputCallback?.Invoke(player,String.Join(' ',arg.Args?.Skip(1)??Enumerable.Empty<string>()));}catch(Exception ex){PrintError($"Failed to run UI command {cmd}: {ex}");}}return false;}public string CreateUiCommand(string guid,Action<BasePlayer>callback,bool singleUse){PrepareCommandHandler();uiCallbacks.Add(guid,new CommandCallback(callback,singleUse));return$"{uiCommandBase} {guid}";}public string CreateUiCommand(string guid,Action<BasePlayer,string>callback,bool singleUse){PrepareCommandHandler();uiCallbacks.Add(guid,new CommandCallback(callback,singleUse));return$"{uiCommandBase} {guid}";}private readonly struct CommandCallback{public readonly bool SingleUse;public readonly Action<BasePlayer>ButtonCallback;public readonly Action<BasePlayer,string>InputCallback;public CommandCallback(Action<BasePlayer>buttonCallback,bool singleUse){ButtonCallback=buttonCallback;InputCallback=null;SingleUse=singleUse;}public CommandCallback(Action<BasePlayer,string>inputCallback,bool singleUse){ButtonCallback=null;InputCallback=inputCallback;SingleUse=singleUse;}}public void ChatMessage(BasePlayer player,string message){if(player){player.SendConsoleCommand("chat.add",2,0,$"{ChatPrefix} {message}");}}}public interface IChatPrefix{[JsonProperty("Custom prefix for chat messages")][CanBeNull]public string ChatMessagePrefix{get;set;}}}namespace PluginComponents.Loottable.Cui{using System;using UnityEngine;using PluginComponents.Loottable;using Facepunch;using Oxide.Game.Rust.Cui;using PluginComponents.Loottable.Core;using PluginComponents.Loottable.Cui.Style;using System.Collections.Generic;using UnityEngine.UI;public readonly record struct Anchor{public float XMin{get;init;}public float XMax{get;init;}public float YMin{get;init;}public float YMax{get;init;}public float OffsetXMin{get;init;}public float OffsetXMax{get;init;}public float OffsetYMin{get;init;}public float OffsetYMax{get;init;}internal readonly string Min()=>$"{XMin:N3} {YMin:N3}";internal readonly string Max()=>$"{XMax:N3} {YMax:N3}";internal readonly string OffsetMin()=>$"{OffsetXMin:N3} {OffsetYMin:N3}";internal readonly string OffsetMax()=>$"{OffsetXMax:N3} {OffsetYMax:N3}";public Anchor WithOffsetY(float offset){return this with{YMax=YMax+offset,YMin=YMin+offset};}public Anchor WithOffset(float xMin=0,float xMax=0,float yMin=0,float yMax=0){return this with{XMin=XMin+xMin,XMax=XMax+xMax,YMin=YMin+yMin,YMax=YMax+yMax,};}public override string ToString(){return$"(X: {XMin}-{XMax}, Y: {YMin}-{YMax})";}public static readonly Anchor Fill=Relative(0,1,0,1);public static Anchor Padding(float horizontal,float vertical){return Relative(horizontal,1-horizontal,vertical,1-vertical);}public static Anchor Relative(float xMin,float xMax,float yMin,float yMax,float offsetXMin=0,float offsetXMax=0,float offsetYMin=0,float offsetYMax=0){return new Anchor{XMin=xMin,XMax=xMax,YMin=yMin,YMax=yMax,OffsetXMin=offsetXMin,OffsetXMax=offsetXMax,OffsetYMin=offsetYMin,OffsetYMax=offsetYMax};}public static Anchor Absolute(float centerX,float centerY,float xMin,float xMax,float yMin,float yMax){return new Anchor{XMin=centerX,XMax=centerX,YMin=centerY,YMax=centerY,OffsetXMin=xMin,OffsetXMax=xMax,OffsetYMin=yMin,OffsetYMax=yMax};}public static Anchor AbsoluteCentered(float centerX,float centerY,float height,float width){return new Anchor{XMin=centerX,XMax=centerX,YMin=centerY,YMax=centerY,OffsetXMin=-width/2f,OffsetXMax=width/2f,OffsetYMin=-height/2f,OffsetYMax=height/2f};}public static Anchor MoveRow(ref MovingAnchorProperties p,int max=-1){var anchor=p.Anchor();p.StepColumn(max);return anchor;}public static Anchor MoveColumn(ref MovingAnchorProperties p,int max=-1){var anchor=p.Anchor();p.StepRow(max);return anchor;}public static Anchor MoveOffsetY(ref MovingAnchorProperties p,float offset,bool breakRow=false){var anchor=p.Anchor();p.offsetY+=offset;if(breakRow){p.NextRow(true);}return anchor with{YMin=anchor.YMin+offset};}public static Anchor MoveX(ref MovingAnchorProperties p,float offsetX,bool resetOnNewRow){var anchor=p.Anchor();anchor=anchor with{XMax=anchor.XMin+offsetX};p.offsetX+=offsetX+p.SpaceX;p.resetOffset=resetOnNewRow;return anchor;}public static implicit operator Anchor(in ValueTuple<float,float,float,float>tuple){return Relative(tuple.Item1,tuple.Item2,tuple.Item3,tuple.Item4);}public static Anchor FillOffset(float xMin,float xMax,float yMin,float yMax){return new Anchor{XMin=0,YMin=0,XMax=1,YMax=1,OffsetXMin=xMin,OffsetXMax=xMax,OffsetYMin=yMin,OffsetYMax=yMax,};}public static float CenteredDistribution(int i,int count,float d=1,float pivot=0){var even=count%2==0;var s=i%2==0?-1:1;var x=Mathf.FloorToInt((i+(even?2:1))/2)*s*d-(even?s*d*0.5f:0);return pivot+x;}}public struct MovingAnchorProperties{public int row;public int column;public float offsetX;public float offsetY;public bool resetOffset;public float StartX{get;init;}public float StartY{get;init;}public float Width{get;init;}public float Height{get;init;}public float SpaceX{get;init;}public float SpaceY{get;init;}public void NextRow(bool force=false){if(column!=0||force){row++;column=0;ResetOffsets();}}public void NextColumn(bool force=false){if(row!=0||force){column++;row=0;ResetOffsets();}}public void StepRow(int max){row++;if(row>=max&&max>0){row=0;column++;ResetOffsets();}}public void StepColumn(int max){column++;if(column>=max&&max>0){column=0;row++;ResetOffsets();}}private void ResetOffsets(){if(resetOffset){offsetX=0;offsetY=0;resetOffset=false;}}public readonly float XMin(){if(Width<0){return StartX+offsetX+(column+1)*Width;}return StartX+offsetX+SpaceX+column*Width;}public readonly float XMax(){if(Width<0){return StartX+offsetX+SpaceX+column*Width;}return StartX+offsetX+(column+1)*Width;}public readonly float YMin(){return StartY+offsetY+SpaceY-(row+1)*Height;}public readonly float YMax(){return StartY+offsetY-row*Height;}public readonly Anchor Anchor(){return PluginComponents.Loottable.Cui.Anchor.Relative(XMin(),XMax(),YMin(),YMax());}public readonly bool CheckBoundsY(){return YMin()>=0&&YMax()<=1;}public static MovingAnchorProperties Create(float startX,float startY,float width,float height,float spaceX,float spaceY){return new MovingAnchorProperties{StartX=startX,StartY=startY,Width=width,Height=height,SpaceX=spaceX,SpaceY=spaceY};}}public sealed class Cui:IDisposable{private readonly BasePlugin plugin;private readonly Stack<string>parents;private List<CuiElement>elements;private string Parent=>parents.Peek();public UiRef CurrentRef=>new UiRef(Parent);public UiRef RootRef{get;private set;}private Cui(BasePlugin plugin,string parent){this.plugin=plugin;elements=Pool.Get<List<CuiElement>>();parents=new Stack<string>();parents.Push(parent);RootRef=CurrentRef;}public void AddBox(in Anchor anchor,in UiColor color){CreateContainer(anchor,color,0).Dispose();}public IDisposable CreateContainer(in Anchor anchor)=>CreateContainer(anchor,UiColor.Black,0);public IDisposable CreateContainer(in Anchor anchor,in UiColor background)=>CreateContainer(anchor,background,0);public IDisposable CreateContainer(in Anchor anchor,in UiColor background,float fadeOutTime){var element=CuiPool.GetElement(Guid(),Parent,anchor);element.FadeOut=fadeOutTime;var img=CuiPool.GetComponent<CuiImageComponent>();img.Color=background;AddElement(element.WithComponent(img));return CreateParentScope(element.Name);}public IDisposable CreateContainer(in Anchor anchor,in UiColor background,out UiRef self){var container=CreateContainer(anchor,background);self=CurrentRef;return container;}[Obsolete("Use CreateOrUpdateContainer(Anchor, UiColor, string) instead")]public IDisposable CreateOrUpdateContainer(in Anchor anchor,in UiColor background,ref UiRef self){return CreateOrUpdateContainer(anchor,background,self.Name??Guid());}public IDisposable CreateOrUpdateContainer(in Anchor anchor,in UiColor background,string name){var element=CuiPool.GetElement(name,Parent,anchor);element.DestroyUi=name;var img=CuiPool.GetComponent<CuiImageComponent>();img.Color=background;AddElement(element.WithComponent(img));return CreateParentScope(element.Name);}public IDisposable CreateScrollContainer(in Anchor anchor,in Anchor contentAnchor,in ScrollViewOptions options){var element=CuiPool.GetElement(Guid(),Parent,anchor);var scroll=CuiPool.GetComponent<CuiScrollViewComponent>();scroll.MovementType=options.ScrollType;scroll.Elasticity=options.Elasticity;scroll.Horizontal=options.HorizontalScrollBar!=null;scroll.HorizontalScrollbar=options.HorizontalScrollBar;scroll.Vertical=options.VerticalScrollBar!=null;scroll.VerticalScrollbar=options.VerticalScrollBar;scroll.ScrollSensitivity=options.ScrollSensitivity;scroll.ContentTransform=CuiPool.GetTransform(contentAnchor);AddElement(element.WithComponent(scroll));return CreateParentScope(element.Name);}public IDisposable CreateScrollContainer(in Anchor anchor,in Anchor contentAnchor,in ScrollViewOptions options,out UiRef self){var container=CreateScrollContainer(anchor,contentAnchor,options);self=CurrentRef;return container;}private void CreateRootContainer(in Anchor anchor,in UiColor background,float fadeOutTime,bool keyboard,bool mouse,string material){var element=CuiPool.GetElement(Guid(),Parent,anchor);element.FadeOut=fadeOutTime;var img=CuiPool.GetComponent<CuiImageComponent>();img.Color=background;img.Material=material;AddElement(element.WithComponent(img).WithCursor(mouse).WithKeyboard(keyboard));parents.Push(element.Name);RootRef=CurrentRef;}public void AddImage(in Anchor anchor,string png){var image=CuiPool.GetComponent<CuiRawImageComponent>();image.Png=png;var el=CuiPool.GetElement(Guid(),Parent,anchor);AddElement(el.WithComponent(image));}public void AddImageUrl(in Anchor anchor,string url){var image=CuiPool.GetComponent<CuiRawImageComponent>();image.Url=url;var el=CuiPool.GetElement(Guid(),Parent,anchor);AddElement(el.WithComponent(image));}public void AddItemImage(in Anchor anchor,int itemId)=>AddItemImage(anchor,itemId,0);public void AddItemImage(in Anchor anchor,int itemId,ulong skinId){var el=CuiPool.GetElement(Guid(),Parent,anchor);var image=CuiPool.GetComponent<CuiImageComponent>();image.ItemId=itemId;image.SkinId=skinId;AddElement(el.WithComponent(image));}public void AddLabel(in Anchor anchor,string text)=>AddLabel(anchor,text,LabelStyle.Default);public void AddLabel(in Anchor anchor,string text,in LabelStyle style){var element=CuiPool.GetElement(Guid(),Parent,anchor);var textComp=CuiPool.GetComponent<CuiTextComponent>();textComp.Text=text;textComp.Color=style.TextColor;textComp.Align=style.TextAnchor;textComp.Font=style.Font;textComp.FontSize=style.FontSize;if(style.Outline!=default){var outlineComp=CuiPool.GetComponent<CuiOutlineComponent>();outlineComp.Color=style.Outline;outlineComp.Distance=$"{style.OutlineDistance.x} {style.OutlineDistance.y}";element.WithComponent(outlineComp);}AddElement(element.WithComponent(textComp));}public void AddButton(in Anchor anchor,string text,Action<BasePlayer>callback,bool singleUse=true)=>AddButton(anchor,text,callback,ButtonStyle.Default,singleUse);public void AddButton(in Anchor anchor,string text,Action<BasePlayer>callback,in ButtonStyle style,bool singleUse=true)=>AddButton(anchor,text,callback,style.ButtonColor,style.TextStyle,singleUse);public void AddButton(in Anchor anchor,string text,Action<BasePlayer>callback,in UiColor color,in LabelStyle textStyle,bool singleUse=true){var buttonGuid=Guid();var buttonComp=CuiPool.GetComponent<CuiButtonComponent>();buttonComp.Color=color;buttonComp.Command=callback==null?null:plugin.CreateUiCommand(buttonGuid,callback,singleUse);var button=CuiPool.GetElement(buttonGuid,Parent,anchor);AddElement(button.WithComponent(buttonComp));var textComp=CuiPool.GetComponent<CuiTextComponent>();textComp.Text=text;textComp.Color=textStyle.TextColor;textComp.Align=textStyle.TextAnchor;textComp.Font=textStyle.Font;textComp.FontSize=textStyle.FontSize;var textElement=CuiPool.GetElement(Guid(),buttonGuid,PluginComponents.Loottable.Cui.Anchor.Fill);AddElement(textElement.WithComponent(textComp));}public void AddInputField(in Anchor anchor,string value,Action<BasePlayer,string>callback,InputFieldFlags flags=InputFieldFlags.None,bool singleUse=true)=>AddInputField(anchor,value,callback,LabelStyle.Default,flags,singleUse);public void AddInputField(in Anchor anchor,string value,Action<BasePlayer,string>callback,in LabelStyle style,InputFieldFlags flags=InputFieldFlags.None,bool singleUse=true){var guid=Guid();var inputComp=CuiPool.GetComponent<CuiInputFieldComponent>();inputComp.Command=plugin.CreateUiCommand(guid,callback,singleUse);inputComp.Text=value;inputComp.Color=style.TextColor;inputComp.Align=style.TextAnchor;inputComp.Font=style.Font;inputComp.FontSize=style.FontSize;inputComp.Autofocus=flags.HasFlag(InputFieldFlags.Autofocus);inputComp.ReadOnly=flags.HasFlag(InputFieldFlags.ReadOnly);inputComp.HudMenuInput=flags.HasFlag(InputFieldFlags.HudMenuInput);inputComp.IsPassword=flags.HasFlag(InputFieldFlags.Password);if(flags.HasFlag(InputFieldFlags.MultiLine)){inputComp.LineType=InputField.LineType.MultiLineNewline;}else if(flags.HasFlag(InputFieldFlags.WordWrap)){inputComp.LineType=InputField.LineType.MultiLineSubmit;}var element=CuiPool.GetElement(guid,Parent,anchor);AddElement(element.WithComponent(inputComp));}public UiRef Send(BasePlayer player)=>Send(player,default);public UiRef Send(BasePlayer player,UiRef old){if(old.IsValid&&elements.Count>0){elements[0].DestroyUi=old.Name;}CuiHelper.AddUi(player,elements);return RootRef;}public void Send(BasePlayer player,ref UiRef containerRef){containerRef=Send(player,containerRef);}public static Cui Create(BasePlugin plugin,UiRef parent)=>Create(plugin,parent,null,0);public static Cui Create(BasePlugin plugin,UiRef parent,string material,float opacity){var cui=new Cui(plugin,parent.Name);cui.CreateRootContainer(PluginComponents.Loottable.Cui.Anchor.Fill,new UiColor(0,0,0,opacity),0,false,false,material);return cui;}public static Cui CreateWithoutContainer(BasePlugin plugin,UiParentLayer parent){var parentName=parent switch{UiParentLayer.Overlay=>"Overlay",UiParentLayer.OverlayNonScaled=>"OverlayNonScaled",UiParentLayer.Hud=>"Hud",UiParentLayer.Menu=>"Hud.Menu",_=>"Under"};return new Cui(plugin,parentName);}public static Cui CreateWithoutContainer(BasePlugin plugin,UiRef parent){return new Cui(plugin,parent.Name);}public static Cui Create(BasePlugin plugin,in Anchor anchor,in UiColor background,UiParentLayer parent,UiFlags flags=UiFlags.None,float fadeOutTime=0,string material=null){var parentName=parent switch{UiParentLayer.Overlay=>"Overlay",UiParentLayer.OverlayNonScaled=>"OverlayNonScaled",UiParentLayer.Hud=>"Hud",UiParentLayer.Menu=>"Hud.Menu",_=>"Under"};var cui=new Cui(plugin,parentName);cui.CreateRootContainer(anchor,background,fadeOutTime,flags.HasFlag(UiFlags.Keyboard),flags.HasFlag(UiFlags.Mouse),material);return cui;}public static void Destroy(BasePlayer player,UiRef cuiRef){if(cuiRef.IsValid){CuiHelper.DestroyUi(player,cuiRef.Name);}}public static void Destroy(BasePlayer player,ref UiRef cuiRef){if(cuiRef.IsValid){CuiHelper.DestroyUi(player,cuiRef.Name);}cuiRef=default;}public void Dispose(){CuiPool.FreeElements(elements);Pool.FreeUnmanaged(ref elements);}private IDisposable CreateParentScope(string parent){parents.Push(parent);return DisposeAction.Create(()=>parents.Pop());}private void AddElement(CuiElement element){elements.Add(element);}private static string Guid(){return System.Guid.NewGuid().ToString();}private struct DisposeAction:IDisposable{private Action action;private DisposeAction(Action action){this.action=action;}public void Dispose(){action?.Invoke();action=null;}public static IDisposable Create(Action action){return new DisposeAction(action);}}}public readonly struct UiRef{public string Name{get;init;}public bool IsValid{get;init;}public UiRef(string name){Name=name;IsValid=true;}}public enum UiParentLayer{Overlay,Hud,Menu,Under,OverlayNonScaled}[Flags]public enum UiFlags{None=0,Mouse=1,Keyboard=2,MouseAndKeyboard=Mouse|Keyboard,}public enum InputFieldFlags{None=0,ReadOnly=1<<0,Password=1<<1,Autofocus=1<<2,HudMenuInput=1<<3,MultiLine=1<<4,WordWrap=1<<5,}public struct ScrollViewOptions{public CuiScrollbar VerticalScrollBar{get;set;}public CuiScrollbar HorizontalScrollBar{get;set;}public ScrollRect.MovementType ScrollType{get;set;}public float Elasticity{get;set;}public float ScrollSensitivity{get;set;}}internal static class CuiElementEx{private static CuiNeedsCursorComponent cursorComponent;private static CuiNeedsKeyboardComponent keyboardComponent;internal static CuiElement WithKeyboard(this CuiElement element,bool enabled=true){if(!enabled){return element;}keyboardComponent??=new CuiNeedsKeyboardComponent();element.Components.Add(keyboardComponent);return element;}internal static CuiElement WithCursor(this CuiElement element,bool enabled=true){if(!enabled){return element;}cursorComponent??=new CuiNeedsCursorComponent();element.Components.Add(cursorComponent);return element;}internal static CuiElement WithComponent(this CuiElement element,ICuiComponent component){element.Components.Add(component);return element;}}internal static class CuiPool{public static void FreeElements(List<CuiElement>elements){for(int i=0;i<elements.Count;i++){var el=elements[i];FreeElement(ref el);elements[i]=null;}}public static CuiElement GetElement(string name,string parent,Anchor anchor){var el=Pool.Get<CuiElement>();el.Name=name;el.Parent=parent;el.Components.Add(GetTransform(anchor));return el;}public static CuiRectTransformComponent GetTransform(Anchor anchor){var transform=Pool.Get<CuiRectTransformComponent>();transform.AnchorMin=anchor.Min();transform.AnchorMax=anchor.Max();transform.OffsetMin=anchor.OffsetMin();transform.OffsetMax=anchor.OffsetMax();return transform;}public static T GetComponent<T>()where T:class,ICuiComponent,new(){return Pool.Get<T>();}public static void FreeElement(ref CuiElement element){for(int i=0;i<element.Components.Count;i++){var comp=element.Components[i];if(comp is CuiRectTransformComponent rect){FreeComponent(ref rect);}else if(comp is CuiImageComponent image){FreeComponent(ref image);}else if(comp is CuiRawImageComponent rawImage){FreeComponent(ref rawImage);}else if(comp is CuiTextComponent text){FreeComponent(ref text);}else if(comp is CuiButtonComponent button){FreeComponent(ref button);}element.Components[i]=null;}element.Components.Clear();element.DestroyUi=default;element.FadeOut=default;element.Name=default;element.Parent=default;element.Update=default;Pool.FreeUnsafe(ref element);}public static void FreeComponent<T>(ref T component)where T:class,ICuiComponent,new(){if(component is CuiNeedsCursorComponent||component is CuiNeedsKeyboardComponent){return;}foreach(var prop in component.GetType().GetProperties()){if(prop.CanWrite){prop.SetValue(component,null);}}Pool.FreeUnsafe(ref component);}}}namespace PluginComponents.Loottable.Cui.Style{using System;using UnityEngine;using PluginComponents.Loottable;using PluginComponents.Loottable.Cui;public readonly record struct ButtonStyle{public UiColor ButtonColor{get;init;}public LabelStyle TextStyle{get;init;}public static ButtonStyle Default{get;}=new ButtonStyle{ButtonColor=Color.blue,TextStyle=LabelStyle.Default};public static implicit operator ButtonStyle(in ValueTuple<UiColor,LabelStyle>valueTuple){return new ButtonStyle{ButtonColor=valueTuple.Item1,TextStyle=valueTuple.Item2};}}public readonly record struct LabelStyle{public TextAnchor TextAnchor{get;init;}public UiColor TextColor{get;init;}public UiFont Font{get;init;}public int FontSize{get;init;}public UiColor Outline{get;init;}public Vector2 OutlineDistance{get;init;}public LabelStyle(){Font=UiFont.robotoRegular;TextColor=UiColor.White;OutlineDistance=new Vector2(1,-1);}public static readonly LabelStyle Default=new LabelStyle{TextAnchor=TextAnchor.MiddleCenter,TextColor=Color.white,Font=UiFont.robotoRegular,FontSize=12};}public readonly record struct UiColor{public float R{get;init;}public float G{get;init;}public float B{get;init;}public float Opacity{get;init;}public UiColor(float r,float g,float b,float opacity=1f){R=r;G=g;B=b;Opacity=opacity;}public static implicit operator Color(UiColor color){return new Color(color.R,color.G,color.B,color.Opacity);}public static implicit operator UiColor(Color color){return new UiColor(color.r,color.g,color.b,color.a);}public static implicit operator string(UiColor color){return color.ToString();}public static UiColor operator*(UiColor color,float f){return new UiColor(Mathf.Clamp01(color.R*f),Mathf.Clamp01(color.G*f),Mathf.Clamp01(color.B*f),color.Opacity);}public override string ToString(){return$"{R:N3} {G:N3} {B:N3} {Opacity:N3}";}public static readonly UiColor Transparent=new UiColor(0f,0f,0f,0f);public static readonly UiColor White=new UiColor(1f,1f,1f,1f);public static readonly UiColor Black=new UiColor(0f,0f,0f,1f);}public class UiFont{public static readonly UiFont robotoRegular=new UiFont("robotocondensed-regular.ttf");public static readonly UiFont robotoBold=new UiFont("robotocondensed-bold.ttf");public static readonly UiFont permanentMarker=new UiFont("permanentmarker.ttf");public static readonly UiFont droidSansMono=new UiFont("droidsansmono.ttf");public string ResourceFile{get;}private UiFont(string resourceFile){ResourceFile=resourceFile;}public static implicit operator string(UiFont font){return font.ResourceFile;}}}namespace PluginComponents.Loottable.Cui.Images{using PluginComponents.Loottable;using PluginComponents.Loottable.Cui;using Oxide.Core.Plugins;using PluginComponents.Loottable.Core;using PluginComponents.Loottable.DoubleDictionary;using System;using System.Collections.Generic;using System.Text;public interface IImage{string ImageUrl{get;}string ImageKey{get;set;}}public class ImageHelper{public readonly string PlaceholderKey;private readonly BasePlugin plugin;public bool Update{get;set;}public bool Initialized{get;private set;}
 #if CARBON
 private readonly Carbon.Modules.ImageDatabaseModule imageDatabase;
 #endif
