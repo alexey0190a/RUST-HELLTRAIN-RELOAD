@@ -460,6 +460,7 @@ private void OnServerInitialized()
 }
 
 private TrainEngine activeHellTrain = null;
+      private Timer _couplingRetryTimer = null;
         private Timer respawnTimer = null;
 		private Timer _gridCheckTimer = null;
         private List<TrainTrackSpline> availableOverworldSplines = new List<TrainTrackSpline>();
@@ -813,6 +814,9 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+  _couplingRetryTimer?.Destroy();
+  _couplingRetryTimer = null;
+
     if (_isBuildingTrain && !force)
     {
         PrintWarning($"[Helltrain] Cleanup suppressed during train build ({reason})");
@@ -2346,6 +2350,43 @@ trainCar.SendNetworkUpdate();
             {
                 PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
                 KillEventTrainCars($"Coupling init timeout: {coupleMissing}", force: true);
+			// аварийный фейл сборки: короткая задержка + ожидание чистого рантайма (чтобы lifecycle не умирал)
+              if (config.AutoRespawn)
+              {
+                  _couplingRetryTimer?.Destroy();
+                  _couplingRetryTimer = null;
+
+                  int ticks = 0;
+
+                  _couplingRetryTimer = timer.Once(20f, () =>
+                  {
+                      _couplingRetryTimer?.Destroy();
+                      _couplingRetryTimer = null;
+
+                      _couplingRetryTimer = timer.Repeat(1f, 0, () =>
+                      {
+                          ticks++;
+
+                          if (_isBuildingTrain) return;
+
+                          if (_spawnedCars.Count > 0 || _spawnedTrainEntities.Count > 0 || (activeHellTrain != null && !activeHellTrain.IsDestroyed)) 
+                          {
+                              if (ticks >= 120)
+                              {
+                                  PrintError($"❌ Coupling emergency retry timeout: runtime still dirty cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} engine={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
+                                  _couplingRetryTimer?.Destroy();
+                                  _couplingRetryTimer = null;
+                              }
+                              return;
+                          }
+
+                          _couplingRetryTimer?.Destroy();
+                          _couplingRetryTimer = null;
+
+                          SpawnHellTrain(null);
+                      });
+                  });
+              }
                 yield break;
             }
 
