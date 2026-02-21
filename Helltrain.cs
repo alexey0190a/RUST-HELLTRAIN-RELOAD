@@ -3824,6 +3824,22 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         return;
     }
 
+    // P1: deny new start if build is running or runtime is dirty (no cleanup here)
+    if (sub == "start" || sub == "startnear")
+    {
+        bool dirty =
+            _isBuildingTrain ||
+            (activeHellTrain != null && !activeHellTrain.IsDestroyed) ||
+            (_spawnedCars != null && _spawnedCars.Count > 0) ||
+            (_spawnedTrainEntities != null && _spawnedTrainEntities.Count > 0);
+
+        if (dirty)
+        {
+            SendReply(player, "⛔ Helltrain сейчас занят (идёт сборка или остались хвосты). Подожди 10–20 сек и попробуй снова.");
+            return;
+        }
+    }
+
     if (sub != "start" && sub != "startnear")
     {
         SendReply(player, "❌ Неизвестная подкоманда. Напиши просто /helltrain");
