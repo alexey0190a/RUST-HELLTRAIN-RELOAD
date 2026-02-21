@@ -2682,6 +2682,8 @@ private void SpawnHellTrain(BasePlayer player = null)
 
     // ✅ ИЗМЕНЕНО: ИСПОЛЬЗУЕМ WEIGHTED RANDOM
     string chosen = ChooseWeightedComposition();
+    // keep SoT consistent: chosen composition => active faction key for generator/lifecycle
+    _activeFactionKey = chosen.ToUpperInvariant();
 
     if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
     {
