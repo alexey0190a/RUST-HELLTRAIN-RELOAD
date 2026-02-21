@@ -19,6 +19,11 @@ namespace Oxide.Plugins
     [Description("Поезд для ивентов с фракциями и лутом")]
     public class Helltrain : RustPlugin
     {
+		private void EventLog(string message)
+		{
+			LogToFile("Helltrain", message, this);
+		}
+
 		
 		void Unload()
 {
@@ -460,6 +465,7 @@ private void OnServerInitialized()
 }
 
 private TrainEngine activeHellTrain = null;
+private Timer _couplingRetryTimer = null;
         private Timer respawnTimer = null;
 		private Timer _gridCheckTimer = null;
         private List<TrainTrackSpline> availableOverworldSplines = new List<TrainTrackSpline>();
@@ -813,6 +819,9 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+	_couplingRetryTimer?.Destroy();
+  _couplingRetryTimer = null;
+
     if (_isBuildingTrain && !force)
     {
         PrintWarning($"[Helltrain] Cleanup suppressed during train build ({reason})");
@@ -2246,6 +2255,7 @@ locoEnt.SendNetworkUpdate();
     {
         PrintError($"[Helltrain][WAGONKEY_INVALID] i={i} wagonKey='{wagonName}' => cannot parse ^wagon([ABC])_ (fail-fast)");
         AbortRequest("WAGONKEY_INVALID", _activeFactionKey, wagonName, _lastResolvedCompositionKey ?? compositionName);
+		 ProcessAbortIfRequested("wagonkey_invalid");
         yield break;
     }
 
@@ -2319,7 +2329,7 @@ trainCar.SendNetworkUpdate();
 
         // WAIT-UNTIL-READY (вместо фиксированного 0.2s): даём Unity/Entity инициализировать рельсы/куплинги
         // Таймаут короткий, дальше fail-fast с причиной (чтобы не было "костыля 40 секунд")
-        const float coupleReadyTimeout = 3f;
+        const float coupleReadyTimeout = 10f;
         float coupleReadyStart = Time.realtimeSinceStartup;
         string coupleMissing = null;
         while (true)
@@ -2344,8 +2354,46 @@ trainCar.SendNetworkUpdate();
 
             if (Time.realtimeSinceStartup - coupleReadyStart >= coupleReadyTimeout)
             {
-                PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
-                KillEventTrainCars($"Coupling init timeout: {coupleMissing}", force: true);
+              			  PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+               			  EventLog($"[COUPLING TIMEOUT] {coupleMissing} prefab='{prefab}' wagon='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+						
+						// аварийный фейл сборки: короткая задержка + ожидание чистого рантайма (чтобы lifecycle не умирал)
+              if (config.AutoRespawn)
+              {
+                  _couplingRetryTimer?.Destroy();
+                  _couplingRetryTimer = null;
+
+                  int ticks = 0;
+
+                  _couplingRetryTimer = timer.Once(20f, () =>
+                  {
+                      _couplingRetryTimer?.Destroy();
+                      _couplingRetryTimer = null;
+
+                      _couplingRetryTimer = timer.Repeat(1f, 0, () =>
+                      {
+                          ticks++;
+
+                          if (_isBuildingTrain) return;
+
+                          if (_spawnedCars.Count > 0 || _spawnedTrainEntities.Count > 0 || (activeHellTrain != null && !activeHellTrain.IsDestroyed)) 
+                          {
+                              if (ticks >= 120)
+                              {
+                                  PrintError($"❌ Coupling emergency retry timeout: runtime still dirty cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} engine={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
+                                  _couplingRetryTimer?.Destroy();
+                                  _couplingRetryTimer = null;
+                              }
+                              return;
+                          }
+
+                          _couplingRetryTimer?.Destroy();
+                          _couplingRetryTimer = null;
+
+                          SpawnHellTrain(null);
+                      });
+                  });
+              }
                 yield break;
             }
 
@@ -2682,6 +2730,8 @@ private void SpawnHellTrain(BasePlayer player = null)
 
     // ✅ ИЗМЕНЕНО: ИСПОЛЬЗУЕМ WEIGHTED RANDOM
     string chosen = ChooseWeightedComposition();
+	   // keep SoT consistent: chosen composition => active faction key for generator/lifecycle
+    _activeFactionKey = chosen.ToUpperInvariant();
 
     if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
     {
@@ -3822,6 +3872,22 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         SendReply(player, "🧹 Helltrain остановлен и очищен.");
         StartRespawnTimer();
         return;
+    }
+
+    // P1: deny new start if build is running or runtime is dirty (no cleanup here)
+    if (sub == "start" || sub == "startnear")
+    {
+        bool dirty =
+            _isBuildingTrain ||
+            (activeHellTrain != null && !activeHellTrain.IsDestroyed) ||
+            (_spawnedCars != null && _spawnedCars.Count > 0) ||
+            (_spawnedTrainEntities != null && _spawnedTrainEntities.Count > 0);
+
+        if (dirty)
+        {
+            SendReply(player, "⛔ Helltrain сейчас занят (идёт сборка или остались хвосты). Подожди 10–20 сек и попробуй снова.");
+            return;
+        }
     }
 
     if (sub != "start" && sub != "startnear")
