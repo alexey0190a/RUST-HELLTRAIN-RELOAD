@@ -2358,7 +2358,8 @@ trainCar.SendNetworkUpdate();
         if (trainCar.IsDestroyed)
         {
             PrintError($"❌ Вагон [{i}] destroyed после Spawn");
-            continue;
+            KillEventTrainCars("wagon_destroyed_after_spawn", force: true);
+            yield break;
         }
         
         trainCar.CancelInvoke(trainCar.DecayTick);
