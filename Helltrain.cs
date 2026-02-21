@@ -2344,9 +2344,10 @@ if (layout == null)
         }
         
         trainCar.enableSaving = false;
-trainCar.Spawn();
-trainCar.OwnerID = HELL_OWNER_ID;
-trainCar.SendNetworkUpdate();
+	trainCar.Spawn();
+	        yield return null;
+	trainCar.OwnerID = HELL_OWNER_ID;
+	trainCar.SendNetworkUpdate();
 
         
         NextTick(() =>
