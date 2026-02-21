@@ -24,7 +24,43 @@ namespace Oxide.Plugins
 			LogToFile("Helltrain", message, this);
 		}
 
-		
+		private string _evTs() => DateTime.UtcNow.ToString("HH:mm:ss.fff");
+
+		private string _netId(BaseNetworkable bn)
+		{
+			try { return (bn != null && bn.net != null) ? bn.net.ID.Value.ToString() : "no-net"; }
+			catch { return "no-net"; }
+		}
+
+		private string _pos(BaseEntity e)
+		{
+			try
+			{
+				if (e == null) return "null";
+				var p = e.transform.position;
+				return $"{p.x:0.00},{p.y:0.00},{p.z:0.00}";
+			}
+			catch { return "pos?"; }
+		}
+
+		private string _carSnap(TrainCar c)
+		{
+			if (c == null) return "car=null";
+			string life = c.IsDestroyed ? "destroyed" : "alive";
+			string prefab = c.ShortPrefabName;
+			string id = _netId(c);
+			string track = (c.FrontTrackSection == null) ? "track=null" : "track=ok";
+			string coup = (c.coupling == null) ? "coupling=null" : "coupling=ok";
+			string rear = (c.rearCoupling == null) ? "rear=null" : "rear=ok";
+			string front = (c.frontCoupling == null) ? "front=null" : "front=ok";
+			return $"{life} prefab='{prefab}' net={id} pos={_pos(c)} {track} {coup} {rear} {front}";
+		}
+
+		private void EventLogV(string tag, string message)
+		{
+			EventLog($"[{_evTs()}] [{tag}] {message}");
+		}
+
 		void Unload()
 {
     try
@@ -793,6 +829,7 @@ private void OnEntityKill(BaseNetworkable entity)
     _engineCleanupCooldownUntil = Time.realtimeSinceStartup + 1f;
     if (_engineCleanupTriggered) return;
     _engineCleanupTriggered = true;
+	   EventLogV("ENGINE_KILL", $"isBuilding={_isBuildingTrain} ours={ours} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
 
     Puts("[Helltrain] Engine OnEntityKill → cleanup event cars");
     KillEventTrainCars("engine_removed");
@@ -810,6 +847,8 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
     if (_engineCleanupTriggered) return;
     _engineCleanupTriggered = true;
 
+  EventLogV("ENGINE_DEATH", $"isBuilding={_isBuildingTrain} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
+  
     Puts("[Helltrain] Engine OnEntityDeath → cleanup event cars");
     KillEventTrainCars("engine_died");
 }
@@ -2239,6 +2278,7 @@ locoEnt.SendNetworkUpdate();
 
     _spawnedCars.Add(locoEnt);
 	_spawnedTrainEntities.Add(locoEnt);
+		EventLogV("LOCO_TRACK", $"composition='{compositionName}' faction='{_activeFactionKey}' {_carSnap(locoEnt)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count}");
 
 
     yield return new WaitForSeconds(0.5f);
@@ -2326,6 +2366,7 @@ trainCar.SendNetworkUpdate();
       //  Puts($"   🔧 [{i}] {wagonName}: {trainCar.ShortPrefabName} (ID: {trainCar.net.ID})");
                 _spawnedTrainEntities.Add(trainCar);
         _spawnedCars.Add(trainCar);
+		  EventLogV("WAGON_TRACK", $"i={i} wagonKey='{wagonName}' prefab='{prefab}' {_carSnap(trainCar)} prev={_carSnap(lastSpawnedCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count}");
 
         // WAIT-UNTIL-READY (вместо фиксированного 0.2s): даём Unity/Entity инициализировать рельсы/куплинги
         // Таймаут короткий, дальше fail-fast с причиной (чтобы не было "костыля 40 секунд")
@@ -2355,7 +2396,9 @@ trainCar.SendNetworkUpdate();
             if (Time.realtimeSinceStartup - coupleReadyStart >= coupleReadyTimeout)
             {
               			  PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
-               			  EventLog($"[COUPLING TIMEOUT] {coupleMissing} prefab='{prefab}' wagon='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+               			   EventLog($"[COUPLING TIMEOUT] {coupleMissing} prefab='{prefab}' wagon='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+
+						KillEventTrainCars($"coupling_init_timeout:{coupleMissing}", force: true);
 						
 						// аварийный фейл сборки: короткая задержка + ожидание чистого рантайма (чтобы lifecycle не умирал)
               if (config.AutoRespawn)
@@ -2463,12 +2506,13 @@ trainCar.SendNetworkUpdate();
         );
         
         
-        
+        EventLogV("TRY_COUPLE", $"i={i} wagonKey='{wagonName}' prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
         bool coupled = trainCar.coupling.frontCoupling.TryCouple(
             lastSpawnedCar.coupling.rearCoupling, 
             true
         );
-        
+         EventLogV("TRY_COUPLE_RES", $"i={i} wagonKey='{wagonName}' coupled={(coupled ? "yes" : "no")} prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
+		 
        // Puts($"   {(coupled ? "✅" : "❌")} Сцепка: {lastSpawnedCar.ShortPrefabName} ↔ {trainCar.ShortPrefabName}");
         
         lastSpawnedCar = trainCar;
