@@ -5025,6 +5025,8 @@ string kitKey =
 
 if (string.IsNullOrEmpty(kitKey) || kitKey.Equals("None", StringComparison.OrdinalIgnoreCase))
 {
+    var planSlots = _activeNpcAssignments?.Count ?? 0;
+    Puts($"[NPC SLOT] slot={npcSlot} kitKey={(kitKey ?? "null")} planSlots={planSlots}");
     Puts($"[NPC SKIP] slot={npcSlot} reason=NO_KIT_IN_PLAN");
     continue;
 }
