@@ -1220,6 +1220,16 @@ public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
         [JsonProperty("Следующий поезд")]
         public string NextTrain { get; set; } = "⏳ Следующий поезд через {minutes} {minutesWord}";
     }
+
+public DebugConfig Debug = new DebugConfig();
+
+public class DebugConfig
+{
+    public bool ResolveLayout = false;
+    public bool CratesVerbose = false;
+    public bool CratesTick = false;
+    public bool LayoutLoad = false;
+}
 }
 
 // Регистрация пресетов Helltrain в лут-таблице (заглушка, чтобы не падать при компиляции)
@@ -1745,7 +1755,8 @@ private void LoadLayouts()
             var json = File.ReadAllText(file, System.Text.Encoding.UTF8);
             
             // ✅ КРИТИЧНО: Логируем размер файла!
-            Puts($"📄 Файл: {Path.GetFileName(file)} ({json.Length} байт)");
+            if (config.Debug.LayoutLoad)
+                Puts($"📄 Файл: {Path.GetFileName(file)} ({json.Length} байт)");
             
             var settings = new JsonSerializerSettings
             {
@@ -1770,7 +1781,8 @@ private void LoadLayouts()
             
             // ✅ КРИТИЧНО: Проверяем objects!
             int objCount = layout.objects?.Count ?? 0;
-            Puts($"   📦 {layout.name}: {objCount} objects (null={layout.objects == null})");
+            if (config.Debug.LayoutLoad)
+                Puts($"   📦 {layout.name}: {objCount} objects (null={layout.objects == null})");
             
             var fileKey = Path.GetFileNameWithoutExtension(file);
 
@@ -2265,7 +2277,8 @@ locoEnt.SendNetworkUpdate();
     var foundName = layout?.name ?? "NULL";
     var layoutVariant = (layout != null && layout.cars != null && layout.cars.Count > 0) ? (layout.cars[0].variant ?? "NULL") : "NULL";
 
-    Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} wagonKey='{wagonName}' found='{foundName}' layoutVariant='{layoutVariant}' parsedVariant='{parsedVariant}' prefab='{prefab}'");
+    if (config.Debug.ResolveLayout)
+        Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} wagonKey='{wagonName}' found='{foundName}' layoutVariant='{layoutVariant}' parsedVariant='{parsedVariant}' prefab='{prefab}'");
 
     // layoutVariant — только визуальная метка/отладка
 if (!string.IsNullOrEmpty(layoutVariant) && layoutVariant != "NULL" && !layoutVariant.Equals(parsedVariant, StringComparison.OrdinalIgnoreCase))
@@ -2562,7 +2575,8 @@ var foundName = wagonLayout?.name ?? "NULL";
 var foundVar = (wagonLayout != null && wagonLayout.cars != null && wagonLayout.cars.Count > 0)
     ? (wagonLayout.cars[0].variant ?? "NULL")
     : "NULL";
-Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundName}' variant='{foundVar}'");
+if (config.Debug.ResolveLayout)
+    Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundName}' variant='{foundVar}'");
 
 
         
@@ -5126,7 +5140,8 @@ string prefabPath = a?.prefabPath; // new format
 string spawnPrefab = !string.IsNullOrEmpty(prefabPath) ? prefabPath : lootPrefab; // legacy fallback
 
 if (slotIndex < 16)
-    Puts($"[CRATE SLOT] slotIndex={slotIndex} lootKey={lootKey} prefabPath={(prefabPath ?? "legacy")}");
+    if (config.Debug.CratesVerbose)
+        Puts($"[CRATE SLOT] slotIndex={slotIndex} lootKey={lootKey} prefabPath={(prefabPath ?? "legacy")}");
 
 if (string.IsNullOrEmpty(lootKey) || lootKey.Equals("None", StringComparison.OrdinalIgnoreCase))
     continue;
@@ -5138,7 +5153,8 @@ var lr = ReadLocalRot(s.rot);
 Vector3 worldPos = trainCar.transform.TransformPoint(lp);
 Quaternion worldRot = trainCar.transform.rotation * lr;
 
-Puts($"[CRATE SPAWN TRY] slotIndex={slotIndex} lootKey={lootKey} prefab={spawnPrefab}");
+if (config.Debug.CratesVerbose)
+    Puts($"[CRATE SPAWN TRY] slotIndex={slotIndex} lootKey={lootKey} prefab={spawnPrefab}");
 
 var ent = GameManager.server.CreateEntity(spawnPrefab, worldPos, worldRot);
 
@@ -5168,7 +5184,8 @@ Track(ent); // ✅ MAIN: чтобы Stop/Cleanup чистил эти ящики
 
 // OK лог сразу после Spawn
 ulong spawnedId = (ent.net != null) ? ent.net.ID.Value : 0UL;
-Puts($"[CRATE SPAWN OK] slotIndex={slotIndex} lootKey={lootKey} id={spawnedId} worldPos={worldPos} parent={(trainCar != null ? trainCar.ShortPrefabName : "null")}");
+if (config.Debug.CratesVerbose)
+    Puts($"[CRATE SPAWN OK] slotIndex={slotIndex} lootKey={lootKey} id={spawnedId} worldPos={worldPos} parent={(trainCar != null ? trainCar.ShortPrefabName : "null")}");
 
 
 
@@ -5182,7 +5199,8 @@ timer.Once(0f, () =>
 if (entRef.IsDestroyed) { PrintWarning($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} destroyed=true id={(entRef.net != null ? entRef.net.ID.Value : 0UL)}"); return; }
 if (entRef.net == null) { PrintWarning($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} net=null alive=true"); return; }
 
-Puts($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} alive=true id={entRef.net.ID.Value}");
+if (config.Debug.CratesTick)
+    Puts($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} alive=true id={entRef.net.ID.Value}");
 
     }
     catch (Exception ex)
