@@ -2346,6 +2346,17 @@ trainCar.SendNetworkUpdate();
             {
                 PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
                 KillEventTrainCars($"Coupling init timeout: {coupleMissing}", force: true);
+                // аварийный фейл сборки: короткая задержка перед новой попыткой
+                if (config.AutoRespawn)
+                {
+                    timer.Once(20f, () =>
+                    {
+                        if (_isBuildingTrain) return;
+                        if (_spawnedCars.Count > 0 || _spawnedTrainEntities.Count > 0 || (activeHellTrain != null && !activeHellTrain.IsDestroyed)) return;
+
+                        SpawnHellTrain(null);
+                    });
+                }
                 yield break;
             }
 
