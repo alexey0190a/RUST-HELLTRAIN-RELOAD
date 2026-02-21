@@ -1593,6 +1593,19 @@ private class TrainLayout
 
     [JsonProperty("Shelves")]
     public List<ShelfSpec> Shelves { get; set; }
+	
+	
+    // ✅ HEAVY (variant C): точки спавна боевых сущностей (локальные)
+    // wagonC_<faction> может быть обычной платформой (normal) — тогда эти поля просто не используются.
+    [JsonProperty("BradleySlot")]
+    public SlotSpec BradleySlot { get; set; }   // 1 точка под Bradley (PMC heavy)
+
+    [JsonProperty("SamSiteSlot")]
+    public SlotSpec SamSiteSlot { get; set; }   // 1 точка под SAM (PMC heavy)
+
+    [JsonProperty("TurretSlots")]
+    public List<SlotSpec> TurretSlots { get; set; } // несколько точек под турели (COBLAB heavy)
+	
 }
 
 class SlotSpec
@@ -2345,8 +2358,9 @@ if (layout == null)
         
         trainCar.enableSaving = false;
 trainCar.Spawn();
-trainCar.OwnerID = HELL_OWNER_ID;
-trainCar.SendNetworkUpdate();
+	        yield return null;
+	trainCar.OwnerID = HELL_OWNER_ID;
+	trainCar.SendNetworkUpdate();
 
         
         NextTick(() =>
@@ -2358,7 +2372,8 @@ trainCar.SendNetworkUpdate();
         if (trainCar.IsDestroyed)
         {
             PrintError($"❌ Вагон [{i}] destroyed после Spawn");
-            continue;
+            KillEventTrainCars("wagon_destroyed_after_spawn", force: true);
+            yield break;
         }
         
         trainCar.CancelInvoke(trainCar.DecayTick);
