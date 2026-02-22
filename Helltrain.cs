@@ -3492,7 +3492,7 @@ private void CmdHtClearCrates(BasePlayer player, string command, string[] args)
 /// </summary>
 private void ForceDestroyHellTrain()
 {
-    KillEventTrainCars("force_destroy");
+    KillEventTrainCars("force_destroy", force: true);
     _explosionTimerArmedOnce = false;
     _firstLootAnnounced = false;
     _explodedOnce = false;
