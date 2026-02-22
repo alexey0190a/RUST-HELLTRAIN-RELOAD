@@ -100,6 +100,9 @@ private bool _isBuildingTrain = false;
 private float _antiStuckIgnoreUntil = 0f;
 private bool _abortRequested = false;
 private string _abortReason = null;
+private ulong _buildToken = 0;
+
+private bool IsBuildCancelled(ulong token) => _abortRequested || token != _buildToken;
 
 // compositionKey, полученный из ResolveCompositionKey до assembly, используется после assembly
 private string _lastResolvedCompositionKey = null;
@@ -1018,6 +1021,9 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+	_abortRequested = true;
+	_buildToken++;
+
 	_couplingRetryTimer?.Destroy();
   _couplingRetryTimer = null;
 
@@ -2303,7 +2309,9 @@ if (!Gen_ValidateWagons(factionKey, wagons, out var validateReason))
 
 
 
-ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(compositionName, comp, wagons, targetTrack, targetDist));
+var myToken = ++_buildToken;
+_abortRequested = false;
+ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(myToken, compositionName, comp, wagons, targetTrack, targetDist));
 
 
 
@@ -2314,6 +2322,7 @@ ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(compositionName, comp, wa
         }
 
         private IEnumerator BuildTrainWithSpline(
+    ulong buildToken,
     string compositionName,
     ConfigData.TrainComposition comp,
     List<string> wagons,
@@ -2330,6 +2339,8 @@ ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(compositionName, comp, wa
 
 
     _isBuildingTrain = true;
+	if (IsBuildCancelled(buildToken))
+		yield break;
 	// 40 секунд иммунитета anti-stuck после спавна состава
 _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
 
@@ -2455,7 +2466,11 @@ locoEnt.SendNetworkUpdate();
 		EventLogV("LOCO_TRACK", $"composition='{compositionName}' faction='{_activeFactionKey}' {_carSnap(locoEnt)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count}");
 
 
-    yield return new WaitForSeconds(0.5f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    yield return new WaitForSeconds(0.5f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
     
     int positionIndex = 1;
 
@@ -2701,7 +2716,11 @@ trainCar.Spawn();
        // Puts($"   🔒 Задняя сцепка отключена для последнего вагона");
     }
     
-    yield return new WaitForSeconds(1f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    yield return new WaitForSeconds(1f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
     
     switch (comp.Tier)
     {
@@ -2735,7 +2754,11 @@ var factionKey = _activeFactionKey;
 
 
 // ✅ ВАЖНО: Спавним объекты С ЗАДЕРЖКОЙ после полной сборки поезда!
+if (IsBuildCancelled(buildToken))
+    yield break;
 yield return new WaitForSeconds(12f);
+if (IsBuildCancelled(buildToken))
+    yield break;
 
 // ✅ PLAN PIPE (order fix): build PopulatePlan only AFTER train is fully built and slots are available
 // inferredLayoutName как имя лэйаута.
@@ -2748,6 +2771,12 @@ if (wagons != null && wagons.Count > 0)
 
 var layoutName = !string.IsNullOrEmpty(_activeLayoutName) ? _activeLayoutName : inferredLayoutName;
 var compositionKey = _lastResolvedCompositionKey ?? "null";
+
+if (IsBuildCancelled(buildToken))
+    yield break;
+
+if (_spawnedCars == null || _spawnedCars.Count == 0)
+    yield break;
 
 if (!Gen_BuildPopulatePlan(factionKey, compositionKey, layoutName, _spawnedCars, out var planObj, out var planReason))
 {
@@ -2797,12 +2826,23 @@ Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundN
             }
         }
         
-        positionIndex++;
-        yield return new WaitForSeconds(0.1f);
-    }
-    
-    yield return new WaitForSeconds(20f);
-    StartEngine(trainEngine);
+	        positionIndex++;
+	        if (IsBuildCancelled(buildToken))
+	            yield break;
+	        yield return new WaitForSeconds(0.1f);
+	        if (IsBuildCancelled(buildToken))
+	            yield break;
+	    }
+	    
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    yield return new WaitForSeconds(20f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    StartEngine(trainEngine);
 	
 // ✅ ИНИЦИАЛИЗАЦИЯ LIFECYCLE
 _trainLifecycle = new TrainLifecycle(
