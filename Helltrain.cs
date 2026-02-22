@@ -2942,6 +2942,15 @@ private string ChooseWeightedComposition()
 
 private void SpawnHellTrain(BasePlayer player = null)
 {
+	// P1: ensure spawn always starts from clean runtime (no tails)
+	// If build is running or any previous entities exist, force cleanup and abort this spawn call.
+	if (_isBuildingTrain || _spawnedCars.Count > 0 || _spawnedTrainEntities.Count > 0 || activeHellTrain != null)
+	{
+		KillEventTrainCars("spawn_preclean", force: true);
+		activeHellTrain = null;
+		return;
+	}
+
 	// reset crate state (антиспам + первый ящик)
     if (config.Compositions.Count == 0)
     {
