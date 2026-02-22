@@ -953,7 +953,7 @@ private void OnEntityKill(BaseNetworkable entity)
 	   EventLogV("ENGINE_KILL", $"isBuilding={_isBuildingTrain} ours={ours} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
 
     Puts("[Helltrain] Engine OnEntityKill → cleanup event cars");
-    KillEventTrainCars("engine_removed");
+    KillEventTrainCars("engine_removed", force: true);
 }
 
 object OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
@@ -1002,17 +1002,69 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
     var engine = entity as TrainEngine;
     if (engine == null) return;
 
+    // реагируем ТОЛЬКО на наш ивент-лок, если метка есть
+    bool ours = (_spawnedCars.Contains(engine) || _spawnedTrainEntities.Contains(engine));
+    if (!ours && engine.OwnerID != HELL_OWNER_ID) return;
+
     if (Time.realtimeSinceStartup < _engineCleanupCooldownUntil) return;
     _engineCleanupCooldownUntil = Time.realtimeSinceStartup + 1f;
     if (_engineCleanupTriggered) return;
     _engineCleanupTriggered = true;
 
-  EventLogV("ENGINE_DEATH", $"isBuilding={_isBuildingTrain} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
-  
+    EventLogV("ENGINE_DEATH", $"isBuilding={_isBuildingTrain} ours={ours} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
+
     Puts("[Helltrain] Engine OnEntityDeath → cleanup event cars");
-    KillEventTrainCars("engine_died");
+    KillEventTrainCars("engine_died", force: true);
 }
 
+
+
+private bool HasEnoughSpaceToSpawn(TrainTrackSpline spline, Vector3 spawnPos, float minSqrDist, out BaseEntity blocker)
+{
+    blocker = null;
+    if (spline == null) return true;
+
+    // Rust exposes track users on spline; iterate without assuming exact element type
+    var users = spline.trackUsers;
+    if (users == null) return true;
+
+    foreach (var u in users)
+    {
+        if (u == null) continue;
+        var comp = u as Component;
+        if (comp == null) continue;
+
+        Vector3 p = comp.transform.position;
+        if ((spawnPos - p).sqrMagnitude < minSqrDist)
+        {
+            blocker = comp as BaseEntity;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+private void IgnoreTerrainCollisions(BaseEntity ent)
+{
+    if (ent == null) return;
+
+    var terrain = Terrain.activeTerrain;
+    if (terrain == null) return;
+
+    var terrainCol = terrain.GetComponent<TerrainCollider>();
+    if (terrainCol == null) return;
+
+    var cols = ent.GetComponentsInChildren<Collider>(true);
+    if (cols == null || cols.Length == 0) return;
+
+    for (int i = 0; i < cols.Length; i++)
+    {
+        var c = cols[i];
+        if (c == null) continue;
+        Physics.IgnoreCollision(c, terrainCol, true);
+    }
+}
 
 
 // Хелпер: снести весь наш состав (только ивентовые entities)
@@ -2373,7 +2425,14 @@ _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
     TrainTrackSpline currentTrack = track;
     Vector3 currentPosition = currentTrack.GetPosition(splineDist);
     Vector3 currentForward = currentTrack.GetTangentCubicHermiteWorld(splineDist);
-    
+
+    if (!HasEnoughSpaceToSpawn(currentTrack, currentPosition, 144f, out var blocker0))
+    {
+        PrintWarning($"[Helltrain] ❌ Not enough space to spawn (initial). blocker={(blocker0 == null ? "null" : blocker0.ShortPrefabName)} pos={currentPosition}");
+        KillEventTrainCars("no_space_to_spawn_initial", force: true);
+        yield break;
+    }
+
     spawnPositions.Add(new SpawnPosition(currentPosition, currentForward));
     
     for (int i = wagonStartIndex; i < wagons.Count; i++)
@@ -2388,7 +2447,14 @@ _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
         splineDist = result.distAlongSpline;
         currentPosition = currentTrack.GetPosition(splineDist);
         currentForward = currentTrack.GetTangentCubicHermiteWorld(splineDist);
-        
+
+        if (!HasEnoughSpaceToSpawn(currentTrack, currentPosition, 144f, out var blocker))
+        {
+            PrintWarning($"[Helltrain] ❌ Not enough space to spawn. i={i} blocker={(blocker == null ? "null" : blocker.ShortPrefabName)} pos={currentPosition}");
+            KillEventTrainCars("no_space_to_spawn", force: true);
+            yield break;
+        }
+
         spawnPositions.Add(new SpawnPosition(currentPosition, currentForward));
     }
     
@@ -2416,6 +2482,7 @@ _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
 
 	
     locoEnt.enableSaving = false;
+    IgnoreTerrainCollisions(locoEnt);
 	
     
     if (locoEnt is TrainEngine engine)
@@ -2518,8 +2585,9 @@ if (layout == null)
         }
         
         trainCar.enableSaving = false;
-trainCar.Spawn();
-	        yield return null;
+        IgnoreTerrainCollisions(trainCar);
+        trainCar.Spawn();
+        yield return null;
 	trainCar.OwnerID = HELL_OWNER_ID;
 	trainCar.SendNetworkUpdate();
 
@@ -2684,13 +2752,18 @@ trainCar.Spawn();
         
         EventLogV("TRY_COUPLE", $"i={i} wagonKey='{wagonName}' prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
         bool coupled = trainCar.coupling.frontCoupling.TryCouple(
-            lastSpawnedCar.coupling.rearCoupling, 
+            lastSpawnedCar.coupling.rearCoupling,
             true
         );
-         EventLogV("TRY_COUPLE_RES", $"i={i} wagonKey='{wagonName}' coupled={(coupled ? "yes" : "no")} prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
-		 
-       // Puts($"   {(coupled ? "✅" : "❌")} Сцепка: {lastSpawnedCar.ShortPrefabName} ↔ {trainCar.ShortPrefabName}");
-        
+        EventLogV("TRY_COUPLE_RES", $"i={i} wagonKey='{wagonName}' coupled={(coupled ? "yes" : "no")} prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
+
+        if (!coupled)
+        {
+            PrintError($"[Helltrain] ❌ TryCouple FAILED → abort build. i={i} wagonKey='{wagonName}' prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
+            KillEventTrainCars("couple_failed", force: true);
+            yield break;
+        }
+
         lastSpawnedCar = trainCar;
         positionIndex++;
     }
@@ -2956,8 +3029,7 @@ private void SpawnHellTrain(BasePlayer player = null)
 
     if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
     {
-        activeHellTrain.Kill();
-        activeHellTrain = null;
+        KillEventTrainCars("restart_spawn", force: true);
     }
 
     int overworldCount = availableOverworldSplines.Count;
