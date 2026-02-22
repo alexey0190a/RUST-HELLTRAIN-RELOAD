@@ -61,6 +61,20 @@ namespace Oxide.Plugins
 			EventLog($"[{_evTs()}] [{tag}] {message}");
 		}
 
+		private void CLog(int level, string msg)
+		{
+			if (config == null) return;
+			if (config.ConsoleLogLevel < level) return;
+			Puts(msg);
+		}
+
+		private void CWarn(int level, string msg)
+		{
+			if (config == null) return;
+			if (config.ConsoleLogLevel < level) return;
+			PrintWarning(msg);
+		}
+
 		void Unload()
 {
     try
@@ -282,7 +296,7 @@ private void ApplyPopulatePlan(object planObj)
 
 
 int parsedPlanSlots = PlanPipe_GetPlanSlots(planObj);
-Puts($"[PLAN PIPE] applyCalled=true parsedPlanSlots={parsedPlanSlots}");
+CLog(3, $"[PLAN PIPE] applyCalled=true parsedPlanSlots={parsedPlanSlots}");
 
     if (planObj == null) return;
 
@@ -433,7 +447,7 @@ else
 
         }
 
-        Puts($"[POPAPPLY DBG] slots={slots} spawned={spawned} skipped={skipped}");
+        CLog(3, $"[POPAPPLY DBG] slots={slots} spawned={spawned} skipped={skipped}");
     }
 }
 
@@ -548,7 +562,7 @@ Loottable.Call("CreatePreset", this, "CrateCobLabMed_C",   "CobLab Crate Medical
 Loottable.Call("CreatePreset", this, "CratePMCMil_A",   "PMC Crate Military", "crate_military", false);
 Loottable.Call("CreatePreset", this, "CratePMCElite_B", "PMC Crate Elite",    "crate_elite",    false);
 Loottable.Call("CreatePreset", this, "CratePMCHACKS_C", "PMC HACKCRATE (C4)", "crate_hackable", false);
-    Puts("[Helltrain] Loottable: зарегистрированы новые пресеты Crate* (BANDIT/COBLAB/PMC).");
+    CLog(3, "[Helltrain] Loottable: зарегистрированы новые пресеты Crate* (BANDIT/COBLAB/PMC).");
 }
 
 // Регистрируем пресеты на старте сервера
@@ -617,7 +631,7 @@ private void CleanupOrphanedHelltrainEntities(string reason)
     }
 
     if (killed > 0)
-        Puts($"[{_evTs()}] [RECOVERY] Orphan cleanup: killed={killed} reason={reason}");
+        CLog(3, $"[{_evTs()}] [RECOVERY] Orphan cleanup: killed={killed} reason={reason}");
 }
 
 private TrainEngine activeHellTrain = null;
@@ -643,7 +657,7 @@ private void CacheSplines()
             availableOverworldSplines.Add(s);
     }
 
-    Puts($"[Helltrain] splines cached: overworld={availableOverworldSplines.Count}, underworld={availableUnderworldSplines.Count}");
+    CLog(2, $"[Helltrain] splines cached: overworld={availableOverworldSplines.Count}, underworld={availableUnderworldSplines.Count}");
 }
 
 		private bool _allowDestroy = false;
@@ -770,7 +784,7 @@ public class TrainAutoTurret : MonoBehaviour
                 turret.SendNetworkUpdate();
                 
                 if (plugin != null)
-                    plugin.Puts($"   🔋 Турель получила питание и включена!");
+                    plugin.CLog(3, $"   🔋 Турель получила питание и включена!");
             }
             return;
         }
@@ -887,7 +901,7 @@ public class HellTrainComponent : MonoBehaviour
                 else
                     engine.SetThrottle(TrainEngine.EngineSpeeds.Rev_Hi);
 
-                plugin.Puts($"⚠️ Поезд застрял! Реверс → {(movingForward ? "ВПЕРЁД" : "НАЗАД")}");
+                plugin.CLog(3, $"⚠️ Поезд застрял! Реверс → {(movingForward ? "ВПЕРЁД" : "НАЗАД")}");
 
                 zeroSpeedTicks = 0;
             }
@@ -915,7 +929,7 @@ private void StartEngineWatchdog()
         }
         if (!engineAlive)
         {
-            Puts("[Helltrain] Engine watchdog: engine missing → cleanup event cars");
+            CLog(1, "[Helltrain] Engine watchdog: engine missing → cleanup event cars");
             KillEventTrainCars("watchdog_no_engine");
         }
     });
@@ -952,7 +966,7 @@ private void OnEntityKill(BaseNetworkable entity)
     _engineCleanupTriggered = true;
 	   EventLogV("ENGINE_KILL", $"isBuilding={_isBuildingTrain} ours={ours} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
 
-    Puts("[Helltrain] Engine OnEntityKill → cleanup event cars");
+    CLog(1, "[Helltrain] Engine OnEntityKill → cleanup event cars");
     KillEventTrainCars("engine_removed");
 }
 
@@ -1009,7 +1023,7 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 
   EventLogV("ENGINE_DEATH", $"isBuilding={_isBuildingTrain} engine={_carSnap(engine as TrainCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count} active={(activeHellTrain == null ? "null" : (activeHellTrain.IsDestroyed ? "destroyed" : "alive"))}");
   
-    Puts("[Helltrain] Engine OnEntityDeath → cleanup event cars");
+    CLog(1, "[Helltrain] Engine OnEntityDeath → cleanup event cars");
     KillEventTrainCars("engine_died");
 }
 
@@ -1115,7 +1129,7 @@ catch (Exception ex)
         activeHellTrain = null;
         _trainLifecycle = null;
 
-        Puts($"[Helltrain] Event cars cleanup completed ({reason}).");
+        CLog(1, $"[Helltrain] Event cars cleanup completed ({reason}).");
     }
     catch (Exception ex)
     {
@@ -1161,6 +1175,8 @@ private static string NormalizeLayoutName(string name)
 
 private class ConfigData
 {
+	[JsonProperty("ConsoleLogLevel")]
+	public int ConsoleLogLevel { get; set; } = 1;
 	
 	[JsonProperty("LootTimerRanges")]
 public Dictionary<string, LootTimerRange> LootTimerRanges { get; set; } = new Dictionary<string, LootTimerRange>
@@ -1502,7 +1518,7 @@ private void StartLifecycleTimer()
         StartRespawnTimer();
     });
 
-    Puts($"⏰ Lifecycle таймер запущен на {lifeMin} мин.");
+    CLog(3, $"⏰ Lifecycle таймер запущен на {lifeMin} мин.");
 }
 
 private void CancelLifecycleTimer()
@@ -1511,7 +1527,7 @@ private void CancelLifecycleTimer()
     {
         _lifecycleTimer.Destroy();
         _lifecycleTimer = null;
-        Puts("Lifecycle timer canceled");
+        CLog(1, "Lifecycle timer canceled");
     }
 }
 
@@ -1589,7 +1605,7 @@ private void ArmExplosionDamage()
     if (_explosionDamageArmed) return;
     _explosionDamageArmed = true;
 
-    Puts("Explosion damage window ARMED (T-6s)");
+    CLog(1, "Explosion damage window ARMED (T-6s)");
 
     foreach (var car in _spawnedCars)
     {
@@ -1651,7 +1667,7 @@ private void SpawnC4OnTrain()
         }
     }
 
-    Puts($"💣 C4 заспавнены ({perWagon} на вагон), взрыв через {fuse:F0} сек...");
+    CLog(3, $"💣 C4 заспавнены ({perWagon} на вагон), взрыв через {fuse:F0} сек...");
 }
 
 
@@ -1668,7 +1684,7 @@ SpawnExplosionFXAndDamage();
 		
 RestoreProtectionForAll();
     Server.Broadcast(config.Messages.Exploded.Replace("{trainName}", trainName));
-    Puts("💥 Взрыв! Диспавн состава...");
+    CLog(1, "💥 Взрыв! Диспавн состава...");
 
     // Снести весь наш состав: все TrainCar, все крейты/NPC/турели/SAM и пр.
 	
@@ -1718,7 +1734,7 @@ private void StartRespawnTimer()
         .Replace("{minutesWord}", minutesWord);
     
     Server.Broadcast(message);
-    Puts($"⏳ Респавн через {minutes} минут");
+    CLog(1, $"⏳ Респавн через {minutes} минут");
 }
 
 #endregion
@@ -1949,7 +1965,7 @@ private void LoadLayouts()
     if (!Directory.Exists(dir))
         Directory.CreateDirectory(dir);
 
-    Puts($"📂 Загружаем layouts из: {dir}");
+    CLog(3, $"📂 Загружаем layouts из: {dir}");
 
     foreach (var file in Directory.GetFiles(dir, "*.json", SearchOption.TopDirectoryOnly))
     {
@@ -1958,7 +1974,7 @@ private void LoadLayouts()
             var json = File.ReadAllText(file, System.Text.Encoding.UTF8);
             
             // ✅ КРИТИЧНО: Логируем размер файла!
-            Puts($"📄 Файл: {Path.GetFileName(file)} ({json.Length} байт)");
+            CLog(3, $"📄 Файл: {Path.GetFileName(file)} ({json.Length} байт)");
             
             var settings = new JsonSerializerSettings
             {
@@ -1983,7 +1999,7 @@ private void LoadLayouts()
             
             // ✅ КРИТИЧНО: Проверяем objects!
             int objCount = layout.objects?.Count ?? 0;
-            Puts($"   📦 {layout.name}: {objCount} objects (null={layout.objects == null})");
+            CLog(3, $"   📦 {layout.name}: {objCount} objects (null={layout.objects == null})");
             
             var fileKey = Path.GetFileNameWithoutExtension(file);
 
@@ -2020,14 +2036,14 @@ _layouts[layout.name] = layout;
         }
     }
 
-    Puts($"✅ Всего загружено layouts: {_layouts.Count}");
+    CLog(3, $"✅ Всего загружено layouts: {_layouts.Count}");
 }
 
 public void ReloadSingleLayout(string layoutName, string filePath)
 {
     try
     {
-        Puts($"🔄 Перезагружаю ТОЛЬКО layout: {layoutName}");
+        CLog(3, $"🔄 Перезагружаю ТОЛЬКО layout: {layoutName}");
         
         var json = File.ReadAllText(filePath, System.Text.Encoding.UTF8);
         
@@ -2049,7 +2065,7 @@ public void ReloadSingleLayout(string layoutName, string filePath)
         // ✅ Обновляем ТОЛЬКО этот layout в кеше!
         _layouts[layout.name] = layout;
         
-        Puts($"✅ Layout '{layout.name}' обновлён в кеше ({layout.objects?.Count ?? 0} объектов)");
+        CLog(3, $"✅ Layout '{layout.name}' обновлён в кеше ({layout.objects?.Count ?? 0} объектов)");
     }
     catch (System.Exception e)
     {
@@ -2187,7 +2203,7 @@ trainCar.Spawn();
             
             if (trainCar.FrontTrackSection != null)
             {
-               // Puts($"   🔧 Выровнен на {trainCar.FrontTrackSection.name} @ {trainCar.FrontWheelSplineDist:F1}м");
+               // CLog(3, $"   🔧 Выровнен на {trainCar.FrontTrackSection.name} @ {trainCar.FrontWheelSplineDist:F1}м");
             }
             
             NextTick(() =>
@@ -2352,7 +2368,7 @@ _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
 
 
     
-  //  Puts($"🔧 Собираем композицию: {comp.Wagons.Count} вагонов...");
+  //  CLog(3, $"🔧 Собираем композицию: {comp.Wagons.Count} вагонов...");
             
     const float SPACING_DISTANCE = 20f;
     
@@ -2392,14 +2408,14 @@ _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
         spawnPositions.Add(new SpawnPosition(currentPosition, currentForward));
     }
     
-    //Puts($"✅ Рассчитано {spawnPositions.Count} позиций");
+    //CLog(2, $"✅ Рассчитано {spawnPositions.Count} позиций");
 
     string locoPrefab = EnginePrefab;
 
     if (firstIsLoco && firstLayout != null && firstLayout.cars != null && firstLayout.cars.Count > 0)
     {
         locoPrefab = GetWagonPrefabByVariant(firstLayout.cars[0].variant);
-        Puts($"🚂 Используем локомотив из лэйаута: {firstWagonName}");
+        CLog(2, $"🚂 Используем локомотив из лэйаута: {firstWagonName}");
     }
 
     TrainCar locoEnt = GameManager.server.CreateEntity(
@@ -2448,7 +2464,7 @@ locoEnt.SendNetworkUpdate();
     TrainEngine trainEngine = locoEnt as TrainEngine;
     TrainCar lastSpawnedCar = locoEnt;
 
-  //  Puts($"🚂 Локомотив создан, ID: {locoEnt.net.ID}");
+  //  CLog(3, $"🚂 Локомотив создан, ID: {locoEnt.net.ID}");
 
     _spawnedCars.Add(locoEnt);
 	_spawnedTrainEntities.Add(locoEnt);
@@ -2479,7 +2495,7 @@ locoEnt.SendNetworkUpdate();
     var foundName = layout?.name ?? "NULL";
     var layoutVariant = (layout != null && layout.cars != null && layout.cars.Count > 0) ? (layout.cars[0].variant ?? "NULL") : "NULL";
 
-    Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} wagonKey='{wagonName}' found='{foundName}' layoutVariant='{layoutVariant}' parsedVariant='{parsedVariant}' prefab='{prefab}'");
+    CLog(3, $"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} wagonKey='{wagonName}' found='{foundName}' layoutVariant='{layoutVariant}' parsedVariant='{parsedVariant}' prefab='{prefab}'");
 
     // layoutVariant — только визуальная метка/отладка
 if (!string.IsNullOrEmpty(layoutVariant) && layoutVariant != "NULL" && !layoutVariant.Equals(parsedVariant, StringComparison.OrdinalIgnoreCase))
@@ -2539,7 +2555,7 @@ trainCar.Spawn();
         
         trainCar.CancelInvoke(trainCar.DecayTick);
         
-      //  Puts($"   🔧 [{i}] {wagonName}: {trainCar.ShortPrefabName} (ID: {trainCar.net.ID})");
+      //  CLog(3, $"   🔧 [{i}] {wagonName}: {trainCar.ShortPrefabName} (ID: {trainCar.net.ID})");
                 _spawnedTrainEntities.Add(trainCar);
         _spawnedCars.Add(trainCar);
 		  EventLogV("WAGON_TRACK", $"i={i} wagonKey='{wagonName}' prefab='{prefab}' {_carSnap(trainCar)} prev={_carSnap(lastSpawnedCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count}");
@@ -2671,7 +2687,7 @@ trainCar.Spawn();
             trainCar.frontCoupling.position
         );
         
-       // Puts($"   📏 [{i}] Расстояние между сцепками: {distToMove:F2}м");
+       // CLog(3, $"   📏 [{i}] Расстояние между сцепками: {distToMove:F2}м");
         
         trainCar.MoveFrontWheelsAlongTrackSpline(
             trainCar.FrontTrackSection, 
@@ -2689,7 +2705,7 @@ trainCar.Spawn();
         );
          EventLogV("TRY_COUPLE_RES", $"i={i} wagonKey='{wagonName}' coupled={(coupled ? "yes" : "no")} prev={_carSnap(lastSpawnedCar)} cur={_carSnap(trainCar)}");
 		 
-       // Puts($"   {(coupled ? "✅" : "❌")} Сцепка: {lastSpawnedCar.ShortPrefabName} ↔ {trainCar.ShortPrefabName}");
+       // CLog(3, $"   {(coupled ? "✅" : "❌")} Сцепка: {lastSpawnedCar.ShortPrefabName} ↔ {trainCar.ShortPrefabName}");
         
         lastSpawnedCar = trainCar;
         positionIndex++;
@@ -2698,7 +2714,7 @@ trainCar.Spawn();
     if (lastSpawnedCar != null && lastSpawnedCar != locoEnt && lastSpawnedCar.rearCoupling != null)
     {
         lastSpawnedCar.rearCoupling = null;
-       // Puts($"   🔒 Задняя сцепка отключена для последнего вагона");
+       // CLog(3, $"   🔒 Задняя сцепка отключена для последнего вагона");
     }
     
     yield return new WaitForSeconds(1f);
@@ -2757,16 +2773,16 @@ if (!Gen_BuildPopulatePlan(factionKey, compositionKey, layoutName, _spawnedCars,
 }
 
 int gotPlanSlots = PlanPipe_GetPlanSlots(planObj);
-Puts($"[PLAN PIPE] gotPlan={(planObj != null ? "true" : "false")} planSlots={gotPlanSlots} src=BuildTrain");
+CLog(3, $"[PLAN PIPE] gotPlan={(planObj != null ? "true" : "false")} planSlots={gotPlanSlots} src=BuildTrain");
 
 ApplyPopulatePlan(planObj);
-Puts($"[Helltrain][PLAN OK] faction={factionKey} layout={layoutName} compositionKey={compositionKey}");
+CLog(2, $"[Helltrain][PLAN OK] faction={factionKey} layout={layoutName} compositionKey={compositionKey}");
     
     // Спавним объекты на локомотив
     if (firstIsLoco && firstLayout != null)
     {
         SpawnLayoutObjects(locoEnt, firstLayout);
-        Puts($"   🎯 Объекты локомотива заспавнены из лэйаута: {firstWagonName}");
+        CLog(3, $"   🎯 Объекты локомотива заспавнены из лэйаута: {firstWagonName}");
     }
     
     // Спавним объекты на вагоны
@@ -2782,7 +2798,7 @@ var foundName = wagonLayout?.name ?? "NULL";
 var foundVar = (wagonLayout != null && wagonLayout.cars != null && wagonLayout.cars.Count > 0)
     ? (wagonLayout.cars[0].variant ?? "NULL")
     : "NULL";
-Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundName}' variant='{foundVar}'");
+CLog(3, $"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundName}' variant='{foundVar}'");
 
 
         
@@ -2793,7 +2809,7 @@ Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundN
             {
                 SpawnLayoutObjects(wagonCar, wagonLayout);
                 ApplyHeavyForCar(positionIndex, wagonCar, wagonLayout);
-              //  Puts($"   🎯 Объекты вагона [{i}] заспавнены из лэйаута: {wagonName}");
+              //  CLog(3, $"   🎯 Объекты вагона [{i}] заспавнены из лэйаута: {wagonName}");
             }
         }
         
@@ -2826,7 +2842,7 @@ _gridCheckTimer = timer.Repeat(10f, 0, CheckTrainGrid);
 StartLifecycleTimer();
 StartEngineWatchdog();
 
-Puts($"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartIndex}");
+CLog(3, $"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartIndex}");
 
     }
     finally
@@ -2853,7 +2869,7 @@ Puts($"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartInde
 
         private TrainEngine SpawnTrainFromLayout(TrainLayout layout, Vector3 origin, Quaternion facing)
         {
-          //  Puts($"🔧 [SpawnLayout] Layout: {layout.name}, Cars: {layout.cars?.Count ?? 0}");
+          //  CLog(3, $"🔧 [SpawnLayout] Layout: {layout.name}, Cars: {layout.cars?.Count ?? 0}");
             
             Vector3 fwd = facing * Vector3.forward;
             BaseEntity last = null;
@@ -2907,7 +2923,7 @@ Puts($"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartInde
                 return null;
             }
 
-          //  Puts($"✅ Train assembled! Cars: {layout.cars.Count}");
+          //  CLog(3, $"✅ Train assembled! Cars: {layout.cars.Count}");
             return engine;
         }
         #endregion
@@ -2932,7 +2948,7 @@ private string ChooseWeightedComposition()
         random -= kv.Value.Weight;
         if (random < 0)
         {
-       //    Puts($"🎲 Выбрана композиция: {kv.Key} (вес: {kv.Value.Weight}/{totalWeight})");
+       //    CLog(3, $"🎲 Выбрана композиция: {kv.Key} (вес: {kv.Value.Weight}/{totalWeight})");
             return kv.Key;
         }
     }
@@ -2982,7 +2998,7 @@ private void SpawnHellTrain(BasePlayer player = null)
         
         if (length < config.MinTrackLength)
         {
-          //  Puts($"⚠️ Попытка {attempt + 1}/{maxAttempts}: трек {trackSpline.name} слишком короткий ({length:F0}м)");
+          //  CLog(3, $"⚠️ Попытка {attempt + 1}/{maxAttempts}: трек {trackSpline.name} слишком короткий ({length:F0}м)");
             continue;
         }
         
@@ -2990,13 +3006,13 @@ private void SpawnHellTrain(BasePlayer player = null)
         float end = length * 0.85f;
         float distOnSpline = UnityEngine.Random.Range(start, end);
         
-      //  Puts($"🎲 Попытка {attempt + 1}: {(useUnderground ? "подземный" : "наземный")} трек: {trackSpline.name}");
-      //  Puts($"🎲 Длина трека: {length:F0}м, позиция: {distOnSpline:F1}м");
+      //  CLog(3, $"🎲 Попытка {attempt + 1}: {(useUnderground ? "подземный" : "наземный")} трек: {trackSpline.name}");
+      //  CLog(3, $"🎲 Длина трека: {length:F0}м, позиция: {distOnSpline:F1}м");
 _activeLayoutName = null; // авто-спавн не форсит layout файл
 
         SpawnTrainFromComposition(chosen, trackSpline, distOnSpline);
         
-        Puts($"✅ Запущена сборка Hell Train: {chosen}");
+        CLog(3, $"✅ Запущена сборка Hell Train: {chosen}");
         return;
     }
     
@@ -3005,7 +3021,7 @@ _activeLayoutName = null; // авто-спавн не форсит layout фай
     if (config.AutoRespawn)
     {
         timer.Once(10f, () => SpawnHellTrain());
-        Puts("🔄 Попробую снова через 10 секунд...");
+        CLog(3, "🔄 Попробую снова через 10 секунд...");
     }
 }
 
@@ -3106,7 +3122,7 @@ private void KillEntitySafe(BaseNetworkable e)
         {
             if (!engine || engine.IsDestroyed) return;
             
-            Puts($"🔧 Запускаем двигатель ID: {engine.net.ID}");
+            CLog(3, $"🔧 Запускаем двигатель ID: {engine.net.ID}");
             
             engine.SetFlag(BaseEntity.Flags.On, true, false, true);
             
@@ -3114,12 +3130,12 @@ private void KillEntitySafe(BaseNetworkable e)
                 engine.SetFlag(engine.engineController.engineStartingFlag, false, false, true);
             
             engine.SetThrottle(TrainEngine.EngineSpeeds.Fwd_Hi);
-            Puts("🚂 Локомотив едет вперёд!");
+            CLog(3, "🚂 Локомотив едет вперёд!");
             
             engine.InvokeRandomized(() => EnsureEngineRunning(engine), 1f, 1f, 0.1f);
             engine.InvokeRandomized(() => CheckRefreshFuel(engine), 5f, 5f, 0.5f);
             
-            Puts($"✅ Двигатель запущен!");
+            CLog(3, $"✅ Двигатель запущен!");
         }
 
         private void ReCoupleAllCars(TrainEngine engine)
@@ -3129,7 +3145,7 @@ private void KillEntitySafe(BaseNetworkable e)
             var completeTrain = engine.completeTrain;
             if (completeTrain == null || completeTrain.trainCars == null) 
             {
-                Puts("⚠️ completeTrain == null, пробуем найти вагоны вручную");
+                CLog(3, "⚠️ completeTrain == null, пробуем найти вагоны вручную");
                 
                 var nearCars = new List<TrainCar>();
                 foreach (var e in _spawnedCars)
@@ -3146,7 +3162,7 @@ private void KillEntitySafe(BaseNetworkable e)
                 
                 nearCars = nearCars.OrderBy(c => Vector3.Distance(engine.transform.position, c.transform.position)).ToList();
                 
-            //    Puts($"🔗 Пересцепка {nearCars.Count} вагонов вручную...");
+            //    CLog(3, $"🔗 Пересцепка {nearCars.Count} вагонов вручную...");
                 
                 for (int i = 0; i < nearCars.Count - 1; i++)
                 {
@@ -3156,13 +3172,13 @@ private void KillEntitySafe(BaseNetworkable e)
                     if (front == null || rear == null) continue;
                     
                     front.coupling.rearCoupling.TryCouple(rear.coupling.frontCoupling, true);
-                    Puts($"   ↔ {front.ShortPrefabName} → {rear.ShortPrefabName}");
+                    CLog(3, $"   ↔ {front.ShortPrefabName} → {rear.ShortPrefabName}");
                 }
                 
                 return;
             }
             
-          //  Puts($"🔗 Пересцепка... вагонов в completeTrain: {completeTrain.trainCars.Count}");
+          //  CLog(3, $"🔗 Пересцепка... вагонов в completeTrain: {completeTrain.trainCars.Count}");
             
             for (int i = 0; i < completeTrain.trainCars.Count - 1; i++)
             {
@@ -3202,13 +3218,13 @@ private void KillEntitySafe(BaseNetworkable e)
 
         private void AddCodeLockToTrain(TrainEngine engine)
         {
-         //   Puts($"🔒 Поезд защищён виртуальным кодом: {trainCode}");
+         //   CLog(3, $"🔒 Поезд защищён виртуальным кодом: {trainCode}");
         }
 
         private void RemoveCodeLock()
         {
             authorizedPlayers.Clear();
-        //   Puts("🔓 Авторизации сброшены");
+        //   CLog(3, "🔓 Авторизации сброшены");
         }
         #endregion
 
@@ -3225,7 +3241,7 @@ private void KillEntitySafe(BaseNetworkable e)
             }
             
             float dist = Vector3.Distance(front.transform.position, rear.transform.position);
-          //  Puts($"      🔗 Расстояние для сцепки: {dist:F1}м");
+          //  CLog(3, $"      🔗 Расстояние для сцепки: {dist:F1}м");
             
             if (dist > 20f) 
             {
@@ -3234,7 +3250,7 @@ private void KillEntitySafe(BaseNetworkable e)
             }
             
             bool coupled = frontCar.coupling.rearCoupling.TryCouple(rearCar.coupling.frontCoupling, true);
-          // Puts($"      {(coupled ? "✅" : "❌")} Сцепка: {frontCar.ShortPrefabName} ↔ {rearCar.ShortPrefabName}");
+          // CLog(3, $"      {(coupled ? "✅" : "❌")} Сцепка: {frontCar.ShortPrefabName} ↔ {rearCar.ShortPrefabName}");
         }
         #endregion
 
@@ -3320,7 +3336,7 @@ private void CmdWipeAllCars(BasePlayer player, string cmd, string[] args)
         _trainLifecycle = null;
 
         SendReply(player, $"Helltrain: глобально удалено TrainCar = {killed}");
-        Puts($"[Helltrain] wipe_all_cars (chat) → killed={killed}");
+        CLog(3, $"[Helltrain] wipe_all_cars (chat) → killed={killed}");
     }
     finally
     {
@@ -3362,7 +3378,7 @@ private void CcmdWipeAllCars(ConsoleSystem.Arg arg)
         _trainLifecycle = null;
 
         arg.ReplyWith($"Helltrain: глобально удалено TrainCar = {killed}");
-        Puts($"[Helltrain] wipe_all_cars (console) → killed={killed}");
+        CLog(3, $"[Helltrain] wipe_all_cars (console) → killed={killed}");
     }
     finally
     {
@@ -3454,7 +3470,7 @@ private void CmdHtDelCrate(BasePlayer player, string command, string[] args)
     crate.Kill(BaseNetworkable.DestroyMode.None);
     
     player.ChatMessage($"✅ Ящик удалён! Поз: {pos}");
-    Puts($"🗑️ {player.displayName} удалил ящик в {pos}");
+    CLog(3, $"🗑️ {player.displayName} удалил ящик в {pos}");
 }
 		
 		[ChatCommand("htclear")]
@@ -3484,7 +3500,7 @@ private void CmdHtClearCrates(BasePlayer player, string command, string[] args)
     }
     
     player.ChatMessage($"🧹 Удалено ящиков Hell Train: {removed}");
-    Puts($"🧹 {player.displayName} удалил {removed} ящиков Hell Train");
+    CLog(3, $"🧹 {player.displayName} удалил {removed} ящиков Hell Train");
 }
 
 /// <summary>
@@ -4091,6 +4107,7 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         if (!HasPerm(player, PERM_ADMIN)) { SendReply(player, "⛔ Нет прав."); return; }
         ForceDestroyHellTrain();
         SendReply(player, "🧹 Helltrain остановлен и очищен.");
+        CLog(1, "🧹 /helltrain stop accepted");
         StartRespawnTimer();
         return;
     }
@@ -4217,6 +4234,7 @@ _activeLayoutName = NormalizeLayoutName(layoutName); // алиасы wagona/wago
 
 
     SendReply(player, $"🚂 Запуск Helltrain: faction={faction}, composition={compositionName}");
+    CLog(1, $"🚂 /helltrain {sub} accepted: faction={faction}, composition={compositionName}");
     SpawnTrainFromComposition(compositionName, trackSpline, distOnSpline);
 
 }
@@ -4237,7 +4255,7 @@ private void CmdGetPosition(BasePlayer player, string command, string[] args)
     SendReply(player, $"World: {player.transform.position}");
     SendReply(player, $"Local (от поезда): {localPos}");
     
-   // Puts($"📍 Игрок {player.displayName}: Local={localPos}");
+   // CLog(3, $"📍 Игрок {player.displayName}: Local={localPos}");
 }
 
 [ConsoleCommand("cleanup.trains")]
@@ -4289,7 +4307,7 @@ private void CleanupTrains(ConsoleSystem.Arg arg)
         SendReply(arg, $"🧹 Удалено поездов: {count}");
     }
     
-  //  Puts($"🧹 Удалено поездов: {count} (admin: {player?.displayName ?? "RCON"})");
+  //  CLog(3, $"🧹 Удалено поездов: {count} (admin: {player?.displayName ?? "RCON"})");
 }
 
 [ChatCommand("htcleanup")]
@@ -4494,7 +4512,7 @@ private readonly List<ulong> _tmpIds = new List<ulong>();
 
 private void ScanRailwayNetwork()
 {
-    Puts("🔍 Сканируем железнодорожную сеть...");
+    CLog(3, "🔍 Сканируем железнодорожную сеть...");
     
     availableOverworldSplines.Clear();
     availableUnderworldSplines.Clear();
@@ -4510,7 +4528,7 @@ private void ScanRailwayNetwork()
             // ТОЛЬКО КОЛЬЦЕВЫЕ ПЕТЛИ!
             if (!pathList.Path.Circular)
             {
-              //  Puts($"   ⚠️ Пропускаем линейный путь (не петля): {pathList.Name}");
+              //  CLog(3, $"   ⚠️ Пропускаем линейный путь (не петля): {pathList.Name}");
                 continue;
             }
 
@@ -4522,11 +4540,11 @@ private void ScanRailwayNetwork()
             
             if (totalLength < config.MinTrackLength)
             {
-             //   Puts($"   ⚠️ Петля слишком короткая: {pathList.Name} ({totalLength:F0}м < {config.MinTrackLength:F0}м)");
+             //   CLog(3, $"   ⚠️ Петля слишком короткая: {pathList.Name} ({totalLength:F0}м < {config.MinTrackLength:F0}м)");
                 continue;
             }
 
-         //   Puts($"   ✅ Найдена петля: {pathList.Name} ({totalLength:F0}м)");
+         //   CLog(3, $"   ✅ Найдена петля: {pathList.Name} ({totalLength:F0}м)");
 
             // Добавляем ВСЕ сплайны этой петли
             int skip = pathList.Path.Points.Length >= 1000 ? 10 : pathList.Path.Points.Length >= 500 ? 5 : 1;
@@ -4574,10 +4592,10 @@ private void ScanRailwayNetwork()
             }
         }
         
-      //  Puts($"   ✅ Подземных треков: {availableUnderworldSplines.Count}");
+      //  CLog(3, $"   ✅ Подземных треков: {availableUnderworldSplines.Count}");
     }
     
-   // Puts($"✅ Найдено треков: {availableOverworldSplines.Count} наземных, {availableUnderworldSplines.Count} подземных");
+   // CLog(3, $"✅ Найдено треков: {availableOverworldSplines.Count} наземных, {availableUnderworldSplines.Count} подземных");
 }
 
 #endregion
@@ -4585,7 +4603,7 @@ private void ScanRailwayNetwork()
         #region HT.DEBUG
         private void DebugLog(string message)
         {
-            Puts(message);
+            CLog(3, message);
         }
         #endregion
 		
@@ -4606,14 +4624,14 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
     {
         if (layout?.BradleySlot == null)
         {
-            Puts($"[HEAVY] downgrade kind=bradley carIndex={carIndex} reason=NO_BradleySlot layout={layout?.name ?? "NULL"}");
+            CLog(3, $"[HEAVY] downgrade kind=bradley carIndex={carIndex} reason=NO_BradleySlot layout={layout?.name ?? "NULL"}");
             return;
         }
 
         var ent = GameManager.server.CreateEntity(BRADLEY_PREFAB, wagonCar.transform.position) as BradleyAPC;
         if (ent == null)
         {
-            Puts($"[HEAVY] fail kind=bradley carIndex={carIndex} reason=CreateEntity_NULL");
+            CLog(3, $"[HEAVY] fail kind=bradley carIndex={carIndex} reason=CreateEntity_NULL");
             return;
         }
 
@@ -4632,7 +4650,7 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
         }
 
         Track(ent);
-        Puts($"[HEAVY] spawned kind=bradley carIndex={carIndex} layout={layout?.name ?? "NULL"}");
+        CLog(3, $"[HEAVY] spawned kind=bradley carIndex={carIndex} layout={layout?.name ?? "NULL"}");
         return;
     }
 
@@ -4640,14 +4658,14 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
     {
         if (layout?.SamSiteSlot == null)
         {
-            Puts($"[HEAVY] downgrade kind=samsite carIndex={carIndex} reason=NO_SamSiteSlot layout={layout?.name ?? "NULL"}");
+            CLog(3, $"[HEAVY] downgrade kind=samsite carIndex={carIndex} reason=NO_SamSiteSlot layout={layout?.name ?? "NULL"}");
             return;
         }
 
         var ent = GameManager.server.CreateEntity(SAMSITE_PREFAB, wagonCar.transform.position) as BaseEntity;
         if (ent == null)
         {
-            Puts($"[HEAVY] fail kind=samsite carIndex={carIndex} reason=CreateEntity_NULL");
+            CLog(3, $"[HEAVY] fail kind=samsite carIndex={carIndex} reason=CreateEntity_NULL");
             return;
         }
 
@@ -4658,7 +4676,7 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
         ent.Spawn();
 
         Track(ent);
-        Puts($"[HEAVY] spawned kind=samsite carIndex={carIndex} layout={layout?.name ?? "NULL"}");
+        CLog(3, $"[HEAVY] spawned kind=samsite carIndex={carIndex} layout={layout?.name ?? "NULL"}");
         return;
     }
 
@@ -4667,7 +4685,7 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
         var slots = layout?.TurretSlots;
         if (slots == null || slots.Count == 0)
         {
-            Puts($"[HEAVY] downgrade kind=turret carIndex={carIndex} reason=NO_TurretSlots layout={layout?.name ?? "NULL"}");
+            CLog(3, $"[HEAVY] downgrade kind=turret carIndex={carIndex} reason=NO_TurretSlots layout={layout?.name ?? "NULL"}");
             return;
         }
 
@@ -4690,12 +4708,12 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             spawned++;
         }
 
-        Puts($"[HEAVY] spawned kind=turret carIndex={carIndex} count={spawned} layout={layout?.name ?? "NULL"}");
+        CLog(3, $"[HEAVY] spawned kind=turret carIndex={carIndex} count={spawned} layout={layout?.name ?? "NULL"}");
         return;
     }
 
     // неизвестный тип => безопасно игнор
-    Puts($"[HEAVY] ignore carIndex={carIndex} kind='{raw}' reason=UNKNOWN_KIND");
+    CLog(3, $"[HEAVY] ignore carIndex={carIndex} kind='{raw}' reason=UNKNOWN_KIND");
 }
 
 private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
@@ -4708,17 +4726,17 @@ private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
 
     if (npcCount > 0 || crateCount > 0 || shelfCount > 0)
     {
-        Puts($"Slots spawn: npc={npcCount}, crates={crateCount}, shelves={shelfCount}");
+        CLog(3, $"Slots spawn: npc={npcCount}, crates={crateCount}, shelves={shelfCount}");
         SpawnLayoutSlots(trainCar, layout);
         return;
     }
 
-    Puts($"   ⚠️ SpawnLayoutObjects({layout.name}): objects пуст! (null={layout.objects == null}, count={layout.objects?.Count ?? 0})");
+    CLog(3, $"   ⚠️ SpawnLayoutObjects({layout.name}): objects пуст! (null={layout.objects == null}, count={layout.objects?.Count ?? 0})");
     return;
 }
 
     
-  //  Puts($"   🎯 Спавним {layout.objects.Count} объектов из {layout.name}...");
+  //  CLog(3, $"   🎯 Спавним {layout.objects.Count} объектов из {layout.name}...");
     
     ProtectionProperties turretProtection = ScriptableObject.CreateInstance<ProtectionProperties>();
     turretProtection.density = 100;
@@ -4731,7 +4749,7 @@ private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
     
     foreach (var obj in layout.objects)
     {
-        Puts($"🔍 DEBUG: Спавним {obj.type}, npc_type={obj.npc_type ?? "null"}, gun={obj.gun ?? "null"}, kit={obj.kit ?? "null"}");
+        CLog(3, $"🔍 DEBUG: Спавним {obj.type}, npc_type={obj.npc_type ?? "null"}, gun={obj.gun ?? "null"}, kit={obj.kit ?? "null"}");
         
         Vector3 localPos = V3(obj.position);
         Quaternion localRot = Quaternion.Euler(0, obj.rotationY, 0);
@@ -4785,7 +4803,7 @@ if (!string.IsNullOrEmpty(lootPresetKey) && Loottable != null)
         presetApplied = ok;
 
         if (!ok)
-            Puts($"   ⚠️ Не удалось применить пресет '{lootPresetKey}' — проверь, что он создан/включён в Loottable UI (Helltrain).");
+            CLog(3, $"   ⚠️ Не удалось применить пресет '{lootPresetKey}' — проверь, что он создан/включён в Loottable UI (Helltrain).");
 
         // fallback: если не применился, пробуем preset/presets из layout-объекта (если заданы)
         if (!presetApplied)
@@ -4800,9 +4818,9 @@ if (!string.IsNullOrEmpty(lootPresetKey) && Loottable != null)
             {
                 var ok2 = (bool)(Loottable.Call("AssignPreset", this, fallback, sc.inventory) ?? false);
                 if (ok2)
-                    Puts($"   ✅ Fallback пресет применён: {fallback}");
+                    CLog(3, $"   ✅ Fallback пресет применён: {fallback}");
                 else
-                    Puts($"   ⚠️ Fallback пресет '{fallback}' тоже не применился.");
+                    CLog(3, $"   ⚠️ Fallback пресет '{fallback}' тоже не применился.");
             }
         }
     }
@@ -4924,12 +4942,12 @@ marker.savedKits = obj.kits != null ? new List<string>(obj.kits) : new List<stri
         if (npc == null || npc.IsDestroyed || npc.inventory == null)
             return;
 
-        Puts($"   🎯 Выдаём предметы NPC ({marker.npcType})...");
+        CLog(3, $"   🎯 Выдаём предметы NPC ({marker.npcType})...");
         GiveNPCItems(npc, capturedObj);  // ← Используем ЗАХВАЧЕННЫЙ obj!
     });
 }
             
-            Puts($"   🎯 Заспавнен: {obj.type} на {trainCar.ShortPrefabName}");
+            CLog(3, $"   🎯 Заспавнен: {obj.type} на {trainCar.ShortPrefabName}");
         });
     }
 }
@@ -5103,9 +5121,9 @@ private List<string> BuildRandomCompositionWagons(ConfigData.TrainComposition co
         return result;
     }
 	
-	Puts($"[Helltrain][DBG] WagonPools keys: {string.Join(",", comp.WagonPools.Keys)}");
-Puts($"[Helltrain][DBG] Limits keys: {(comp.Limits == null ? "null" : string.Join(",", comp.Limits.Keys))}");
-Puts($"[Helltrain][DBG] Candidates sample: {string.Join(" | ", candidates.Take(10).Select(x => $"{x.type}:{x.name}:{x.w}"))}");
+	CLog(3, $"[Helltrain][DBG] WagonPools keys: {string.Join(",", comp.WagonPools.Keys)}");
+CLog(3, $"[Helltrain][DBG] Limits keys: {(comp.Limits == null ? "null" : string.Join(",", comp.Limits.Keys))}");
+CLog(3, $"[Helltrain][DBG] Candidates sample: {string.Join(" | ", candidates.Take(10).Select(x => $"{x.type}:{x.name}:{x.w}"))}");
 
 	
 
@@ -5140,7 +5158,7 @@ for (int i = 0; i < wagonsToAdd; i++)
         break;
 
     result.Add(pick.name);
-	Puts($"[Helltrain][DBG_WAGON_PICK] i={i} type={pick.type} name={pick.name}");
+	CLog(3, $"[Helltrain][DBG_WAGON_PICK] i={i} type={pick.type} name={pick.name}");
     IncType(pick.type);
 }
 
@@ -5326,7 +5344,7 @@ string kitKey =
 
 if (string.IsNullOrEmpty(kitKey) || kitKey.Equals("None", StringComparison.OrdinalIgnoreCase))
 {
-    Puts($"[NPC SKIP] slot={npcSlot} reason=NO_KIT_IN_PLAN");
+    CLog(3, $"[NPC SKIP] slot={npcSlot} reason=NO_KIT_IN_PLAN");
     continue;
 }
 
@@ -5377,7 +5395,7 @@ else ok = (result != null);
 
 if (ok)
 {
-    Puts($"[NPC SPAWN] slot={npcSlot} kitKey={kitKey} result=OK");
+    CLog(3, $"[NPC SPAWN] slot={npcSlot} kitKey={kitKey} result=OK");
 }
 else
 {
@@ -5405,7 +5423,7 @@ else
     {
         string factionUpper = (_activeFactionKey ?? "BANDIT").ToUpperInvariant();
 string lootPrefab = GetCratePrefabForFaction(factionUpper);
-Puts($"[CRATE SPAWN CFG] faction={factionUpper} layout={layout?.name} lootPrefab={lootPrefab} crateSlots={layout.CrateSlots.Count} planSlots={_activeCrateAssignments?.Count ?? 0}");
+CLog(3, $"[CRATE SPAWN CFG] faction={factionUpper} layout={layout?.name} lootPrefab={lootPrefab} crateSlots={layout.CrateSlots.Count} planSlots={_activeCrateAssignments?.Count ?? 0}");
 
 
 
@@ -5427,7 +5445,7 @@ string prefabPath = a?.prefabPath; // new format
 string spawnPrefab = !string.IsNullOrEmpty(prefabPath) ? prefabPath : lootPrefab; // legacy fallback
 
 if (slotIndex < 16)
-    Puts($"[CRATE SLOT] slotIndex={slotIndex} lootKey={lootKey} prefabPath={(prefabPath ?? "legacy")}");
+    CLog(3, $"[CRATE SLOT] slotIndex={slotIndex} lootKey={lootKey} prefabPath={(prefabPath ?? "legacy")}");
 
 if (string.IsNullOrEmpty(lootKey) || lootKey.Equals("None", StringComparison.OrdinalIgnoreCase))
     continue;
@@ -5439,7 +5457,7 @@ var lr = ReadLocalRot(s.rot);
 Vector3 worldPos = trainCar.transform.TransformPoint(lp);
 Quaternion worldRot = trainCar.transform.rotation * lr;
 
-Puts($"[CRATE SPAWN TRY] slotIndex={slotIndex} lootKey={lootKey} prefab={spawnPrefab}");
+CLog(3, $"[CRATE SPAWN TRY] slotIndex={slotIndex} lootKey={lootKey} prefab={spawnPrefab}");
 
 var ent = GameManager.server.CreateEntity(spawnPrefab, worldPos, worldRot);
 
@@ -5469,7 +5487,7 @@ Track(ent); // ✅ MAIN: чтобы Stop/Cleanup чистил эти ящики
 
 // OK лог сразу после Spawn
 ulong spawnedId = (ent.net != null) ? ent.net.ID.Value : 0UL;
-Puts($"[CRATE SPAWN OK] slotIndex={slotIndex} lootKey={lootKey} id={spawnedId} worldPos={worldPos} parent={(trainCar != null ? trainCar.ShortPrefabName : "null")}");
+CLog(3, $"[CRATE SPAWN OK] slotIndex={slotIndex} lootKey={lootKey} id={spawnedId} worldPos={worldPos} parent={(trainCar != null ? trainCar.ShortPrefabName : "null")}");
 
 
 
@@ -5483,7 +5501,7 @@ timer.Once(0f, () =>
 if (entRef.IsDestroyed) { PrintWarning($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} destroyed=true id={(entRef.net != null ? entRef.net.ID.Value : 0UL)}"); return; }
 if (entRef.net == null) { PrintWarning($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} net=null alive=true"); return; }
 
-Puts($"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} alive=true id={entRef.net.ID.Value}");
+CLog(3, $"[CRATE SPAWN TICK] slotIndex={slotIndex} lootKey={lootKey} alive=true id={entRef.net.ID.Value}");
 
     }
     catch (Exception ex)
@@ -5527,7 +5545,7 @@ if (Loottable != null && sc != null)
 }
 
         }
-		Puts($"[CRATE CURSOR END] cursorEnd={_activeCrateSlotCursor} planSlots={_activeCrateAssignments?.Count ?? 0}");
+		CLog(3, $"[CRATE CURSOR END] cursorEnd={_activeCrateSlotCursor} planSlots={_activeCrateAssignments?.Count ?? 0}");
 
     }
 }
@@ -5555,7 +5573,7 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         return;
     }
     
-    Puts($"🔧 Выдаём оружие турели: gun={gun}, ammo={ammo}, count={ammoCount}");
+    CLog(3, $"🔧 Выдаём оружие турели: gun={gun}, ammo={ammo}, count={ammoCount}");
     
     turret.inventory.Clear();
     ItemManager.DoRemoves();
@@ -5588,7 +5606,7 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         return;
     }
     
-    Puts($"   ✅ Оружие добавлено в слот 0");
+    CLog(3, $"   ✅ Оружие добавлено в слот 0");
     
     if (string.IsNullOrEmpty(ammo))
         ammo = "ammo.rifle";
@@ -5602,7 +5620,7 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         var ammoItem = ItemManager.Create(ammoDef, ammoCount, 0);
         if (ammoItem != null && ammoItem.MoveToContainer(turret.inventory, 1, true))
         {
-            Puts($"   ✅ Патроны добавлены в слот 1");
+            CLog(3, $"   ✅ Патроны добавлены в слот 1");
         }
         else
         {
@@ -5619,7 +5637,7 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         turret.UpdateTotalAmmo();
         turret.SendNetworkUpdate();
         
-        Puts($"   ✅ Турель готова к бою!");
+        CLog(3, $"   ✅ Турель готова к бою!");
     });
 }
 
@@ -5627,7 +5645,7 @@ private void GiveNPCItems(ScientistNPC npc, ObjSpec obj)
 {
     if (npc == null || npc.inventory == null)
     {
-        Puts("❌ NPC или инвентарь null!");
+        CLog(3, "❌ NPC или инвентарь null!");
         return;
     }
 
@@ -5637,22 +5655,22 @@ private void GiveNPCItems(ScientistNPC npc, ObjSpec obj)
     // 2) Кит берём ТОЛЬКО из obj.kit / obj.kits (НИКАК НЕ ИЗ npcType!)
     string kitName = GetKitForNPC(obj);
 
-    Puts("════════════════════════════════════════");
-    Puts($"🎯 GiveNPCItems:");
-    Puts($"   obj.kit = '{obj?.kit ?? "NULL"}'");
-    Puts($"   obj.kits.Count = {obj?.kits?.Count ?? 0}");
-    Puts($"   выбранный kitName = '{kitName ?? "NULL"}'");
-    Puts("════════════════════════════════════════");
+    CLog(3, "════════════════════════════════════════");
+    CLog(3, $"🎯 GiveNPCItems:");
+    CLog(3, $"   obj.kit = '{obj?.kit ?? "NULL"}'");
+    CLog(3, $"   obj.kits.Count = {obj?.kits?.Count ?? 0}");
+    CLog(3, $"   выбранный kitName = '{kitName ?? "NULL"}'");
+    CLog(3, "════════════════════════════════════════");
 
     if (string.IsNullOrEmpty(kitName))
     {
-        Puts("⚠️ Кит не задан в лэйауте (obj.kit/obj.kits пусто) — ничего не выдаю, чтобы не было рандом-хазмата.");
+        CLog(3, "⚠️ Кит не задан в лэйауте (obj.kit/obj.kits пусто) — ничего не выдаю, чтобы не было рандом-хазмата.");
         return;
     }
 
     // 3) Выдаём кит через KitsSuite
     var result = KitsSuite?.Call("GiveKit", (BaseEntity)npc, kitName);
-    Puts($"📞 KitsSuite.GiveKit('{kitName}') => {result} (тип: {result?.GetType().Name ?? "null"})");
+    CLog(3, $"📞 KitsSuite.GiveKit('{kitName}') => {result} (тип: {result?.GetType().Name ?? "null"})");
 	timer.Once(0.25f, () =>
 {
     if (npc == null || npc.IsDestroyed || npc.inventory == null) return;
@@ -5694,7 +5712,7 @@ private void GiveNPCItems(ScientistNPC npc, ObjSpec obj)
             (npc.inventory.containerWear?.itemList?.Count ?? 0);
 
         if (total == 0)
-            Puts($"❌ Кит '{kitName}' ничего не выдал (инвентарь пуст). Проверь пресет в KitsSuite.");
+            CLog(3, $"❌ Кит '{kitName}' ничего не выдал (инвентарь пуст). Проверь пресет в KitsSuite.");
     });
 }
 
@@ -5703,14 +5721,14 @@ private Item GiveItem(ScientistNPC npc, string shortname, int amount, ulong skin
     var def = ItemManager.FindItemDefinition(shortname);
     if (def == null)
     {
-        Puts($"   ❌ Не найден ItemDefinition: {shortname}");
+        CLog(3, $"   ❌ Не найден ItemDefinition: {shortname}");
         return null;
     }
     
     var item = ItemManager.Create(def, amount, skin);
     if (item == null)
     {
-        Puts($"   ❌ Не удалось создать Item: {shortname}");
+        CLog(3, $"   ❌ Не удалось создать Item: {shortname}");
         return null;
     }
     
@@ -5732,7 +5750,7 @@ private Item GiveItem(ScientistNPC npc, string shortname, int amount, ulong skin
     if (container == null || !item.MoveToContainer(container, -1, true))
     {
         item.Remove();
-        Puts($"   ❌ Не удалось переместить {shortname} в {containerName}");
+        CLog(3, $"   ❌ Не удалось переместить {shortname} в {containerName}");
         return null;
     }
     
@@ -5773,7 +5791,7 @@ private void TryAssignLoottable(ItemContainer container, string preset)
     if (container == null || string.IsNullOrEmpty(preset)) return;
     if (!plugins.Exists("Loottable") || Loottable == null) return;
 
-    Puts($"   🎲 Применяю пресет: {preset}");
+    CLog(3, $"   🎲 Применяю пресет: {preset}");
     bool ok = false;
 
     var r1 = Loottable.Call("AssignPreset", this, preset, container);
@@ -6903,7 +6921,7 @@ private string GetMinutesWord(int minutes)
 private void CmdClean(ConsoleSystem.Arg arg)
 {
     var who = arg?.Player() != null ? arg.Player().displayName : "CONSOLE";
-    Puts($"[Helltrain] 🔧 Форс-очистка поезда запрошена: {who}");
+    CLog(3, $"[Helltrain] 🔧 Форс-очистка поезда запрошена: {who}");
 
     ForceDestroyHellTrainHard();        // 1-й проход
     timer.Once(0.5f, ForceDestroyHellTrainHard); // повтор через полсек
