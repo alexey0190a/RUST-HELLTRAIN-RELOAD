@@ -121,6 +121,9 @@ private class NpcAssignRt
 private List<NpcAssignRt> _activeNpcAssignments = null; // index -> kitKey
 private int _activeNpcSlotCursor = 0; // глобальный NPC slot index
 
+// HEAVY assignments runtime (CORE): index == trainCars index (engine index 0 => "None")
+private List<string> _activeHeavyAssignments = null;
+
 
 
 private readonly Dictionary<ulong, string> _crateTypeName = new Dictionary<ulong, string>(); // netId -> CrateTypeName
@@ -270,12 +273,12 @@ private int PlanPipe_GetPlanSlots(object planObj)
 private void ApplyPopulatePlan(object planObj)
 {
     _activeCrateAssignments = null;
-_activeCrateSlotCursor = 0;
+    _activeCrateSlotCursor = 0;
 
-_activeNpcAssignments = null;
-_activeNpcSlotCursor = 0;
+    _activeNpcAssignments = null;
+    _activeNpcSlotCursor = 0;
 
-
+    _activeHeavyAssignments = null;
 
 
 int parsedPlanSlots = PlanPipe_GetPlanSlots(planObj);
@@ -286,6 +289,29 @@ Puts($"[PLAN PIPE] applyCalled=true parsedPlanSlots={parsedPlanSlots}");
     // Generator возвращает Dictionary<string, object>
 if (planObj is Dictionary<string, object> dict)
 {
+    // HeavyAssignments: ["None","bradley","samsite","turret",...]
+    if (dict.TryGetValue("HeavyAssignments", out var ha) && ha != null)
+    {
+        if (ha is System.Collections.IList anyList)
+        {
+            var tmp = new List<string>(anyList.Count);
+            foreach (var o in anyList)
+                tmp.Add((o as string) ?? "None");
+
+            _activeHeavyAssignments = tmp;
+        }
+        else if (ha is string[] arrS)
+        {
+            _activeHeavyAssignments = new List<string>(arrS);
+        }
+        else if (ha is object[] arrO)
+        {
+            var tmp = new List<string>(arrO.Length);
+            foreach (var o in arrO) tmp.Add((o as string) ?? "None");
+            _activeHeavyAssignments = tmp;
+        }
+    }
+
     if (dict.TryGetValue("CrateAssignments", out var ca) && ca != null)
     {
         // New/legacy: IList (List<object>, List<Dictionary<..>>, etc.)
@@ -438,11 +464,65 @@ private bool HasPerm(BasePlayer player, string perm)
 
 private System.Random _rng = new System.Random();
 
-private string PickPresetAB(string factionUpper)
+private string PickCratePresetKey(string factionUpper)
 {
-    string a = factionUpper + "_A";
-    string b = factionUpper + "_B";
-    return (_rng.Next(2) == 0) ? a : b;
+    factionUpper = (factionUpper ?? "BANDIT").ToUpperInvariant();
+
+    switch (factionUpper)
+    {
+        case "BANDIT":
+            return (_rng.Next(2) == 0) ? "CrateBanditWood_A" : "CrateBanditWood_B";
+
+        case "COBLAB":
+            {
+                int r = _rng.Next(3);
+                if (r == 0) return "CrateCobLabMil_A";
+                if (r == 1) return "CrateCobLabElite_B";
+                return "CrateCobLabMed_C";
+            }
+
+        case "PMC":
+            {
+                int r = _rng.Next(3);
+                if (r == 0) return "CratePMCMil_A";
+                if (r == 1) return "CratePMCElite_B";
+                return "CratePMCHACKS_C";
+            }
+
+        default:
+            return "CrateBanditWood_A";
+    }
+}
+
+private string GetCratePrefabForPresetKey(string presetKey)
+{
+    switch (presetKey)
+    {
+        // BANDIT (2)
+        case "CrateBanditWood_A":
+            return "assets/bundled/prefabs/radtown/cratecostume_512.prefab";
+        case "CrateBanditWood_B":
+            return "assets/bundled/prefabs/radtown/crate_tools.prefab";
+
+        // COBLAB (3)
+        case "CrateCobLabMil_A":
+            return "assets/bundled/prefabs/radtown/crate_normal.prefab";
+        case "CrateCobLabElite_B":
+            return "assets/bundled/prefabs/radtown/crate_elite.prefab";
+        case "CrateCobLabMed_C":
+            return "assets/bundled/prefabs/radtown/crate_medical0.prefab";
+
+        // PMC (3)
+        case "CratePMCMil_A":
+            return "assets/bundled/prefabs/radtown/crate_normal.prefab";
+        case "CratePMCElite_B":
+            return "assets/bundled/prefabs/radtown/crate_elite.prefab";
+        case "CratePMCHACKS_C":
+            return "assets/prefabs/deployable/chinooklockedcrate/codelockedhackablecrate_oilrig.prefab";
+    }
+
+    // безопасный дефолт
+    return "assets/bundled/prefabs/radtown/crate_normal_2.prefab";
 }
 
 // === Loottable preset bootstrap ===
@@ -454,24 +534,31 @@ private void RegisterHelltrainPresetsToLoottable()
         return;
     }
 
-    // Очистим наши старые (если были), зададим категорию и создадим 6 пресетов
+    // чистим только то, что ранее регистрировал Helltrain
     Loottable.Call("ClearPresets", this);
     Loottable.Call("CreatePresetCategory", this, "Helltrain");
 
-    // 6 ключей: PMC_A/B, COBLAB_A/B, BANDIT_A/B
-    Loottable.Call("CreatePreset", this, "PMC_A", "Helltrain · PMC A", null, false);
-    Loottable.Call("CreatePreset", this, "PMC_B", "Helltrain · PMC B", null, false);
-    Loottable.Call("CreatePreset", this, "COBLAB_A", "Helltrain · COBLAB A", null, false);
-    Loottable.Call("CreatePreset", this, "COBLAB_B", "Helltrain · COBLAB B", null, false);
-    Loottable.Call("CreatePreset", this, "BANDIT_A", "Helltrain · BANDIT A", null, false);
-    Loottable.Call("CreatePreset", this, "BANDIT_B", "Helltrain · BANDIT B", null, false);
+Loottable.Call("CreatePreset", this, "CrateBanditWood_A",  "Bandit Crate WOOD",  "crate_normal",   false);
+Loottable.Call("CreatePreset", this, "CrateBanditWood_B",  "Bandit Crate RED",   "crate_tools",    false);
 
-    Puts("[Helltrain] Loottable: зарегистрированы пресеты PMC/COBLAB/BANDIT (A/B).");
+Loottable.Call("CreatePreset", this, "CrateCobLabMil_A",   "CobLAB Crate Military", "crate_military", false);
+Loottable.Call("CreatePreset", this, "CrateCobLabElite_B", "CobLAB Crate Elite",    "crate_elite",    false);
+Loottable.Call("CreatePreset", this, "CrateCobLabMed_C",   "CobLab Crate Medical",  "crate_medical",  false);
+
+Loottable.Call("CreatePreset", this, "CratePMCMil_A",   "PMC Crate Military", "crate_military", false);
+Loottable.Call("CreatePreset", this, "CratePMCElite_B", "PMC Crate Elite",    "crate_elite",    false);
+Loottable.Call("CreatePreset", this, "CratePMCHACKS_C", "PMC HACKCRATE (C4)", "crate_hackable", false);
+    Puts("[Helltrain] Loottable: зарегистрированы новые пресеты Crate* (BANDIT/COBLAB/PMC).");
 }
 
 // Регистрируем пресеты на старте сервера
-private void OnServerInitialized()
+void OnServerInitialized()
 {
+    // reload-safety: cleanup orphaned entities from previous plugin instance/crash
+    try { CleanupOrphanedHelltrainEntities("server_initialized"); }
+    catch (Exception ex) { PrintWarning($"Orphan cleanup error: {ex.Message}"); }
+
+    // permissions
     // permissions
     permission.RegisterPermission(PERM_ADMIN, this);
     permission.RegisterPermission(PERM_ADMIN_DRIVE, this);
@@ -498,6 +585,39 @@ private void OnServerInitialized()
                 StartRespawnTimer();
         });
     }
+}
+
+private void CleanupOrphanedHelltrainEntities(string reason)
+{
+    int killed = 0;
+
+    // Snapshot to avoid modifying collection while iterating
+    var snapshot = Pool.GetList<BaseNetworkable>();
+    try
+    {
+        snapshot.AddRange(BaseNetworkable.serverEntities);
+
+        for (int i = 0; i < snapshot.Count; i++)
+        {
+            var bn = snapshot[i];
+            var ent = bn as BaseEntity;
+            if (ent == null || ent.IsDestroyed) continue;
+
+            // Only entities spawned/tagged by Helltrain
+            if (ent.OwnerID != HELL_OWNER_ID) continue;
+
+            // Kill anything that belongs to our event (cars, engine, heavy, turrets, sams, crates, etc.)
+            ent.Kill();
+            killed++;
+        }
+    }
+    finally
+    {
+        Pool.FreeList(ref snapshot);
+    }
+
+    if (killed > 0)
+        Puts($"[{_evTs()}] [RECOVERY] Orphan cleanup: killed={killed} reason={reason}");
 }
 
 private TrainEngine activeHellTrain = null;
@@ -541,7 +661,8 @@ private void CacheSplines()
  private const string PREFAB_CRATE_COBLAB = "assets/bundled/prefabs/radtown/crate_normal.prefab";
         private const string SCIENTIST_PREFAB = "assets/rust.ai/agents/npcplayer/humannpc/scientist/scientistnpc_cargo_turret_any.prefab";
         private const string SAMSITE_PREFAB = "assets/prefabs/npc/sam_site_turret/sam_static.prefab";
-       private const string TURRET_PREFAB = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
+private const string TURRET_PREFAB = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
+private const string BRADLEY_PREFAB = "assets/prefabs/npc/m2bradley/bradleyapc.prefab";
         private const string HACKABLE_CRATE_PREFAB = "assets/prefabs/deployable/chinooklockedcrate/codelockedhackablecrate.prefab";
        public string HackableCratePrefab => HACKABLE_CRATE_PREFAB;
 	   private string GetCratePrefabForFaction(string faction)
@@ -833,6 +954,45 @@ private void OnEntityKill(BaseNetworkable entity)
 
     Puts("[Helltrain] Engine OnEntityKill → cleanup event cars");
     KillEventTrainCars("engine_removed");
+}
+
+object OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
+{
+    if (entity == null) return null;
+
+    // Бессмертны только элементы поезда
+    // Бессмертен только наш поезд
+if (_spawnedCars != null && _spawnedCars.Count > 0)
+{
+    if (entity is TrainCar trainCar && _spawnedCars.Contains(trainCar))
+        return true;
+
+    if (entity is TrainEngine trainEngine && _spawnedCars.Contains(trainEngine))
+        return true;
+}
+
+    // --- Friendly fire: Bradley projectile hitting SAM/Turret ---
+    if (info?.Initiator != null)
+    {
+        var initiator = info.Initiator;
+
+        if (info?.Initiator != null)
+{
+    var attacker = info.Initiator;
+
+    // Если источник урона — Bradley или его снаряд
+    if (attacker.ShortPrefabName.Contains("bradley"))
+    {
+        if (entity is SamSite)
+            return true;
+
+        if (entity.ShortPrefabName == "autoturret_deployed")
+            return true;
+    }
+}
+    }
+
+    return null;
 }
 
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
@@ -1705,6 +1865,7 @@ public float hack_timer_max = 0f;   // если >0 — верхняя грани
 }
 
 private static Vector3 V3(float[] p) => (p != null && p.Length == 3) ? new Vector3(p[0], p[1], p[2]) : Vector3.zero;
+private static Quaternion Q3(float[] r) => (r != null && r.Length == 3) ? Quaternion.Euler(r[0], r[1], r[2]) : Quaternion.identity;
 
 // ВСЁ ОСТАЛЬНОЕ В ЭТОМ РЕГИОНЕ ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ
 // (CreateDefaultLayouts, LoadLayouts, GetLayout и т.д. - копируй как есть)
@@ -2631,6 +2792,7 @@ Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundN
             if (wagonCar != null && !wagonCar.IsDestroyed)
             {
                 SpawnLayoutObjects(wagonCar, wagonLayout);
+                ApplyHeavyForCar(positionIndex, wagonCar, wagonLayout);
               //  Puts($"   🎯 Объекты вагона [{i}] заспавнены из лэйаута: {wagonName}");
             }
         }
@@ -4430,6 +4592,112 @@ private void ScanRailwayNetwork()
 
 #region HT.LAYOUT.OBJECTS
 
+private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layout)
+{
+    if (_activeHeavyAssignments == null) return;
+    if (carIndex < 0 || carIndex >= _activeHeavyAssignments.Count) return;
+
+    var raw = _activeHeavyAssignments[carIndex] ?? "None";
+    var kind = raw.Trim().ToLowerInvariant();
+    if (string.IsNullOrEmpty(kind) || kind == "none") return;
+
+    // Fail-fast / Downgrade (по умолчанию): если слота нет — ничего не спавним, логируем.
+    if (kind == "bradley")
+    {
+        if (layout?.BradleySlot == null)
+        {
+            Puts($"[HEAVY] downgrade kind=bradley carIndex={carIndex} reason=NO_BradleySlot layout={layout?.name ?? "NULL"}");
+            return;
+        }
+
+        var ent = GameManager.server.CreateEntity(BRADLEY_PREFAB, wagonCar.transform.position) as BradleyAPC;
+        if (ent == null)
+        {
+            Puts($"[HEAVY] fail kind=bradley carIndex={carIndex} reason=CreateEntity_NULL");
+            return;
+        }
+
+        ent.enableSaving = false;
+        ent.SetParent(wagonCar);
+        ent.transform.localPosition = V3(layout.BradleySlot.pos);
+        ent.transform.localRotation = Q3(layout.BradleySlot.rot);
+        ent.Spawn();
+
+        // важно: AI НЕ отключаем, Invoke НЕ отменяем (как ты требуешь)
+        // но физику можно заморозить, чтобы он не "ехал" по вагону
+        if (ent.myRigidBody != null)
+        {
+            ent.myRigidBody.isKinematic = true;
+            ent.myRigidBody.interpolation = RigidbodyInterpolation.None;
+        }
+
+        Track(ent);
+        Puts($"[HEAVY] spawned kind=bradley carIndex={carIndex} layout={layout?.name ?? "NULL"}");
+        return;
+    }
+
+    if (kind == "samsite")
+    {
+        if (layout?.SamSiteSlot == null)
+        {
+            Puts($"[HEAVY] downgrade kind=samsite carIndex={carIndex} reason=NO_SamSiteSlot layout={layout?.name ?? "NULL"}");
+            return;
+        }
+
+        var ent = GameManager.server.CreateEntity(SAMSITE_PREFAB, wagonCar.transform.position) as BaseEntity;
+        if (ent == null)
+        {
+            Puts($"[HEAVY] fail kind=samsite carIndex={carIndex} reason=CreateEntity_NULL");
+            return;
+        }
+
+        ent.enableSaving = false;
+        ent.SetParent(wagonCar);
+        ent.transform.localPosition = V3(layout.SamSiteSlot.pos);
+        ent.transform.localRotation = Q3(layout.SamSiteSlot.rot);
+        ent.Spawn();
+
+        Track(ent);
+        Puts($"[HEAVY] spawned kind=samsite carIndex={carIndex} layout={layout?.name ?? "NULL"}");
+        return;
+    }
+
+    if (kind == "turret")
+    {
+        var slots = layout?.TurretSlots;
+        if (slots == null || slots.Count == 0)
+        {
+            Puts($"[HEAVY] downgrade kind=turret carIndex={carIndex} reason=NO_TurretSlots layout={layout?.name ?? "NULL"}");
+            return;
+        }
+
+        int spawned = 0;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            var s = slots[i];
+            if (s == null) continue;
+
+            var ent = GameManager.server.CreateEntity(TURRET_PREFAB, wagonCar.transform.position) as BaseEntity;
+            if (ent == null) continue;
+
+            ent.enableSaving = false;
+            ent.SetParent(wagonCar);
+            ent.transform.localPosition = V3(s.pos);
+            ent.transform.localRotation = Q3(s.rot);
+            ent.Spawn();
+
+            Track(ent);
+            spawned++;
+        }
+
+        Puts($"[HEAVY] spawned kind=turret carIndex={carIndex} count={spawned} layout={layout?.name ?? "NULL"}");
+        return;
+    }
+
+    // неизвестный тип => безопасно игнор
+    Puts($"[HEAVY] ignore carIndex={carIndex} kind='{raw}' reason=UNKNOWN_KIND");
+}
+
 private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
 {
     if (layout.objects == null || layout.objects.Count == 0)
@@ -4472,8 +4740,9 @@ private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
         Quaternion worldRot = trainCar.transform.rotation * localRot;
         
         string prefab = null;
-        
-        switch (obj.type?.ToLower())
+string lootPresetKey = null;
+
+switch (obj.type?.ToLower())
 {
     case "npc":
         prefab = SCIENTIST_PREFAB;
@@ -4486,73 +4755,12 @@ private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
         break;
 case "loot":
 {
-
     // фракция поезда/лэйаута
-    string factionUpper = (layout?.faction ?? "BANDIT").ToUpper();
+    string factionUpper = (layout?.faction ?? "BANDIT").ToUpperInvariant();
 
-    // обычный (НЕ hack) префаб под фракцию
-    string lootPrefab = GetCratePrefabForFaction(factionUpper);
-
-    var ent = GameManager.server.CreateEntity(lootPrefab, worldPos, worldRot);
-
-
-    if (ent == null)
-    {
-        Puts("❌ Не удалось создать лут-ящик (CreateEntity вернул null)");
-        break;
-    }
-
-    ent.enableSaving = false;
-    ent.SetParent(trainCar, false, false);
-    ent.transform.localPosition = localPos;
-    ent.transform.localRotation = localRot;
-
-    // защита от физики
-    var combat = ent as BaseCombatEntity;
-    if (combat != null) combat.InitializeHealth(5000f, 5000f);
-    var rb = ent.GetComponent<Rigidbody>();
-    if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
-
-    ent.Spawn();
-
-    // учёт наших ящиков
-    ulong id = ent.net.ID.Value;
-    _ourCrates.Add(id);
-    _crateStates[id] = CrateState.Idle;
-    _crateFaction[id] = factionUpper;
-
-    // назначение пресета A/B 50/50
-    string presetKey = PickPresetAB(factionUpper);
-    Puts($"   🎲 Применяю пресет: {presetKey}");
-
-    bool presetApplied = false;
-    var sc = ent as StorageContainer;
-    if (Loottable != null && sc != null)
-    {
-        var ok = (bool)(Loottable.Call("AssignPreset", this, presetKey, sc) ?? false);
-        presetApplied = ok;
-        if (!ok)
-            Puts($"   ⚠️ Не удалось применить пресет '{presetKey}' — проверь, что он создан и включён в Loottable UI (категория Helltrain).");
-    }
-
-    // fallback: если A/B не применился, пробуем то, что записано в объекте (preset/presets)
-    if (!presetApplied && sc != null && Loottable != null)
-    {
-        string fallback = null;
-        if (obj.presets != null && obj.presets.Length > 0)
-            fallback = obj.presets[UnityEngine.Random.Range(0, obj.presets.Length)];
-        else if (!string.IsNullOrEmpty(obj.preset))
-            fallback = obj.preset;
-
-        if (!string.IsNullOrEmpty(fallback))
-        {
-            var ok2 = (bool)(Loottable.Call("AssignPreset", this, fallback, sc) ?? false);
-            if (ok2)
-                Puts($"   ✅ Fallback пресет применён: {fallback}");
-            else
-                Puts($"   ⚠️ Fallback пресет '{fallback}' тоже не применился.");
-        }
-    }
+    // новый ключ пресета -> новый префаб
+    lootPresetKey = PickCratePresetKey(factionUpper);
+    prefab = GetCratePrefabForPresetKey(lootPresetKey);
 
     break;
 }
@@ -4564,7 +4772,41 @@ case "loot":
         entity.enableSaving = false;
         entity.Spawn();
         Track(entity);
+// --- LOOTTABLE: применяем пресет ТОЛЬКО после спавна ящика ---
+if (!string.IsNullOrEmpty(lootPresetKey) && Loottable != null)
+{
+    var sc = entity as StorageContainer;
+    if (sc != null)
+    {
+        bool presetApplied = false;
 
+        // Loottable API ждёт ItemContainer
+        var ok = (bool)(Loottable.Call("AssignPreset", this, lootPresetKey, sc.inventory) ?? false);
+        presetApplied = ok;
+
+        if (!ok)
+            Puts($"   ⚠️ Не удалось применить пресет '{lootPresetKey}' — проверь, что он создан/включён в Loottable UI (Helltrain).");
+
+        // fallback: если не применился, пробуем preset/presets из layout-объекта (если заданы)
+        if (!presetApplied)
+        {
+            string fallback = null;
+            if (obj.presets != null && obj.presets.Length > 0)
+                fallback = obj.presets[UnityEngine.Random.Range(0, obj.presets.Length)];
+            else if (!string.IsNullOrEmpty(obj.preset))
+                fallback = obj.preset;
+
+            if (!string.IsNullOrEmpty(fallback))
+            {
+                var ok2 = (bool)(Loottable.Call("AssignPreset", this, fallback, sc.inventory) ?? false);
+                if (ok2)
+                    Puts($"   ✅ Fallback пресет применён: {fallback}");
+                else
+                    Puts($"   ⚠️ Fallback пресет '{fallback}' тоже не применился.");
+            }
+        }
+    }
+}
 		
 		
         
@@ -5269,13 +5511,13 @@ _crateTypeName[id] = lootKey;
 
 
 
-// A/B assign (без весов, прогрев)
+// NEW: presetKey = lootKey из PopulatePlan
 var sc = ent as StorageContainer;
 if (Loottable != null && sc != null)
 {
     try
     {
-        string presetKey = PickPresetAB(factionUpper);
+        string presetKey = lootKey; // CrateBanditWood_A / CrateCobLabElite_B / ...
         Loottable.Call("AssignPreset", this, presetKey, sc);
     }
     catch (Exception ex)
