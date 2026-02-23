@@ -66,7 +66,18 @@ namespace Oxide.Plugins
     try
     {
         // Сносим наш состав и все наши прикреплённые сущности
-        KillEventTrainCars("plugin_unload", force: true);
+        try
+{
+    // Unload is terminal: never schedule respawn from here
+    _suppressAutoRespawn = true;
+    CancelRespawnTimerOnly();
+    KillEventTrainCars("plugin_unload", force: true);
+	_respawnInitApplied = false;
+}
+finally
+{
+    _suppressAutoRespawn = false;
+}
 
     }
     catch (Exception ex)
@@ -100,6 +111,9 @@ private bool _isBuildingTrain = false;
 private float _antiStuckIgnoreUntil = 0f;
 private bool _abortRequested = false;
 private string _abortReason = null;
+private ulong _buildToken = 0;
+
+private bool IsBuildCancelled(ulong token) => _abortRequested || token != _buildToken;
 
 // compositionKey, полученный из ResolveCompositionKey до assembly, используется после assembly
 private string _lastResolvedCompositionKey = null;
@@ -580,10 +594,9 @@ void OnServerInitialized()
     if (config != null && config.AutoRespawn)
     {
         timer.Once(5f, () =>
-        {
-            if (activeHellTrain == null && (_spawnedCars.Count == 0))
-                StartRespawnTimer();
-        });
+{
+    EnsureRespawnScheduledFromStateOrDefault();
+});
     }
 }
 
@@ -623,6 +636,127 @@ private void CleanupOrphanedHelltrainEntities(string reason)
 private TrainEngine activeHellTrain = null;
 private Timer _couplingRetryTimer = null;
         private Timer respawnTimer = null;
+		// RESPawn scheduler (CORE)
+private bool _suppressAutoRespawn;
+private DateTime? _nextRespawnUtc;
+private bool _respawnInitApplied;
+
+private const string RespawnStateFile = "Helltrain/respawn_state"; // Oxide сам добавит .json
+private const string RespawnStateFileLegacy = "Helltrain/respawn_state.json"; // миграция со старого
+
+private class RespawnState
+{
+    public long NextUtcTicks;
+}
+
+private void SaveRespawnState()
+{
+    try
+    {
+        var st = new RespawnState
+        {
+            NextUtcTicks = _nextRespawnUtc.HasValue ? _nextRespawnUtc.Value.Ticks : 0L
+        };
+        Interface.Oxide.DataFileSystem.WriteObject(RespawnStateFile, st, true);
+    }
+    catch (Exception ex)
+    {
+        PrintWarning($"[Helltrain] SaveRespawnState error: {ex.Message}");
+    }
+}
+
+
+
+private void LoadRespawnState()
+{
+    _nextRespawnUtc = null;
+
+    try
+    {
+        // 1) new
+        var st = Interface.Oxide.DataFileSystem.ReadObject<RespawnState>(RespawnStateFile);
+        if (st != null && st.NextUtcTicks > 0L)
+        {
+            _nextRespawnUtc = new DateTime(st.NextUtcTicks, DateTimeKind.Utc);
+            return;
+        }
+    }
+    catch { /* ignore */ }
+
+    try
+    {
+        // 2) legacy (migration)
+        var stOld = Interface.Oxide.DataFileSystem.ReadObject<RespawnState>(RespawnStateFileLegacy);
+        if (stOld != null && stOld.NextUtcTicks > 0L)
+        {
+            _nextRespawnUtc = new DateTime(stOld.NextUtcTicks, DateTimeKind.Utc);
+            SaveRespawnState(); // записать в новый формат
+			
+        }
+    }
+    catch { /* ignore */ }
+}
+
+private void CancelRespawnTimerOnly()
+{
+    if (respawnTimer != null)
+    {
+        respawnTimer.Destroy();
+        respawnTimer = null;
+    }
+}
+
+private void EnsureRespawnScheduledFromStateOrDefault()
+{
+	Puts($"[RESPAWN_INIT] AutoRespawn={(config != null && config.AutoRespawn)} active={(activeHellTrain != null)} cars={(_spawnedCars != null ? _spawnedCars.Count : -1)} nextUtc={(_nextRespawnUtc.HasValue ? _nextRespawnUtc.Value.ToString("O") : "null")}");
+    if (config == null || !config.AutoRespawn) return;
+
+    // if event is active/being built -> do not schedule here
+    if (activeHellTrain != null) return;
+    if (_spawnedCars != null && _spawnedCars.Count > 0) return;
+
+    LoadRespawnState();
+	Puts($"[RESPAWN_INIT] after Load state nextUtc={(_nextRespawnUtc.HasValue ? _nextRespawnUtc.Value.ToString("O") : "null")}");
+
+    // Variant B: if no state -> schedule by TrainRespawnMinutes
+    if (!_nextRespawnUtc.HasValue)
+    {
+        StartRespawnTimer();
+        return;
+    }
+
+    var now = DateTime.UtcNow;
+    var remain = _nextRespawnUtc.Value - now;
+
+    if (remain.TotalSeconds <= 1)
+{
+    // Просрочено: догоняем (стартуем скоро), фиксируя это в state
+    CancelRespawnTimerOnly();
+
+    _nextRespawnUtc = DateTime.UtcNow.AddSeconds(10);
+    SaveRespawnState();
+
+    Puts($"[RESPAWN_INIT] state overdue -> schedule catch-up in 10s nextUtc={_nextRespawnUtc.Value:O}");
+
+    respawnTimer = timer.Once(10f, () =>
+    {
+        _nextRespawnUtc = null;
+        SaveRespawnState();
+        SpawnHellTrain();
+    });
+    return;
+}
+
+    CancelRespawnTimerOnly();
+	Puts($"[RESPAWN_INIT] restore from state remain={(int)remain.TotalSeconds}s nextUtc={_nextRespawnUtc.Value:O}");
+    respawnTimer = timer.Once((float)remain.TotalSeconds, () =>
+    {
+        _nextRespawnUtc = null;
+        SaveRespawnState();
+        SpawnHellTrain();
+    });
+	Puts($"UTC NOW = {DateTime.UtcNow:O}");
+}
 		private Timer _gridCheckTimer = null;
         private List<TrainTrackSpline> availableOverworldSplines = new List<TrainTrackSpline>();
         private List<TrainTrackSpline> availableUnderworldSplines = new List<TrainTrackSpline>();
@@ -1018,6 +1152,9 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+	_abortRequested = true;
+	_buildToken++;
+
 	_couplingRetryTimer?.Destroy();
   _couplingRetryTimer = null;
 
@@ -1308,6 +1445,26 @@ public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
 
     [JsonProperty("Минимальная длина трека для спавна (метры)")]
     public float MinTrackLength { get; set; } = 500f;
+	
+    [JsonProperty("Safe Spawn: использовать пул если есть")]
+    public bool UseSafeSpawnPool { get; set; } = true;
+
+    [JsonProperty("Safe Spawn: только пул (если пуст — запуск запрещён)")]
+    public bool SafeSpawnPoolOnly { get; set; } = false;
+
+    [JsonProperty("Safe Spawn Pool (точки)")]
+    public List<SafeSpawnPoint> SafeSpawnPool { get; set; } = new List<SafeSpawnPoint>();
+
+    public class SafeSpawnPoint
+    {
+        public string Name { get; set; } = "";
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float Z { get; set; }
+        // "any" | "overworld" | "underworld"
+        public string Level { get; set; } = "any";
+        public bool Enabled { get; set; } = true;
+    }
     
     [JsonProperty("Названия композиций для анонсов")]
     public Dictionary<string, string> CompositionNames { get; set; } = new Dictionary<string, string>
@@ -1698,25 +1855,42 @@ RestoreProtectionForAll();
         _trainLifecycle = null;
     }
 
-    if (config.AutoRespawn)
-        StartRespawnTimer();
+    if (config.AutoRespawn && !_suppressAutoRespawn)
+    StartRespawnTimer();
 }
 
 
-private void StartRespawnTimer()
+private void StartRespawnTimer(float? overrideMinutes = null)
 {
-    if (respawnTimer != null)
-        respawnTimer.Destroy();
-    
-    float minutes = config.TrainRespawnMinutes;
-    respawnTimer = timer.Once(minutes * 60f, () => SpawnHellTrain());
-    
+    // idempotency: если override НЕ задан — второй вызов можно игнорировать
+    if (!overrideMinutes.HasValue && respawnTimer != null && _nextRespawnUtc.HasValue)
+    {
+        var remain = (_nextRespawnUtc.Value - DateTime.UtcNow).TotalSeconds;
+        if (remain > 1)
+            return;
+    }
+
+     CancelRespawnTimerOnly();
+
+    float minutes = overrideMinutes ?? config.TrainRespawnMinutes;
+    var delaySeconds = minutes * 60f;
+
+    _nextRespawnUtc = DateTime.UtcNow.AddSeconds(delaySeconds);
+    SaveRespawnState();
+
+    respawnTimer = timer.Once(delaySeconds, () =>
+    {
+        _nextRespawnUtc = null;
+        SaveRespawnState();
+        SpawnHellTrain();
+    });
+
     // ✅ ИЗМЕНЕНО: АНОНС СЛЕДУЮЩЕГО ПОЕЗДА
     string minutesWord = GetMinutesWord((int)minutes);
     string message = config.Messages.NextTrain
         .Replace("{minutes}", minutes.ToString("F0"))
         .Replace("{minutesWord}", minutesWord);
-    
+
     Server.Broadcast(message);
     Puts($"⏳ Респавн через {minutes} минут");
 }
@@ -2303,7 +2477,9 @@ if (!Gen_ValidateWagons(factionKey, wagons, out var validateReason))
 
 
 
-ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(compositionName, comp, wagons, targetTrack, targetDist));
+var myToken = ++_buildToken;
+_abortRequested = false;
+ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(myToken, compositionName, comp, wagons, targetTrack, targetDist));
 
 
 
@@ -2314,6 +2490,7 @@ ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(compositionName, comp, wa
         }
 
         private IEnumerator BuildTrainWithSpline(
+    ulong buildToken,
     string compositionName,
     ConfigData.TrainComposition comp,
     List<string> wagons,
@@ -2330,6 +2507,8 @@ ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(compositionName, comp, wa
 
 
     _isBuildingTrain = true;
+	if (IsBuildCancelled(buildToken))
+		yield break;
 	// 40 секунд иммунитета anti-stuck после спавна состава
 _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
 
@@ -2455,12 +2634,19 @@ locoEnt.SendNetworkUpdate();
 		EventLogV("LOCO_TRACK", $"composition='{compositionName}' faction='{_activeFactionKey}' {_carSnap(locoEnt)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count}");
 
 
-    yield return new WaitForSeconds(0.5f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    yield return new WaitForSeconds(0.5f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
     
     int positionIndex = 1;
 
     for (int i = wagonStartIndex; i < wagons.Count; i++)
 {
+    if (IsBuildCancelled(buildToken))
+        yield break;
+
     string wagonName = wagons[i];
     var layout = GetLayout(wagonName);
 
@@ -2518,30 +2704,26 @@ if (layout == null)
         }
         
         trainCar.enableSaving = false;
-trainCar.Spawn();
-	        yield return null;
-	trainCar.OwnerID = HELL_OWNER_ID;
-	trainCar.SendNetworkUpdate();
 
-        
-        NextTick(() =>
-        {
-            if (trainCar != null && !trainCar.IsDestroyed && trainCar.platformParentTrigger != null)
-                trainCar.platformParentTrigger.ParentNPCPlayers = true;
-        });
-        
-        if (trainCar.IsDestroyed)
-        {
-            PrintError($"❌ Вагон [{i}] destroyed после Spawn");
-            KillEventTrainCars("wagon_destroyed_after_spawn", force: true);
-            yield break;
-        }
-        
-        trainCar.CancelInvoke(trainCar.DecayTick);
-        
-      //  Puts($"   🔧 [{i}] {wagonName}: {trainCar.ShortPrefabName} (ID: {trainCar.net.ID})");
-                _spawnedTrainEntities.Add(trainCar);
-        _spawnedCars.Add(trainCar);
+// важно: OwnerID и трекинг — ДО любых yield, чтобы stop/cleanup всегда мог добить вагон
+trainCar.OwnerID = HELL_OWNER_ID;
+
+trainCar.Spawn();
+trainCar.SendNetworkUpdate();
+
+trainCar.CancelInvoke(trainCar.DecayTick);
+
+_spawnedTrainEntities.Add(trainCar);
+_spawnedCars.Add(trainCar);
+
+// yield разрешён только после регистрации в трекинге
+yield return null;
+
+NextTick(() =>
+{
+    if (trainCar != null && !trainCar.IsDestroyed && trainCar.platformParentTrigger != null)
+        trainCar.platformParentTrigger.ParentNPCPlayers = true;
+});
 		  EventLogV("WAGON_TRACK", $"i={i} wagonKey='{wagonName}' prefab='{prefab}' {_carSnap(trainCar)} prev={_carSnap(lastSpawnedCar)} cars={_spawnedCars.Count} ents={_spawnedTrainEntities.Count}");
 
         // WAIT-UNTIL-READY (вместо фиксированного 0.2s): даём Unity/Entity инициализировать рельсы/куплинги
@@ -2572,7 +2754,39 @@ trainCar.Spawn();
             if (Time.realtimeSinceStartup - coupleReadyStart >= coupleReadyTimeout)
             {
               			  PrintError($"❌ [{i}] Coupling init timeout {coupleReadyTimeout:F1}s missing='{coupleMissing}' curPrefab='{prefab}' wagonName='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
-               			   EventLog($"[COUPLING TIMEOUT] {coupleMissing} prefab='{prefab}' wagon='{wagonName}' prev='{lastSpawnedCar?.ShortPrefabName}'");
+
+// расширенная диагностика: понять, что именно "не успело подняться" или кто умер
+var cur = trainCar;
+var prev = lastSpawnedCar;
+
+string CurState()
+{
+    if (cur == null) return "null";
+    if (cur.IsDestroyed) return "destroyed";
+    return "alive";
+}
+
+string PrevState()
+{
+    if (prev == null) return "null";
+    if (prev.IsDestroyed) return "destroyed";
+    return "alive";
+}
+
+var curPos = (cur != null && !cur.IsDestroyed) ? cur.transform.position : Vector3.zero;
+var prevPos = (prev != null && !prev.IsDestroyed) ? prev.transform.position : Vector3.zero;
+
+var curNet = cur?.net != null ? cur.net.ID.ToString() : "null";
+var prevNet = prev?.net != null ? prev.net.ID.ToString() : "null";
+
+EventLog(
+    $"[COUPLING TIMEOUT] miss='{coupleMissing}' i={i} " +
+    $"curState={CurState()} curNet={curNet} curPos=({curPos.x:F2},{curPos.y:F2},{curPos.z:F2}) " +
+    $"curFTS={(cur?.FrontTrackSection != null)} curFC={(cur?.frontCoupling != null)} curCpl={(cur?.coupling != null)} curCplFC={(cur?.coupling?.frontCoupling != null)} " +
+    $"prevState={PrevState()} prevNet={prevNet} prevPos=({prevPos.x:F2},{prevPos.y:F2},{prevPos.z:F2}) " +
+    $"prevFTS={(prev?.FrontTrackSection != null)} prevRC={(prev?.rearCoupling != null)} prevCpl={(prev?.coupling != null)} prevCplRC={(prev?.coupling?.rearCoupling != null)} " +
+    $"prefab='{prefab}' wagon='{wagonName}'"
+);
 
 						KillEventTrainCars($"coupling_init_timeout:{coupleMissing}", force: true);
 						
@@ -2701,7 +2915,11 @@ trainCar.Spawn();
        // Puts($"   🔒 Задняя сцепка отключена для последнего вагона");
     }
     
-    yield return new WaitForSeconds(1f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    yield return new WaitForSeconds(1f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
     
     switch (comp.Tier)
     {
@@ -2735,7 +2953,11 @@ var factionKey = _activeFactionKey;
 
 
 // ✅ ВАЖНО: Спавним объекты С ЗАДЕРЖКОЙ после полной сборки поезда!
+if (IsBuildCancelled(buildToken))
+    yield break;
 yield return new WaitForSeconds(12f);
+if (IsBuildCancelled(buildToken))
+    yield break;
 
 // ✅ PLAN PIPE (order fix): build PopulatePlan only AFTER train is fully built and slots are available
 // inferredLayoutName как имя лэйаута.
@@ -2748,6 +2970,12 @@ if (wagons != null && wagons.Count > 0)
 
 var layoutName = !string.IsNullOrEmpty(_activeLayoutName) ? _activeLayoutName : inferredLayoutName;
 var compositionKey = _lastResolvedCompositionKey ?? "null";
+
+if (IsBuildCancelled(buildToken))
+    yield break;
+
+if (_spawnedCars == null || _spawnedCars.Count == 0)
+    yield break;
 
 if (!Gen_BuildPopulatePlan(factionKey, compositionKey, layoutName, _spawnedCars, out var planObj, out var planReason))
 {
@@ -2797,12 +3025,23 @@ Puts($"[Helltrain][DBG_RESOLVE_LAYOUT] i={i} picked='{wagonName}' found='{foundN
             }
         }
         
-        positionIndex++;
-        yield return new WaitForSeconds(0.1f);
-    }
-    
-    yield return new WaitForSeconds(20f);
-    StartEngine(trainEngine);
+	        positionIndex++;
+	        if (IsBuildCancelled(buildToken))
+	            yield break;
+	        yield return new WaitForSeconds(0.1f);
+	        if (IsBuildCancelled(buildToken))
+	            yield break;
+	    }
+	    
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    yield return new WaitForSeconds(20f);
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+
+	    if (IsBuildCancelled(buildToken))
+	        yield break;
+	    StartEngine(trainEngine);
 	
 // ✅ ИНИЦИАЛИЗАЦИЯ LIFECYCLE
 _trainLifecycle = new TrainLifecycle(
@@ -2827,6 +3066,15 @@ StartLifecycleTimer();
 StartEngineWatchdog();
 
 Puts($"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartIndex}");
+if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
+{
+    var p = activeHellTrain.transform.position;
+    Puts($"[{_evTs()}] [ENGINE_POS] x={p.x:F2} y={p.y:F2} z={p.z:F2} grid={_trainLifecycle.LastGrid}");
+}
+else
+{
+    Puts($"[{_evTs()}] [ENGINE_POS] engine=null/destroyed grid={_trainLifecycle.LastGrid}");
+}
 
     }
     finally
@@ -2958,6 +3206,28 @@ private void SpawnHellTrain(BasePlayer player = null)
     {
         activeHellTrain.Kill();
         activeHellTrain = null;
+    }
+
+    // SAFE SPAWN POOL: если есть точки — используем их вместо случайного трека
+    if (config.UseSafeSpawnPool)
+    {
+        if (TryPickSpawnFromSafePool(out var poolSpline, out var poolDist, out var poolDbg))
+        {
+            Puts($"[SAFEPOOL] {poolDbg}");
+            SpawnTrainFromComposition(chosen, poolSpline, poolDist);
+            Puts($"✅ Запущена сборка Hell Train: {chosen}");
+            return;
+        }
+        else if (config.SafeSpawnPoolOnly)
+        {
+            PrintError($"❌ SafeSpawnPoolOnly=TRUE, но точка не выбрана: {poolDbg}");
+            if (config.AutoRespawn)
+            {
+                timer.Once(10f, () => SpawnHellTrain());
+                Puts("🔄 Попробую снова через 10 секунд...");
+            }
+            return;
+        }
     }
 
     int overworldCount = availableOverworldSplines.Count;
@@ -3239,6 +3509,112 @@ private void KillEntitySafe(BaseNetworkable e)
         #endregion
 
         #region HT.UTILS
+		private bool TryPickSpawnFromSafePool(out TrainTrackSpline trackSpline, out float distOnSpline, out string dbg)
+{
+    trackSpline = null;
+    distOnSpline = 0f;
+    dbg = "";
+
+    if (config?.SafeSpawnPool == null || config.SafeSpawnPool.Count == 0)
+    {
+        dbg = "pool_empty";
+        return false;
+    }
+
+    var list = config.SafeSpawnPool.Where(p => p != null && p.Enabled).ToList();
+    if (list.Count == 0)
+    {
+        dbg = "pool_all_disabled";
+        return false;
+    }
+
+    var pick = list[UnityEngine.Random.Range(0, list.Count)];
+    var pos = new Vector3(pick.X, pick.Y, pick.Z);
+
+    List<TrainTrackSpline> splines;
+    var lvl = (pick.Level ?? "any").Trim().ToLowerInvariant();
+    if (lvl == "overworld") splines = availableOverworldSplines;
+    else if (lvl == "underworld") splines = availableUnderworldSplines;
+    else
+    {
+        splines = new List<TrainTrackSpline>(availableOverworldSplines.Count + availableUnderworldSplines.Count);
+        splines.AddRange(availableOverworldSplines);
+        splines.AddRange(availableUnderworldSplines);
+    }
+
+    if (splines == null || splines.Count == 0)
+    {
+        dbg = $"pool_pick='{pick.Name}' lvl={lvl} splines=0";
+        return false;
+    }
+
+    if (!TryResolveNearestSplineDistance(pos, splines, out trackSpline, out distOnSpline, out float sqr))
+    {
+        dbg = $"pool_pick='{pick.Name}' lvl={lvl} no_nearest";
+        return false;
+    }
+
+    var len = trackSpline.GetLength();
+    var min = len * 0.15f;
+    var max = len * 0.85f;
+    distOnSpline = Mathf.Clamp(distOnSpline, min, max);
+
+    dbg = $"pick='{pick.Name}' lvl={lvl} pos=({pos.x:F2},{pos.y:F2},{pos.z:F2}) spline='{trackSpline.name}' dist={distOnSpline:F1}/{len:F0} sqr={sqr:F1}";
+    return true;
+}
+
+private bool TryResolveNearestSplineDistance(Vector3 worldPos, List<TrainTrackSpline> splines, out TrainTrackSpline bestSpline, out float bestDist, out float bestSqr)
+{
+    bestSpline = null;
+    bestDist = 0f;
+    bestSqr = float.PositiveInfinity;
+
+    const float coarseStep = 10f;
+    const float fineStep = 1f;
+
+    foreach (var s in splines)
+    {
+        if (s == null) continue;
+        var len = s.GetLength();
+        if (len < config.MinTrackLength) continue;
+
+        float localBestDist = 0f;
+        float localBestSqr = float.PositiveInfinity;
+
+        for (float d = 0f; d <= len; d += coarseStep)
+        {
+            var p = s.GetPosition(d);
+            var sqr = (p - worldPos).sqrMagnitude;
+            if (sqr < localBestSqr)
+            {
+                localBestSqr = sqr;
+                localBestDist = d;
+            }
+        }
+
+        var from = Mathf.Max(0f, localBestDist - coarseStep);
+        var to = Mathf.Min(len, localBestDist + coarseStep);
+        for (float d = from; d <= to; d += fineStep)
+        {
+            var p = s.GetPosition(d);
+            var sqr = (p - worldPos).sqrMagnitude;
+            if (sqr < localBestSqr)
+            {
+                localBestSqr = sqr;
+                localBestDist = d;
+            }
+        }
+
+        if (localBestSqr < bestSqr)
+        {
+            bestSqr = localBestSqr;
+            bestSpline = s;
+            bestDist = localBestDist;
+        }
+    }
+
+    return bestSpline != null && !float.IsInfinity(bestSqr);
+}
 private TrainEngine GetNearestEngine(BasePlayer player, float maxDistance = 50f)
 {
     if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
@@ -3492,7 +3868,12 @@ private void CmdHtClearCrates(BasePlayer player, string command, string[] args)
 /// </summary>
 private void ForceDestroyHellTrain()
 {
-    KillEventTrainCars("force_destroy");
+    // ⛔ стоп/cleanup должен отменять сборку, иначе корутина продолжит спавнить вагоны после чистки
+    _abortRequested = true;
+    _abortReason = "FORCE_DESTROY";
+    _buildToken++; // invalidate active BuildTrainWithSpline token
+
+    KillEventTrainCars("force_destroy", force: true);
     _explosionTimerArmedOnce = false;
     _firstLootAnnounced = false;
     _explodedOnce = false;
@@ -4091,9 +4472,24 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         if (!HasPerm(player, PERM_ADMIN)) { SendReply(player, "⛔ Нет прав."); return; }
         ForceDestroyHellTrain();
         SendReply(player, "🧹 Helltrain остановлен и очищен.");
-        StartRespawnTimer();
+        StartRespawnTimer(5f);
         return;
     }
+	
+	if (sub == "respawnreset")
+{
+    if (!HasPerm(player, PERM_ADMIN)) { SendReply(player, "⛔ Нет прав."); return; }
+
+    if (respawnTimer != null)
+    {
+        respawnTimer.Destroy();
+        respawnTimer = null;
+    }
+
+    StartRespawnTimer();
+    SendReply(player, "✅ Respawn reset: расписание пересчитано по конфигу (TrainRespawnMinutes).");
+    return;
+}
 
     // P1: deny new start if build is running or runtime is dirty (no cleanup here)
     if (sub == "start" || sub == "startnear")
@@ -4168,8 +4564,8 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         }
     }
 
-    TrainTrackSpline trackSpline;
-    float distOnSpline;
+    TrainTrackSpline trackSpline = null;
+	float distOnSpline = 0f;
 
     if (sub == "startnear")
     {
@@ -4180,6 +4576,26 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         }
     }
     else
+{
+    // ==== SAFE SPAWN POOL ====
+    if (config.UseSafeSpawnPool && config.SafeSpawnPool != null && config.SafeSpawnPool.Count > 0)
+    {
+        if (TryPickSpawnFromSafePool(out trackSpline, out distOnSpline, out string dbg))
+        {
+            Puts($"[SAFEPOOL_CMD] {dbg}");
+        }
+        else
+        {
+            if (config.SafeSpawnPoolOnly)
+            {
+                SendReply(player, "❌ SafeSpawnPoolOnly включён, но точка не выбрана.");
+                return;
+            }
+        }
+    }
+
+    // ==== FALLBACK: старый рандом ====
+    if (trackSpline == null)
     {
         if (availableOverworldSplines == null || availableOverworldSplines.Count == 0)
             CacheSplines();
@@ -4191,12 +4607,13 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         trackSpline = pool.Count > 0 ? pool[_rng.Next(pool.Count)] : null;
         if (trackSpline == null)
         {
-            SendReply(player, "❌ Не удалось найти доступные треки. Попробуй /helltrain startnear.");
+            SendReply(player, "❌ Не удалось найти доступные треки.");
             return;
         }
 
         distOnSpline = _rng.Next(0, Mathf.Max(10, Mathf.FloorToInt(trackSpline.GetLength())));
     }
+}
 
     float len = trackSpline.GetLength();
     string nm = trackSpline.name;
