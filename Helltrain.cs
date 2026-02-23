@@ -741,22 +741,22 @@ private void SwitchmanTick()
         if ((p - tp).sqrMagnitude > r * r)
             continue;
 
-        TrackSelection sel;
+        TrainEngine.TrackSelection sel;
 
         if (!string.IsNullOrEmpty(t.fixedSelection) &&
-            Enum.TryParse(t.fixedSelection, true, out sel))
+            Enum.TryParse<TrainEngine.TrackSelection>(t.fixedSelection, true, out sel))
         {
         }
         else
         {
             int sum = t.wStraight + t.wRight + t.wLeft;
-            if (sum <= 0) sel = TrackSelection.Straight;
+            if (sum <= 0) sel = TrainEngine.TrackSelection.Straight;
             else
             {
                 int roll = UnityEngine.Random.Range(0, sum);
-                if (roll < t.wStraight) sel = TrackSelection.Straight;
-                else if (roll < t.wStraight + t.wRight) sel = TrackSelection.Right;
-                else sel = TrackSelection.Left;
+                if (roll < t.wStraight) sel = TrainEngine.TrackSelection.Straight;
+                else if (roll < t.wStraight + t.wRight) sel = TrainEngine.TrackSelection.Right;
+                else sel = TrainEngine.TrackSelection.Left;
             }
         }
 
@@ -6825,7 +6825,7 @@ private void CmdHtTools(BasePlayer player, string command, string[] args)
                 return;
             }
 
-            if (!Enum.TryParse(args[4], true, out TrackSelection sel))
+            if (!Enum.TryParse(args[4], true, out TrainEngine.TrackSelection sel))
             {
                 player.ChatMessage("❌ selection должен быть Straight|Right|Left");
                 return;
