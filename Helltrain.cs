@@ -587,6 +587,7 @@ void OnServerInitialized()
 
     // layouts cache
     try { LoadLayouts(); } catch (Exception ex) { PrintError($"LoadLayouts init error: {ex}"); }
+    LoadSwitchTriggers();
 
     // track cache (optional)
     try { CacheSplines(); } catch { }
@@ -647,6 +648,121 @@ private const string RespawnStateFileLegacy = "Helltrain/respawn_state.json"; //
 private class RespawnState
 {
     public long NextUtcTicks;
+}
+
+// =========================
+// SWITCH TRIGGERS (manual, map-specific)
+// =========================
+
+private const float SWITCHMAN_TICK = 0.25f;
+private const float SWITCH_TRIGGER_COOLDOWN = 2.0f;
+
+private Timer _switchmanTimer;
+private readonly List<SwitchTrigger> _switchTriggers = new List<SwitchTrigger>();
+private readonly Dictionary<int, float> _switchTriggerCooldownUntil = new Dictionary<int, float>();
+
+private string SwitchTriggersDataFile => $"Helltrain/switch_triggers_{ConVar.Server.seed}";
+
+private class Vec3Data
+{
+    public float x;
+    public float y;
+    public float z;
+    public Vec3Data() { }
+    public Vec3Data(Vector3 v) { x = v.x; y = v.y; z = v.z; }
+    public Vector3 ToVector3() => new Vector3(x, y, z);
+}
+
+private class SwitchTrigger
+{
+    public int id;
+    public string name;
+    public Vec3Data pos;
+    public float radius = 3f;
+
+    public int wStraight;
+    public int wRight;
+    public int wLeft;
+
+    public string fixedSelection; // Straight|Right|Left
+}
+
+private void LoadSwitchTriggers()
+{
+    try
+    {
+        var list = Interface.Oxide.DataFileSystem.ReadObject<List<SwitchTrigger>>(SwitchTriggersDataFile);
+        _switchTriggers.Clear();
+        if (list != null) _switchTriggers.AddRange(list);
+    }
+    catch
+    {
+        _switchTriggers.Clear();
+    }
+}
+
+private void SaveSwitchTriggers()
+{
+    Interface.Oxide.DataFileSystem.WriteObject(SwitchTriggersDataFile, _switchTriggers);
+}
+
+private void StartSwitchman()
+{
+    if (_switchmanTimer != null) return;
+    _switchmanTimer = timer.Every(SWITCHMAN_TICK, SwitchmanTick);
+}
+
+private void StopSwitchman()
+{
+    _switchmanTimer?.Destroy();
+    _switchmanTimer = null;
+    _switchTriggerCooldownUntil.Clear();
+}
+
+private void SwitchmanTick()
+{
+    var engine = activeHellTrain;
+    if (engine == null || engine.IsDestroyed) return;
+    if (_switchTriggers.Count == 0) return;
+
+    Vector3 p = engine.transform.position;
+    float now = Time.realtimeSinceStartup;
+
+    foreach (var t in _switchTriggers)
+    {
+        if (t?.pos == null) continue;
+
+        if (_switchTriggerCooldownUntil.TryGetValue(t.id, out var cd) && now < cd)
+            continue;
+
+        Vector3 tp = t.pos.ToVector3();
+        float r = Mathf.Max(0.5f, t.radius);
+
+        if ((p - tp).sqrMagnitude > r * r)
+            continue;
+
+        TrackSelection sel;
+
+        if (!string.IsNullOrEmpty(t.fixedSelection) &&
+            Enum.TryParse(t.fixedSelection, true, out sel))
+        {
+        }
+        else
+        {
+            int sum = t.wStraight + t.wRight + t.wLeft;
+            if (sum <= 0) sel = TrackSelection.Straight;
+            else
+            {
+                int roll = UnityEngine.Random.Range(0, sum);
+                if (roll < t.wStraight) sel = TrackSelection.Straight;
+                else if (roll < t.wStraight + t.wRight) sel = TrackSelection.Right;
+                else sel = TrackSelection.Left;
+            }
+        }
+
+        engine.SetTrackSelection(sel);
+        _switchTriggerCooldownUntil[t.id] = now + SWITCH_TRIGGER_COOLDOWN;
+    }
 }
 
 private void SaveRespawnState()
@@ -1152,6 +1268,7 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+	StopSwitchman();
 	_abortRequested = true;
 	_buildToken++;
 
@@ -2943,6 +3060,7 @@ EventLog(
     }
     
     activeHellTrain = trainEngine;
+    StartSwitchman();
     
     var antiStuckComponent = trainEngine.gameObject.AddComponent<HellTrainComponent>();
     antiStuckComponent.plugin = this;
@@ -6553,6 +6671,10 @@ private void CmdHtTools(BasePlayer player, string command, string[] args)
     {
         player.ChatMessage("📋 /ht preflook — показать prefab под прицелом");
         player.ChatMessage("📋 /ht preftest <prefabPath> — проверить, создаётся ли prefab");
+        player.ChatMessage("📋 /ht switch add <name> <radius> <wStraight> <wRight> <wLeft>");
+        player.ChatMessage("📋 /ht switch addfixed <name> <radius> <Straight|Right|Left>");
+        player.ChatMessage("📋 /ht switch list");
+        player.ChatMessage("📋 /ht switch remove <id>");
         return;
     }
 
@@ -6602,7 +6724,137 @@ private void CmdHtTools(BasePlayer player, string command, string[] args)
         return;
     }
 
-    player.ChatMessage("❌ Неизвестная подкоманда. /ht preflook | /ht preftest <prefab>");
+    if (sub == "switch")
+    {
+        if (args.Length < 2)
+        {
+            player.ChatMessage("❌ Использование: /ht switch add|addfixed|list|remove ...");
+            return;
+        }
+
+        var mode = args[1].ToLowerInvariant();
+
+        if (mode == "list")
+        {
+            if (_switchTriggers.Count == 0)
+            {
+                player.ChatMessage("ℹ️ Switch triggers пусты.");
+                return;
+            }
+
+            player.ChatMessage($"📍 Switch triggers: {_switchTriggers.Count}");
+            foreach (var t in _switchTriggers.OrderBy(x => x.id))
+            {
+                if (t == null || t.pos == null) continue;
+                var p = t.pos.ToVector3();
+                var modeText = !string.IsNullOrEmpty(t.fixedSelection)
+                    ? $"fixed={t.fixedSelection}"
+                    : $"weights S/R/L={t.wStraight}/{t.wRight}/{t.wLeft}";
+                player.ChatMessage($"• id={t.id} name='{t.name}' pos=({p.x:0.0},{p.y:0.0},{p.z:0.0}) r={t.radius:0.0} {modeText}");
+            }
+            return;
+        }
+
+        if (mode == "remove")
+        {
+            if (args.Length < 3 || !int.TryParse(args[2], out var id))
+            {
+                player.ChatMessage("❌ Использование: /ht switch remove <id>");
+                return;
+            }
+
+            int removed = _switchTriggers.RemoveAll(x => x != null && x.id == id);
+            _switchTriggerCooldownUntil.Remove(id);
+            if (removed > 0)
+            {
+                SaveSwitchTriggers();
+                player.ChatMessage($"✅ Удалён trigger id={id}");
+            }
+            else
+                player.ChatMessage($"❌ Trigger id={id} не найден");
+            return;
+        }
+
+        if (mode == "add")
+        {
+            if (args.Length < 7)
+            {
+                player.ChatMessage("❌ Использование: /ht switch add <name> <radius> <wStraight> <wRight> <wLeft>");
+                return;
+            }
+
+            if (!float.TryParse(args[3], out var radius) ||
+                !int.TryParse(args[4], out var wStraight) ||
+                !int.TryParse(args[5], out var wRight) ||
+                !int.TryParse(args[6], out var wLeft))
+            {
+                player.ChatMessage("❌ Неверные параметры (radius/weights)");
+                return;
+            }
+
+            int nextId = _switchTriggers.Count == 0 ? 1 : _switchTriggers.Max(x => x?.id ?? 0) + 1;
+            var trigger = new SwitchTrigger
+            {
+                id = nextId,
+                name = args[2],
+                pos = new Vec3Data(player.transform.position),
+                radius = Mathf.Max(0.5f, radius),
+                wStraight = Mathf.Max(0, wStraight),
+                wRight = Mathf.Max(0, wRight),
+                wLeft = Mathf.Max(0, wLeft),
+                fixedSelection = null
+            };
+
+            _switchTriggers.Add(trigger);
+            SaveSwitchTriggers();
+            player.ChatMessage($"✅ Добавлен trigger id={trigger.id} name='{trigger.name}'");
+            return;
+        }
+
+        if (mode == "addfixed")
+        {
+            if (args.Length < 5)
+            {
+                player.ChatMessage("❌ Использование: /ht switch addfixed <name> <radius> <Straight|Right|Left>");
+                return;
+            }
+
+            if (!float.TryParse(args[3], out var radius))
+            {
+                player.ChatMessage("❌ Неверный radius");
+                return;
+            }
+
+            if (!Enum.TryParse(args[4], true, out TrackSelection sel))
+            {
+                player.ChatMessage("❌ selection должен быть Straight|Right|Left");
+                return;
+            }
+
+            int nextId = _switchTriggers.Count == 0 ? 1 : _switchTriggers.Max(x => x?.id ?? 0) + 1;
+            var trigger = new SwitchTrigger
+            {
+                id = nextId,
+                name = args[2],
+                pos = new Vec3Data(player.transform.position),
+                radius = Mathf.Max(0.5f, radius),
+                wStraight = 0,
+                wRight = 0,
+                wLeft = 0,
+                fixedSelection = sel.ToString()
+            };
+
+            _switchTriggers.Add(trigger);
+            SaveSwitchTriggers();
+            player.ChatMessage($"✅ Добавлен fixed trigger id={trigger.id} name='{trigger.name}' mode={trigger.fixedSelection}");
+            return;
+        }
+
+        player.ChatMessage("❌ Использование: /ht switch add|addfixed|list|remove ...");
+        return;
+    }
+
+    player.ChatMessage("❌ Неизвестная подкоманда. /ht preflook | /ht preftest <prefab> | /ht switch ...");
 }
 
 
