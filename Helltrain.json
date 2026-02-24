@@ -131,6 +131,13 @@
       }
     }
   },
+  "COBLAB Heavy Turret Gun Pool": {
+    "lmg.m249": 1.0,
+    "rifle.ak": 1.0,
+    "rifle.lr300": 1.0
+  },
+  "COBLAB Heavy Turret Ammo Shortname": "ammo.rifle",
+  "COBLAB Heavy Turret Ammo Amount": 500,
   "AutoRespawn": true,
   "RespawnTime": 60.0,
   "Разрешить спавн на поверхности": true,
