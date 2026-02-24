@@ -7946,7 +7946,7 @@ private void CmdFixLayouts(ConsoleSystem.Arg arg)
     
     _layouts.Clear();
     LoadLayouts();
-    
+
     SendReply(arg, $"✅ Лэйауты перезагружены! Найдено: {_layouts.Count}");
 }
 } // ← Закрывает класс Helltrain 
