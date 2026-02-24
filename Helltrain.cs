@@ -1817,7 +1817,7 @@ public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
     public bool AllowTransition { get; set; } = false;
 
     [JsonProperty("Минимальная длина трека для спавна (метры)")]
-    public float MinTrackLength { get; set; } = 500f;
+    public float MinTrackLength { get; set; } = 200f;
 	
     [JsonProperty("Safe Spawn: использовать пул если есть")]
     public bool UseSafeSpawnPool { get; set; } = true;
