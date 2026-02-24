@@ -135,120 +135,149 @@ Vis.Entities(center, radius, ents, -1);
     }
 }
 
-void PreSpawnClearTrainsCorridor(TrainTrackSpline track, float distOnSpline, int wagonsCount, string reason)
+private bool TrainCarAnyMountedPlayer(TrainCar car)
+{
+    if (car == null || car.IsDestroyed) return false;
+
+    try
+    {
+        var mounts = car.GetComponentsInChildren<BaseMountable>();
+        if (mounts == null) return false;
+
+        foreach (var mount in mounts)
+        {
+            if (mount != null && mount.GetMounted() is BasePlayer)
+                return true;
+        }
+    }
+    catch { }
+
+    return false;
+}
+
+private bool IsPreSpawnCorridorTarget(TrainCar car)
+{
+    if (car == null || car.IsDestroyed) return false;
+    if (activeHellTrain != null && car == activeHellTrain) return false;
+    if (_spawnedTrainEntities.Contains(car) || _spawnedCars.Contains(car)) return false;
+    if (TrainCarAnyMountedPlayer(car)) return false;
+    return true;
+}
+
+private int PreSpawnEvaluateTrainsCorridor(TrainTrackSpline track, float distOnSpline, int wagonsCount, bool killTargets, out int scanned)
+{
+    scanned = 0;
+
+    if (track == null || config == null) return 0;
+
+    float halfWidth = Mathf.Clamp(config.PreSpawnClearHalfWidthMeters, 1.5f, 12f);
+
+    float noseOffset = Mathf.Clamp(config.PreSpawnClearNoseOffsetMeters, -100f, 100f);
+    float originDist = distOnSpline + noseOffset;
+
+    float back = Mathf.Clamp(config.PreSpawnClearBackMeters, 0f, 2500f);
+    float fwdLen = Mathf.Clamp(config.PreSpawnClearForwardMeters, 0f, 500f);
+    float step = Mathf.Clamp(config.PreSpawnClearStepMeters, 4f, 25f);
+
+    if (back <= 0.01f && fwdLen <= 0.01f)
+    {
+        float carLen = Mathf.Clamp(config.PreSpawnClearCarLengthMeters, 6f, 18f);
+        float extra = Mathf.Clamp(config.PreSpawnClearExtraMeters, 0f, 300f);
+        float totalLen = Mathf.Max(20f, wagonsCount * carLen + extra);
+        back = totalLen * 0.5f;
+        fwdLen = totalLen * 0.5f;
+    }
+
+    float carLenReq = Mathf.Clamp(config.PreSpawnClearCarLengthMeters, 6f, 18f);
+    float extraReq = Mathf.Clamp(config.PreSpawnClearExtraMeters, 0f, 300f);
+    float requiredLen = Mathf.Max(40f, wagonsCount * carLenReq + extraReq + 40f);
+    float curLen = back + fwdLen;
+    if (curLen < requiredLen)
+    {
+        float add = requiredLen - curLen;
+        back += add * 0.5f;
+        fwdLen += add * 0.5f;
+    }
+
+    int inCorridorCount = 0;
+    var seen = new HashSet<TrainCar>();
+    var samples = Pool.GetList<Vector3>();
+
+    try
+    {
+        float len = track.GetLength();
+        float startDist = Mathf.Clamp(originDist - back, 0f, len);
+        float endDist = Mathf.Clamp(originDist + fwdLen, 0f, len);
+
+        for (float sd = startDist; sd <= endDist; sd += step)
+            samples.Add(track.GetPosition(sd));
+
+        if (samples.Count == 0)
+            samples.Add(track.GetPosition(Mathf.Clamp(originDist, 0f, len)));
+
+        float killRadius = Mathf.Clamp(halfWidth + 8f, 6f, 30f);
+        float killRadiusSqr = killRadius * killRadius;
+
+        foreach (var bn in BaseNetworkable.serverEntities)
+        {
+            var car = bn as TrainCar;
+            if (car == null || !seen.Add(car)) continue;
+            if (!IsPreSpawnCorridorTarget(car)) continue;
+
+            scanned++;
+
+            Vector3 pos = car.transform.position;
+            bool inCorridor = false;
+            for (int s = 0; s < samples.Count; s++)
+            {
+                if ((pos - samples[s]).sqrMagnitude <= killRadiusSqr)
+                {
+                    inCorridor = true;
+                    break;
+                }
+            }
+
+            if (!inCorridor) continue;
+
+            inCorridorCount++;
+            if (killTargets)
+                car.Kill();
+        }
+    }
+    finally
+    {
+        Pool.FreeList(ref samples);
+    }
+
+    return inCorridorCount;
+}
+
+private void PreSpawnClearTrainsCorridor(TrainTrackSpline track, float distOnSpline, int wagonsCount, string reason)
 {
     try
     {
         if (track == null) return;
         if (config == null || !config.PreSpawnClearEnabled) return;
-
-        float halfWidth = Mathf.Clamp(config.PreSpawnClearHalfWidthMeters, 1.5f, 12f);
-
-        float noseOffset = Mathf.Clamp(config.PreSpawnClearNoseOffsetMeters, -100f, 100f);
-        float originDist = distOnSpline + noseOffset;
-
-        float back = Mathf.Clamp(config.PreSpawnClearBackMeters, 0f, 2500f);
-        float fwdLen = Mathf.Clamp(config.PreSpawnClearForwardMeters, 0f, 500f);
-        float step = Mathf.Clamp(config.PreSpawnClearStepMeters, 4f, 25f);
-
-        // Fallback на старую модель (если новые параметры выключены)
-        if (back <= 0.01f && fwdLen <= 0.01f)
-        {
-            float carLen = Mathf.Clamp(config.PreSpawnClearCarLengthMeters, 6f, 18f);
-            float extra = Mathf.Clamp(config.PreSpawnClearExtraMeters, 0f, 300f);
-            float totalLen = Mathf.Max(20f, wagonsCount * carLen + extra);
-            back = totalLen * 0.5f;
-            fwdLen = totalLen * 0.5f;
-        }
-
-// Гарантируем, что коридор чистки покрывает ПОЛНУЮ длину будущего состава.
-// Даже если в конфиге back/fwdLen стоят слишком маленькими.
-float carLenReq = Mathf.Clamp(config.PreSpawnClearCarLengthMeters, 6f, 18f);
-float extraReq = Mathf.Clamp(config.PreSpawnClearExtraMeters, 0f, 300f);
-
-// wagonsCount = только вагоны (без локомотива). Добавляем запас на локомотив/сцепки.
-float requiredLen = Mathf.Max(40f, wagonsCount * carLenReq + extraReq + 40f); // +40м запас
-
-float curLen = back + fwdLen;
-if (curLen < requiredLen)
-{
-    float add = requiredLen - curLen;
-    back += add * 0.5f;
-    fwdLen += add * 0.5f;
-}
-
-        int killed = 0;
-
-        // Чтобы не пытаться убить одну и ту же сущность много раз на соседних шагах
-        var seen = new HashSet<TrainCar>();
-
-       // 1) Строим "линию коридора" по сплайну на всю длину чистки
-var samples = Pool.GetList<Vector3>();
-try
-{
-    // ВАЖНО: строим коридор строго в пределах длины spline, иначе GetPosition(sd) начинает "врать"
-// и мы не попадаем в реальные позиции вагонов.
-float len = track.GetLength();
-float startDist = Mathf.Clamp(originDist - back, 0f, len);
-float endDist   = Mathf.Clamp(originDist + fwdLen, 0f, len);
-
-for (float sd = startDist; sd <= endDist; sd += step)
-{
-    samples.Add(track.GetPosition(sd));
-}
-
-    // 2) Global scan: проходим ВСЕ TrainCar в мире, без Vis.Entities (Vis иногда не даёт их в выборке)
-    float killRadius = Mathf.Clamp(halfWidth + 8f, 6f, 30f);   // запас под габариты/сцепки
-    float killRadiusSqr = killRadius * killRadius;
-
-    int considered = 0;
-
-    foreach (var bn in BaseNetworkable.serverEntities)
-    {
-        var car = bn as TrainCar;
-        if (car == null || car.IsDestroyed) continue;
-
-        // Engine Anchor: наш engine не трогаем
-        var eng = car as TrainEngine;
-        if (eng != null && _eventEngineNetId != 0UL && eng.net != null && eng.net.ID.Value == _eventEngineNetId)
-            continue;
-
-
-        if (!seen.Add(car)) continue;
-
-        considered++;
-
-        Vector3 pos = car.transform.position;
-
-        // Быстрая проверка: попадает ли в коридор (к любому sample-поинту)
-        bool inCorridor = false;
-        for (int s = 0; s < samples.Count; s++)
-        {
-            if ((pos - samples[s]).sqrMagnitude <= killRadiusSqr)
-            {
-                inCorridor = true;
-                break;
-            }
-        }
-
-        if (!inCorridor) continue;
-
-        killed++;
-        car.Kill();
+        int scanned;
+        PreSpawnEvaluateTrainsCorridor(track, distOnSpline, wagonsCount, true, out scanned);
     }
-
-    Puts($"[Helltrain] PreSpawnClear(B): considered={considered} killed={killed} back={back:0.0} fwd={fwdLen:0.0} step={step:0.0} halfW={halfWidth:0.0} killR={killRadius:0.0} start={startDist:0.0} end={endDist:0.0} len={len:0.0} samples={samples.Count} reason={reason}");
-}
-finally
-{
-    Pool.FreeList(ref samples);
-}
-
-                    
-	}
     catch (Exception ex)
     {
         PrintWarning($"[Helltrain] PreSpawnClear error: {ex.Message}");
+    }
+}
+
+private int PreSpawnScanTrainsCorridor(TrainTrackSpline targetTrack, float targetDist, int wagonsCount, out int scanned)
+{
+    scanned = 0;
+    try
+    {
+        return PreSpawnEvaluateTrainsCorridor(targetTrack, targetDist, wagonsCount, false, out scanned);
+    }
+    catch (Exception ex)
+    {
+        PrintWarning($"[Helltrain] PreSpawnScan error: {ex.Message}");
+        return int.MaxValue;
     }
 }
 
@@ -1659,6 +1688,8 @@ private static string NormalizeLayoutName(string name)
 
 private class ConfigData
 {
+	[JsonProperty("ConfigVersion")]
+public int ConfigVersion { get; set; } = 1;
 	
 	[JsonProperty("LootTimerRanges")]
 public Dictionary<string, LootTimerRange> LootTimerRanges { get; set; } = new Dictionary<string, LootTimerRange>
@@ -1983,6 +2014,21 @@ public float PreSpawnClearStepMeters { get; set; } = 12f;
 // Смещение точки отсчёта по spline вперёд, чтобы считать именно "от носа"
 [JsonProperty("PreSpawnClearNoseOffsetMeters")]
 public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
+
+[JsonProperty("PreSpawnClearWindowSeconds")]
+public float PreSpawnClearWindowSeconds { get; set; } = 3.0f;
+
+[JsonProperty("PreSpawnClearPassIntervalSeconds")]
+public float PreSpawnClearPassIntervalSeconds { get; set; } = 0.35f;
+
+[JsonProperty("PreSpawnClearPostVerify")]
+public bool PreSpawnClearPostVerify { get; set; } = true;
+
+[JsonProperty("PreSpawnClearPostVerifyMaxRemaining")]
+public int PreSpawnClearPostVerifyMaxRemaining { get; set; } = 0;
+
+[JsonProperty("PreSpawnClearFallbackSeconds")]
+public float PreSpawnClearFallbackSeconds { get; set; } = 1.0f;
 }
 
 
@@ -2001,6 +2047,7 @@ protected override void LoadDefaultConfig()
 protected override void LoadConfig()
 {
     base.LoadConfig();
+    bool dirty = false;
     try
     {
         config = Config.ReadObject<ConfigData>();
@@ -2009,7 +2056,17 @@ protected override void LoadConfig()
     catch
     {
         config = new ConfigData();
+        dirty = true;
     }
+
+    if (config.ConfigVersion < 2)
+    {
+        config.ConfigVersion = 2;
+        dirty = true;
+    }
+
+    if (dirty)
+        SaveConfig();
 }
 
 protected override void SaveConfig() => Config.WriteObject(config);
@@ -2913,14 +2970,58 @@ private IEnumerator BuildTrainWithPreSpawnClear(
     TrainTrackSpline targetTrack,
     float targetDist)
 {
-    // 1) Чистим путь
-    PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"composition={compositionKey}");
+    float window = Mathf.Clamp(config.PreSpawnClearWindowSeconds, 0f, 15f);
+    float step = Mathf.Clamp(config.PreSpawnClearPassIntervalSeconds, 0.05f, 2f);
 
-    // 2) Дать серверу применить Kill() и выгрузить коллизии/триггеры до спавна нашего поезда
+    if (window <= 0f)
+    {
+        PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"composition={compositionKey}");
+    }
+    else
+    {
+        float elapsed = 0f;
+        while (elapsed < window)
+        {
+            PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"composition={compositionKey}");
+            yield return new WaitForSeconds(step);
+            elapsed += step;
+        }
+    }
+
     yield return null;
     yield return new WaitForFixedUpdate();
 
-    // 3) Только теперь запускаем реальную сборку
+    if (config.PreSpawnClearPostVerify)
+    {
+        int scanned;
+        int remaining = PreSpawnScanTrainsCorridor(targetTrack, targetDist, wagons.Count, out scanned);
+
+        if (remaining > config.PreSpawnClearPostVerifyMaxRemaining)
+        {
+            float fb = Mathf.Clamp(config.PreSpawnClearFallbackSeconds, 0f, 10f);
+            if (fb > 0f)
+            {
+                float fbe = 0f;
+                while (fbe < fb)
+                {
+                    PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"fallback composition={compositionKey}");
+                    yield return new WaitForSeconds(step);
+                    fbe += step;
+                }
+
+                yield return null;
+                yield return new WaitForFixedUpdate();
+            }
+
+            remaining = PreSpawnScanTrainsCorridor(targetTrack, targetDist, wagons.Count, out scanned);
+            if (remaining > config.PreSpawnClearPostVerifyMaxRemaining)
+            {
+                Puts($"[PreSpawnClear] ABORT: corridor not clean remaining={remaining} scanned={scanned} track={(targetTrack != null ? targetTrack.name : "null")} dist={targetDist:0.0}");
+                yield break;
+            }
+        }
+    }
+
     yield return BuildTrainWithSpline(buildToken, compositionName, comp, wagons, targetTrack, targetDist);
 }
 
