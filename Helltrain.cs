@@ -1194,13 +1194,18 @@ public class TrainAutoTurret : MonoBehaviour
     private AutoTurret turret;
     private bool weaponReady = false;
     public Helltrain plugin;
+    // Anti-jitter: once we acquired a player, keep it "sticky" for a short window
+    // to prevent oscillation NPC<->Player due to turret yaw limits.
+    public float StickyTimeSeconds = 2.0f;
+    private BasePlayer _stickyPlayer;
+    private float _stickyUntil;
     
     void Start()
     {
         turret = GetComponent<AutoTurret>();
         if (turret == null) return;
-        
-        gameObject.AddComponent<HellTrainDefender>();
+        // NOTE: Do NOT auto-tag turret as HellTrainDefender here.
+        // Tagging is applied selectively by the plugin (COBLAB preset only).
         
         turret.SetFlag(IOEntity.Flag_HasPower, true, false, true);
         turret.UpdateFromInput(100, 0);
@@ -1209,7 +1214,8 @@ public class TrainAutoTurret : MonoBehaviour
         turret.isLootable = false;
         turret.sightRange = 30f;
         
-        turret.InvokeRepeating(CheckTargetForFF, 0.5f, 0.5f);
+        // Faster polling to avoid visible target jitter.
+        turret.InvokeRepeating(CheckTargetForFF, 0.1f, 0.1f);
         turret.InvokeRepeating(CheckMagazine, 0.5f, 0.5f);
         turret.InvokeRepeating(RefillAmmo, 5f, 5f);
     }
@@ -1285,15 +1291,51 @@ public class TrainAutoTurret : MonoBehaviour
     private void CheckTargetForFF()
     {
         if (turret == null || turret.IsDestroyed) return;
-        
-        if (turret.target != null)
+
+        float now = Time.realtimeSinceStartup;
+
+        // If we have a recent sticky player, prefer it and never allow NPC targets.
+        if (_stickyPlayer != null && now < _stickyUntil)
         {
-            var targetDefender = turret.target.GetComponent<HellTrainDefender>();
-            if (targetDefender != null)
+            if (_stickyPlayer.IsDestroyed || _stickyPlayer.IsDead())
             {
-                turret.SetTarget(null);
+                _stickyPlayer = null;
             }
         }
+        else
+        {
+            _stickyPlayer = null;
+        }
+
+        if (turret.target == null)
+        {
+            // If AI dropped target briefly, re-apply sticky player to avoid oscillation.
+            if (_stickyPlayer != null)
+            {
+                turret.SetTarget(_stickyPlayer);
+            }
+            return;
+        }
+
+        // Layer 1: never target HellTrainDefender (train entities).
+        if (turret.target.GetComponent<HellTrainDefender>() != null)
+        {
+            // If we have a sticky player, snap back to it; otherwise clear.
+            turret.SetTarget(_stickyPlayer != null ? (BaseCombatEntity)_stickyPlayer : null);
+            return;
+        }
+
+        // Layer 2: Only players are valid targets (full PvP by definition).
+        var bp = turret.target as BasePlayer;
+        if (bp == null)
+        {
+            turret.SetTarget(_stickyPlayer != null ? (BaseCombatEntity)_stickyPlayer : null);
+            return;
+        }
+
+        // Acquire/refresh sticky window.
+        _stickyPlayer = bp;
+        _stickyUntil = now + Mathf.Max(0.0f, StickyTimeSeconds);
     }
     
     void OnDestroy()
@@ -1789,6 +1831,23 @@ public class FactionGenerator
 	// === GENERATOR (вся логика/веса только в конфиге) ===
 [JsonProperty("Generator")]
 public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
+
+	// === COBLAB Heavy Turrets (weapon pool) ===
+	// Contract: all guns in this pool MUST use 5.56 (ammo.rifle).
+	[JsonProperty("COBLAB Heavy Turret Gun Pool")]
+	public Dictionary<string, float> CoblabHeavyTurretGunPool { get; set; } = new Dictionary<string, float>
+	{
+		// Examples (server owner can override):
+		["lmg.m249"] = 1f,
+		["rifle.ak"] = 1f,
+		["rifle.lr300"] = 1f,
+	};
+
+	[JsonProperty("COBLAB Heavy Turret Ammo Shortname")]
+	public string CoblabHeavyTurretAmmoShortname { get; set; } = "ammo.rifle";
+
+	[JsonProperty("COBLAB Heavy Turret Ammo Amount")]
+	public int CoblabHeavyTurretAmmoAmount { get; set; } = 500;
 
 
     
@@ -5527,6 +5586,16 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             return;
         }
 
+        // COBLAB-only: turrets must be fully combat-ready (power + gun pool + ammo) and must ignore all non-player targets.
+        string factionUpper = (layout?.faction ?? string.Empty).ToUpperInvariant();
+        bool isCoblab = factionUpper == "COBLAB";
+        if (isCoblab)
+        {
+            // Tag the wagon as "train defender" so turrets never target train entities.
+            if (wagonCar != null && wagonCar.gameObject != null && wagonCar.GetComponent<HellTrainDefender>() == null)
+                wagonCar.gameObject.AddComponent<HellTrainDefender>();
+        }
+
         int spawned = 0;
         for (int i = 0; i < slots.Count; i++)
         {
@@ -5541,6 +5610,33 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             ent.transform.localPosition = V3(s.pos);
             ent.transform.localRotation = Q3(s.rot);
             ent.Spawn();
+
+            if (isCoblab)
+            {
+                // Mark turret as train entity (additional safety layer for target filters).
+                if (ent.gameObject != null && ent.GetComponent<HellTrainDefender>() == null)
+                    ent.gameObject.AddComponent<HellTrainDefender>();
+
+                var turret = ent as AutoTurret;
+                if (turret != null)
+                {
+                    // Attach controller: power + player-only target enforcement (+ sticky 2.0s)
+                    var turretComponent = turret.gameObject.AddComponent<TrainAutoTurret>();
+                    turretComponent.plugin = this;
+                    turretComponent.StickyTimeSeconds = 2.0f;
+
+                    // Weapon pool (weights) + fixed 5.56 ammo
+                    string gun = PickWeightedString(config?.CoblabHeavyTurretGunPool, "lmg.m249");
+                    string ammo = string.IsNullOrEmpty(config?.CoblabHeavyTurretAmmoShortname) ? "ammo.rifle" : config.CoblabHeavyTurretAmmoShortname;
+                    int ammoCount = Mathf.Max(500, config?.CoblabHeavyTurretAmmoAmount ?? 500);
+
+                    timer.Once(2.0f, () =>
+                    {
+                        if (turret == null || turret.IsDestroyed) return;
+                        GiveTurretWeapon(turret, gun, ammo, ammoCount);
+                    });
+                }
+            }
 
             Track(ent);
             spawned++;
@@ -5833,6 +5929,30 @@ private int PickNpcCount(int slotCount, Dictionary<int, float> weights)
         if (roll <= 0) return c;
     }
     return hi;
+}
+
+
+private string PickWeightedString(Dictionary<string, float> weights, string fallback)
+{
+    if (weights == null || weights.Count == 0) return fallback;
+
+    double total = 0;
+    foreach (var kv in weights)
+    {
+        var w = Mathf.Max(0.0001f, kv.Value);
+        total += w;
+    }
+    if (total <= 0.0001) return fallback;
+
+    double roll = UnityEngine.Random.Range(0f, 1f) * total;
+    foreach (var kv in weights)
+    {
+        var w = Mathf.Max(0.0001f, kv.Value);
+        roll -= w;
+        if (roll <= 0) return kv.Key;
+    }
+    // Fallback to any key (deterministic enough)
+    return weights.Keys.FirstOrDefault() ?? fallback;
 }
 
 
