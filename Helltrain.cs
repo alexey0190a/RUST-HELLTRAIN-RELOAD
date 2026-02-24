@@ -42,6 +42,215 @@ namespace Oxide.Plugins
 			}
 			catch { return "pos?"; }
 		}
+		
+			
+		// STABILITY: cowcatcher — заранее удаляем статичные чужие поезда/вагоны впереди,
+// чтобы наш локомотив не терял скорость и не уходил в авто-реверс из-за "мусора" на рельсах.
+private bool TryClearBlockingTrainAhead(TrainEngine engine, ref float nextTryAt)
+{
+    try
+    {
+        if (engine == null || engine.IsDestroyed) return false;
+        if (config == null || !config.ClearBlockingTrains) return false;
+
+        float now = Time.realtimeSinceStartup;
+        float interval = Mathf.Max(0.1f, config.ClearBlockingTrainsIntervalSeconds);
+        if (now < nextTryAt) return false;
+        nextTryAt = now + interval;
+
+        float ahead = Mathf.Clamp(config.ClearBlockingTrainsAheadMeters, 5f, 35f);
+        float radius = Mathf.Clamp(config.ClearBlockingTrainsRadiusMeters, 2f, 20f);
+        float eps = Mathf.Max(0.01f, config.ClearBlockingTrainsStaticSpeedEps);
+
+        var p = engine.transform.position;
+        var fwd = engine.transform.forward;
+        var center = p + fwd * ahead;
+
+        var ents = Pool.GetList<BaseEntity>();
+        // -1 = все слои (самый безопасный вариант без угадывания Mask.Vehicle_* имён)
+Vis.Entities(center, radius, ents, -1);
+
+        TrainCar best = null;
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < ents.Count; i++)
+        {
+            var e = ents[i];
+            if (e == null || e.IsDestroyed) continue;
+
+            var car = e as TrainCar;
+            if (car == null || car.IsDestroyed) continue;
+
+            // Не трогаем НАШ состав
+            if (_spawnedTrainEntities.Contains(car) || _spawnedCars.Contains(car)) continue;
+
+            // Должен быть впереди
+            var dir = (car.transform.position - p);
+            if (Vector3.Dot(dir.normalized, fwd) < 0.25f) continue;
+
+            // "engine=off" трактуем как "стоит" (надёжнее любых недокументированных флагов)
+            float cs = 0f;
+            try { cs = car.GetTrackSpeed(); } catch { }
+            if (Mathf.Abs(cs) > eps) continue;
+
+            // Не убиваем если внутри/на нём игрок (консервативно)
+            bool hasMounted = false;
+            try
+            {
+                var mounts = car.GetComponentsInChildren<BaseMountable>();
+                if (mounts != null)
+                {
+                    foreach (var m in mounts)
+                    {
+                        if (m != null && m.GetMounted() != null) { hasMounted = true; break; }
+                    }
+                }
+            }
+            catch { }
+            if (hasMounted) continue;
+
+            float d = dir.sqrMagnitude;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = car;
+            }
+        }
+
+        Pool.FreeList(ref ents);
+
+        if (best != null)
+        {
+            Puts($"[Helltrain] Cowcatcher: killed foreign car '{best.ShortPrefabName}' net={_netId(best)} pos={_pos(best)}");
+            best.Kill();
+            return true;
+        }
+
+        return false;
+    }
+    catch (Exception ex)
+    {
+        PrintWarning($"[Helltrain] Cowcatcher error: {ex.Message}");
+        return false;
+    }
+}
+
+void PreSpawnClearTrainsCorridor(TrainTrackSpline track, float distOnSpline, int wagonsCount, string reason)
+{
+    try
+    {
+        if (track == null) return;
+        if (config == null || !config.PreSpawnClearEnabled) return;
+
+        float halfWidth = Mathf.Clamp(config.PreSpawnClearHalfWidthMeters, 1.5f, 12f);
+
+        float noseOffset = Mathf.Clamp(config.PreSpawnClearNoseOffsetMeters, -100f, 100f);
+        float originDist = distOnSpline + noseOffset;
+
+        float back = Mathf.Clamp(config.PreSpawnClearBackMeters, 0f, 2500f);
+        float fwdLen = Mathf.Clamp(config.PreSpawnClearForwardMeters, 0f, 500f);
+        float step = Mathf.Clamp(config.PreSpawnClearStepMeters, 4f, 25f);
+
+        // Fallback на старую модель (если новые параметры выключены)
+        if (back <= 0.01f && fwdLen <= 0.01f)
+        {
+            float carLen = Mathf.Clamp(config.PreSpawnClearCarLengthMeters, 6f, 18f);
+            float extra = Mathf.Clamp(config.PreSpawnClearExtraMeters, 0f, 300f);
+            float totalLen = Mathf.Max(20f, wagonsCount * carLen + extra);
+            back = totalLen * 0.5f;
+            fwdLen = totalLen * 0.5f;
+        }
+
+// Гарантируем, что коридор чистки покрывает ПОЛНУЮ длину будущего состава.
+// Даже если в конфиге back/fwdLen стоят слишком маленькими.
+float carLenReq = Mathf.Clamp(config.PreSpawnClearCarLengthMeters, 6f, 18f);
+float extraReq = Mathf.Clamp(config.PreSpawnClearExtraMeters, 0f, 300f);
+
+// wagonsCount = только вагоны (без локомотива). Добавляем запас на локомотив/сцепки.
+float requiredLen = Mathf.Max(40f, wagonsCount * carLenReq + extraReq + 40f); // +40м запас
+
+float curLen = back + fwdLen;
+if (curLen < requiredLen)
+{
+    float add = requiredLen - curLen;
+    back += add * 0.5f;
+    fwdLen += add * 0.5f;
+}
+
+        int killed = 0;
+
+        // Чтобы не пытаться убить одну и ту же сущность много раз на соседних шагах
+        var seen = new HashSet<TrainCar>();
+
+       // 1) Строим "линию коридора" по сплайну на всю длину чистки
+var samples = Pool.GetList<Vector3>();
+try
+{
+    // ВАЖНО: строим коридор строго в пределах длины spline, иначе GetPosition(sd) начинает "врать"
+// и мы не попадаем в реальные позиции вагонов.
+float len = track.GetLength();
+float startDist = Mathf.Clamp(originDist - back, 0f, len);
+float endDist   = Mathf.Clamp(originDist + fwdLen, 0f, len);
+
+for (float sd = startDist; sd <= endDist; sd += step)
+{
+    samples.Add(track.GetPosition(sd));
+}
+
+    // 2) Global scan: проходим ВСЕ TrainCar в мире, без Vis.Entities (Vis иногда не даёт их в выборке)
+    float killRadius = Mathf.Clamp(halfWidth + 8f, 6f, 30f);   // запас под габариты/сцепки
+    float killRadiusSqr = killRadius * killRadius;
+
+    int considered = 0;
+
+    foreach (var bn in BaseNetworkable.serverEntities)
+    {
+        var car = bn as TrainCar;
+        if (car == null || car.IsDestroyed) continue;
+
+        // Engine Anchor: наш engine не трогаем
+        var eng = car as TrainEngine;
+        if (eng != null && _eventEngineNetId != 0UL && eng.net != null && eng.net.ID.Value == _eventEngineNetId)
+            continue;
+
+
+        if (!seen.Add(car)) continue;
+
+        considered++;
+
+        Vector3 pos = car.transform.position;
+
+        // Быстрая проверка: попадает ли в коридор (к любому sample-поинту)
+        bool inCorridor = false;
+        for (int s = 0; s < samples.Count; s++)
+        {
+            if ((pos - samples[s]).sqrMagnitude <= killRadiusSqr)
+            {
+                inCorridor = true;
+                break;
+            }
+        }
+
+        if (!inCorridor) continue;
+
+        killed++;
+        car.Kill();
+    }
+
+    Puts($"[Helltrain] PreSpawnClear(B): considered={considered} killed={killed} back={back:0.0} fwd={fwdLen:0.0} step={step:0.0} halfW={halfWidth:0.0} killR={killRadius:0.0} start={startDist:0.0} end={endDist:0.0} len={len:0.0} samples={samples.Count} reason={reason}");
+}
+finally
+{
+    Pool.FreeList(ref samples);
+}
+
+                    
+	}
+    catch (Exception ex)
+    {
+        PrintWarning($"[Helltrain] PreSpawnClear error: {ex.Message}");
+    }
+}
 
 		private string _carSnap(TrainCar c)
 		{
@@ -635,6 +844,7 @@ private void CleanupOrphanedHelltrainEntities(string reason)
 }
 
 private TrainEngine activeHellTrain = null;
+private ulong _eventEngineNetId = 0UL;
 private Timer _couplingRetryTimer = null;
         private Timer respawnTimer = null;
 		// RESPawn scheduler (CORE)
@@ -741,24 +951,36 @@ private void SwitchmanTick()
         if ((p - tp).sqrMagnitude > r * r)
             continue;
 
-        TrackSelection sel;
+                TrainTrackSpline.TrackSelection sel = TrainTrackSpline.TrackSelection.Default;
 
-        if (!string.IsNullOrEmpty(t.fixedSelection) &&
-            Enum.TryParse(t.fixedSelection, true, out sel))
-        {
-        }
-        else
-        {
-            int sum = t.wStraight + t.wRight + t.wLeft;
-            if (sum <= 0) sel = TrackSelection.Straight;
-            else
-            {
-                int roll = UnityEngine.Random.Range(0, sum);
-                if (roll < t.wStraight) sel = TrackSelection.Straight;
-                else if (roll < t.wStraight + t.wRight) sel = TrackSelection.Right;
-                else sel = TrackSelection.Left;
-            }
-        }
+        bool parsed = false;
+
+if (!string.IsNullOrEmpty(t.fixedSelection))
+{
+    var fs = t.fixedSelection.Trim();
+    if (fs.Equals("Straight", StringComparison.OrdinalIgnoreCase))
+    {
+        sel = TrainTrackSpline.TrackSelection.Default;
+        parsed = true;
+    }
+    else
+    {
+        parsed = Enum.TryParse<TrainTrackSpline.TrackSelection>(fs, true, out sel);
+    }
+}
+
+if (!parsed)
+{
+    int sum = t.wStraight + t.wRight + t.wLeft;
+    if (sum <= 0) sel = TrainTrackSpline.TrackSelection.Default;
+    else
+    {
+        int roll = UnityEngine.Random.Range(0, sum);
+        if (roll < t.wStraight) sel = TrainTrackSpline.TrackSelection.Default;
+        else if (roll < t.wStraight + t.wRight) sel = TrainTrackSpline.TrackSelection.Right;
+        else sel = TrainTrackSpline.TrackSelection.Left;
+    }
+}
 
         engine.SetTrackSelection(sel);
         _switchTriggerCooldownUntil[t.id] = now + SWITCH_TRIGGER_COOLDOWN;
@@ -1105,6 +1327,7 @@ public class HellTrainComponent : MonoBehaviour
     public TrainEngine engine;
     private int zeroSpeedTicks = 0;
     private bool movingForward = true;
+	private float _nextCowcatcherAt = 0f;
 
     private void FixedUpdate()
     {
@@ -1122,6 +1345,12 @@ public class HellTrainComponent : MonoBehaviour
         }
 
         float speed = engine.GetTrackSpeed();
+		// STABILITY: proactive cowcatcher — убираем "мертвые" чужие вагоны/поезда впереди,
+// чтобы не терять скорость и не уходить в авто-реверс из-за статика.
+if (plugin != null && plugin.TryClearBlockingTrainAhead(engine, ref _nextCowcatcherAt))
+{
+    zeroSpeedTicks = 0; // если только что расчистили препятствие — не копим "до реверса"
+}
 
 
         if (Mathf.Abs(speed) < 0.1f)
@@ -1251,6 +1480,20 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 
     var engine = entity as TrainEngine;
     if (engine == null) return;
+	// Anchor-ID: чужие TrainEngine НЕ имеют права убивать ивент
+ulong id = (engine.net != null) ? engine.net.ID.Value : 0UL;
+
+bool isOurEngine =
+    (activeHellTrain != null && engine == activeHellTrain) ||
+    (_eventEngineNetId != 0UL && id == _eventEngineNetId) ||
+    _spawnedCars.Contains(engine) ||
+    _spawnedTrainEntities.Contains(engine);
+
+if (!isOurEngine)
+{
+    EventLogV("ENGINE_DEATH_IGNORED", $"id={id} ours=no activeId={_eventEngineNetId} active={(activeHellTrain == null ? "null" : _netId(activeHellTrain))}");
+    return;
+}
 
     if (Time.realtimeSinceStartup < _engineCleanupCooldownUntil) return;
     _engineCleanupCooldownUntil = Time.realtimeSinceStartup + 1f;
@@ -1271,6 +1514,7 @@ private void KillEventTrainCars(string reason, bool force = false)
 	StopSwitchman();
 	_abortRequested = true;
 	_buildToken++;
+	_eventEngineNetId = 0UL;
 
 	_couplingRetryTimer?.Destroy();
   _couplingRetryTimer = null;
@@ -1690,10 +1934,57 @@ public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
         [JsonProperty("Успешная разгрузка")]
         public string SuccessfulDelivery { get; set; } = "✅ {trainName} успешно разгрузился";
         
-        [JsonProperty("Следующий поезд")]
+                [JsonProperty("Следующий поезд")]
         public string NextTrain { get; set; } = "⏳ Следующий поезд через {minutes} {minutesWord}";
     }
+
+// STABILITY: cowcatcher ...
+[JsonProperty("ClearBlockingTrains")]
+public bool ClearBlockingTrains { get; set; } = true;
+
+[JsonProperty("ClearBlockingTrainsAheadMeters")]
+public float ClearBlockingTrainsAheadMeters { get; set; } = 20f;
+
+[JsonProperty("ClearBlockingTrainsRadiusMeters")]
+public float ClearBlockingTrainsRadiusMeters { get; set; } = 7f;
+
+[JsonProperty("ClearBlockingTrainsIntervalSeconds")]
+public float ClearBlockingTrainsIntervalSeconds { get; set; } = 0.35f;
+
+[JsonProperty("ClearBlockingTrainsStaticSpeedEps")]
+public float ClearBlockingTrainsStaticSpeedEps { get; set; } = 0.15f;
+
+// STABILITY: PreSpawn corridor clear (чистим рельсы в точке старта по длине будущего состава)
+[JsonProperty("PreSpawnClearEnabled")]
+public bool PreSpawnClearEnabled { get; set; } = true;
+
+// Полуширина коридора (чтобы не цеплять соседнюю ветку)
+[JsonProperty("PreSpawnClearHalfWidthMeters")]
+public float PreSpawnClearHalfWidthMeters { get; set; } = 3.5f;
+
+// Оценка длины вагона (метры) для расчёта длины коридора
+[JsonProperty("PreSpawnClearCarLengthMeters")]
+public float PreSpawnClearCarLengthMeters { get; set; } = 10f;
+
+// Запас на разлёт до сцепки/погрешности (метры)
+[JsonProperty("PreSpawnClearExtraMeters")]
+public float PreSpawnClearExtraMeters { get; set; } = 30f;
+// B-модель: очистка ВДОЛЬ spline (а не world-rect), от "носа" локомотива
+[JsonProperty("PreSpawnClearBackMeters")]
+public float PreSpawnClearBackMeters { get; set; } = 250f;
+
+[JsonProperty("PreSpawnClearForwardMeters")]
+public float PreSpawnClearForwardMeters { get; set; } = 50f;
+
+// Шаг дискретизации вдоль spline (метры)
+[JsonProperty("PreSpawnClearStepMeters")]
+public float PreSpawnClearStepMeters { get; set; } = 12f;
+
+// Смещение точки отсчёта по spline вперёд, чтобы считать именно "от носа"
+[JsonProperty("PreSpawnClearNoseOffsetMeters")]
+public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
 }
+
 
 // Регистрация пресетов Helltrain в лут-таблице (заглушка, чтобы не падать при компиляции)
 // Если потребуется реальная логика — допишем отдельно.
@@ -2596,7 +2887,14 @@ if (!Gen_ValidateWagons(factionKey, wagons, out var validateReason))
 
 var myToken = ++_buildToken;
 _abortRequested = false;
-ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(myToken, compositionName, comp, wagons, targetTrack, targetDist));
+ServerMgr.Instance.StartCoroutine(BuildTrainWithPreSpawnClear(
+    myToken,
+    compositionKey,
+    compositionName,
+    comp,
+    wagons,
+    targetTrack,
+    targetDist));
 
 
 
@@ -2605,6 +2903,26 @@ ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(myToken, compositionName,
             
                         return null;
         }
+
+private IEnumerator BuildTrainWithPreSpawnClear(
+    ulong buildToken,
+    string compositionKey,
+    string compositionName,
+    ConfigData.TrainComposition comp,
+    List<string> wagons,
+    TrainTrackSpline targetTrack,
+    float targetDist)
+{
+    // 1) Чистим путь
+    PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"composition={compositionKey}");
+
+    // 2) Дать серверу применить Kill() и выгрузить коллизии/триггеры до спавна нашего поезда
+    yield return null;
+    yield return new WaitForFixedUpdate();
+
+    // 3) Только теперь запускаем реальную сборку
+    yield return BuildTrainWithSpline(buildToken, compositionName, comp, wagons, targetTrack, targetDist);
+}
 
         private IEnumerator BuildTrainWithSpline(
     ulong buildToken,
@@ -2628,6 +2946,8 @@ ServerMgr.Instance.StartCoroutine(BuildTrainWithSpline(myToken, compositionName,
 		yield break;
 	// 40 секунд иммунитета anti-stuck после спавна состава
 _antiStuckIgnoreUntil = Time.realtimeSinceStartup + 40f;
+// Дать серверу 1 кадр применить результаты PreSpawnClear (Kill/DestroyMode) до спавна наших вагонов
+yield return null;
 
     var prevSuppress = _suppressHooks;
     _suppressHooks = true;
@@ -3060,6 +3380,7 @@ EventLog(
     }
     
     activeHellTrain = trainEngine;
+	_eventEngineNetId = (trainEngine != null && trainEngine.net != null) ? trainEngine.net.ID.Value : 0UL;
     StartSwitchman();
     
     var antiStuckComponent = trainEngine.gameObject.AddComponent<HellTrainComponent>();
@@ -6825,7 +7146,7 @@ private void CmdHtTools(BasePlayer player, string command, string[] args)
                 return;
             }
 
-            if (!Enum.TryParse(args[4], true, out TrackSelection sel))
+            if (!Enum.TryParse(args[4], true, out TrainTrackSpline.TrackSelection sel))
             {
                 player.ChatMessage("❌ selection должен быть Straight|Right|Left");
                 return;
