@@ -1912,7 +1912,7 @@ public class LootTimerRange { public int Min { get; set; } = 250; public int Max
     
     public SpeedSettings Speed { get; set; } = new SpeedSettings();
 	
-	public class GeneratorSettings
+public class GeneratorSettings
 {
     // Общие правила генератора (НЕ веса)
     [JsonProperty("NpcMinDistanceMeters")]
@@ -1920,6 +1920,33 @@ public class LootTimerRange { public int Min { get; set; } = 250; public int Max
 
     [JsonProperty("NpcRetryLimit")]
     public int NpcRetryLimit { get; set; } = 5;
+
+    // === COBLAB Heavy Turrets (weapon pool) ===
+    // Contract: all guns in this pool MUST use 5.56 (ammo.rifle).
+    [JsonProperty("COBLAB Heavy Turret Gun Pool")]
+    public Dictionary<string, float> CoblabHeavyTurretGunPool { get; set; } = new Dictionary<string, float>
+    {
+        ["lmg.m249"] = 1f,
+        ["rifle.ak"] = 1f,
+        ["rifle.lr300"] = 1f,
+    };
+
+    [JsonProperty("COBLAB Heavy Turret Ammo Shortname")]
+    public string CoblabHeavyTurretAmmoShortname { get; set; } = "ammo.rifle";
+
+    [JsonProperty("COBLAB Heavy Turret Ammo Amount")]
+    public int CoblabHeavyTurretAmmoAmount { get; set; } = 500;
+
+    // 0..4 turrets weights (clamped by TurretSlots count)
+    [JsonProperty("COBLAB Heavy Turret Count Weights")]
+    public Dictionary<int, float> CoblabHeavyTurretCountWeights { get; set; } = new Dictionary<int, float>
+    {
+        [0] = 0.05f,
+        [1] = 0.15f,
+        [2] = 0.20f,
+        [3] = 0.35f,
+        [4] = 0.25f,
+    };
 
     [JsonProperty("Factions")]
     public Dictionary<string, FactionGenerator> Factions { get; set; } = new Dictionary<string, FactionGenerator>
@@ -1958,6 +1985,16 @@ public class FactionGenerator
 	// === GENERATOR (вся логика/веса только в конфиге) ===
 [JsonProperty("Generator")]
 public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
+
+    // Back-compat (old root keys). Prefer Generator.* keys.
+    [JsonProperty("COBLAB Heavy Turret Gun Pool")]
+    public Dictionary<string, float> CoblabHeavyTurretGunPool { get; set; } = null;
+
+    [JsonProperty("COBLAB Heavy Turret Ammo Shortname")]
+    public string CoblabHeavyTurretAmmoShortname { get; set; } = null;
+
+    [JsonProperty("COBLAB Heavy Turret Ammo Amount")]
+    public int? CoblabHeavyTurretAmmoAmount { get; set; } = null;
 
 
     
@@ -5697,8 +5734,30 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             return;
         }
 
+        // COBLAB-only: turrets must be fully combat-ready (power + gun pool + ammo) and must ignore all non-player targets.
+        string factionUpper = (layout?.faction ?? string.Empty).ToUpperInvariant();
+        bool isCoblab = factionUpper == "COBLAB";
+        if (isCoblab)
+        {
+            // Tag the wagon as "train defender" so turrets never target train entities.
+            if (wagonCar != null && wagonCar.gameObject != null && wagonCar.GetComponent<HellTrainDefender>() == null)
+                wagonCar.gameObject.AddComponent<HellTrainDefender>();
+        }
+
+        // Coblab: choose how many turrets to spawn (0..4 weights), then clamp by available slots.
+        int maxSlots = slots.Count;
+        int desiredCount = maxSlots;
+        if (isCoblab)
+        {
+            var cw = config?.Generator?.CoblabHeavyTurretCountWeights;
+            if (cw != null && cw.Count > 0)
+                desiredCount = Mathf.Clamp(PickWeightedInt(cw, maxSlots), 0, maxSlots);
+            else
+                desiredCount = maxSlots;
+        }
+
         int spawned = 0;
-        for (int i = 0; i < slots.Count; i++)
+        for (int i = 0; i < slots.Count && spawned < desiredCount; i++)
         {
             var s = slots[i];
             if (s == null) continue;
@@ -5711,6 +5770,38 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             ent.transform.localPosition = V3(s.pos);
             ent.transform.localRotation = Q3(s.rot);
             ent.Spawn();
+
+            if (isCoblab)
+            {
+                // Mark turret as train entity (additional safety layer for target filters).
+                if (ent.gameObject != null && ent.GetComponent<HellTrainDefender>() == null)
+                    ent.gameObject.AddComponent<HellTrainDefender>();
+
+                var turret = ent as AutoTurret;
+                if (turret != null)
+                {
+                    // Attach controller: power + player-only target enforcement (+ sticky 2.0s)
+                    var turretComponent = turret.gameObject.AddComponent<TrainAutoTurret>();
+                    turretComponent.plugin = this;
+                    turretComponent.StickyTimeSeconds = 2.0f;
+
+                    // Weapon pool (weights) + fixed 5.56 ammo
+                    var pool = config?.Generator?.CoblabHeavyTurretGunPool;
+                    if (pool == null || pool.Count == 0) pool = config?.CoblabHeavyTurretGunPool;
+                    string gun = PickWeightedString(pool, "lmg.m249");
+
+                    string ammo = config?.Generator?.CoblabHeavyTurretAmmoShortname;
+                    if (string.IsNullOrEmpty(ammo)) ammo = config?.CoblabHeavyTurretAmmoShortname;
+                    if (string.IsNullOrEmpty(ammo)) ammo = "ammo.rifle";
+
+                    int ammoCount = config?.Generator?.CoblabHeavyTurretAmmoAmount ?? 0;
+                    if (ammoCount <= 0) ammoCount = config?.CoblabHeavyTurretAmmoAmount ?? 0;
+                    ammoCount = Mathf.Max(500, ammoCount);
+
+                    // Critical: turret.inventory can be null for a while after Spawn(). Retry arming.
+                    TryArmTurret(turret, gun, ammo, ammoCount, retries: 20, intervalSeconds: 1.0f);
+                }
+            }
 
             Track(ent);
             spawned++;
@@ -6574,15 +6665,67 @@ private string GetKitForNPC(ObjSpec obj)
     return null;
 }
 
+// Retry arming because AutoTurret.inventory can be null right after Spawn().
+private void TryArmTurret(AutoTurret turret, string gun, string ammo, int ammoCount, int retries, float intervalSeconds)
+{
+    if (turret == null || turret.IsDestroyed) return;
+    if (retries <= 0)
+    {
+        PrintWarning($"[COBLAB] turret arm FAILED: turret inventory not ready. gun={gun} ammo={ammo} count={ammoCount}");
+        return;
+    }
+
+    // Wait until inventory exists.
+    if (turret.inventory == null)
+    {
+        timer.Once(intervalSeconds, () => TryArmTurret(turret, gun, ammo, ammoCount, retries - 1, intervalSeconds));
+        return;
+    }
+
+    GiveTurretWeapon(turret, gun, ammo, ammoCount);
+}
+
+private int PickWeightedInt(Dictionary<int, float> weights, int fallback)
+{
+    if (weights == null || weights.Count == 0) return fallback;
+    float total = 0f;
+    foreach (var kv in weights) if (kv.Value > 0f) total += kv.Value;
+    if (total <= 0f) return fallback;
+    float roll = UnityEngine.Random.Range(0f, total);
+    float acc = 0f;
+    foreach (var kv in weights)
+    {
+        if (kv.Value <= 0f) continue;
+        acc += kv.Value;
+        if (roll <= acc) return kv.Key;
+    }
+    return fallback;
+}
+
+private string PickWeightedString(Dictionary<string, float> weights, string fallback)
+{
+    if (weights == null || weights.Count == 0) return fallback;
+    float total = 0f;
+    foreach (var kv in weights) if (kv.Value > 0f) total += kv.Value;
+    if (total <= 0f) return fallback;
+    float roll = UnityEngine.Random.Range(0f, total);
+    float acc = 0f;
+    foreach (var kv in weights)
+    {
+        if (kv.Value <= 0f) continue;
+        acc += kv.Value;
+        if (roll <= acc) return kv.Key;
+    }
+    return fallback;
+}
+
 private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int ammoCount)
 {
     if (turret == null || turret.IsDestroyed || turret.inventory == null)
     {
-        PrintWarning($"❌ GiveTurretWeapon: turret недоступна!");
+        PrintWarning($"❌ GiveTurretWeapon: turret недоступна (inventory null/destroyed)!");
         return;
     }
-    
-    Puts($"🔧 Выдаём оружие турели: gun={gun}, ammo={ammo}, count={ammoCount}");
     
     turret.inventory.Clear();
     ItemManager.DoRemoves();
@@ -6615,8 +6758,7 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         return;
     }
     
-    Puts($"   ✅ Оружие добавлено в слот 0");
-    
+
     if (string.IsNullOrEmpty(ammo))
         ammo = "ammo.rifle";
     
@@ -6629,7 +6771,6 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         var ammoItem = ItemManager.Create(ammoDef, ammoCount, 0);
         if (ammoItem != null && ammoItem.MoveToContainer(turret.inventory, 1, true))
         {
-            Puts($"   ✅ Патроны добавлены в слот 1");
         }
         else
         {
@@ -6645,8 +6786,6 @@ private void GiveTurretWeapon(AutoTurret turret, string gun, string ammo, int am
         turret.UpdateAttachedWeapon();
         turret.UpdateTotalAmmo();
         turret.SendNetworkUpdate();
-        
-        Puts($"   ✅ Турель готова к бою!");
     });
 }
 
