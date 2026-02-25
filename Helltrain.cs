@@ -5684,12 +5684,6 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
         if (string.IsNullOrEmpty(kind) || kind == "none") kind = null;
     }
 
-    // Fallback: if generator didn't send HeavyAssignments, still allow COBLAB turret heavy
-    bool isCoblab = layout != null && string.Equals(layout.faction, "COBLAB", StringComparison.OrdinalIgnoreCase);
-    bool hasTurretSlots = layout?.TurretSlots != null && layout.TurretSlots.Count > 0;
-
-    if (kind == null && isCoblab && hasTurretSlots)
-        kind = "turret";
 
     if (kind == null) return;
 
