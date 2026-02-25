@@ -1298,6 +1298,20 @@ public class TrainAutoTurret : MonoBehaviour
     private AutoTurret turret;
     private bool weaponReady = false;
     public Helltrain plugin;
+    public float StickyTimeSeconds = 2.0f;
+
+    // Desired loadout (set by spawner)
+    public string DesiredGun = null;
+    public string DesiredAmmo = null;
+    public int DesiredAmmoCount = 500;
+
+    // Retry arming control
+    public int ArmRetriesLeft = 20;
+    public float ArmRetryIntervalSeconds = 1.0f;
+    private bool _armingStarted = false;
+
+    // Sticky bookkeeping
+    private float _lastValidPlayerSeenAt = 0f;
     
     void Start()
     {
@@ -1316,8 +1330,43 @@ public class TrainAutoTurret : MonoBehaviour
         turret.InvokeRepeating(CheckTargetForFF, 0.5f, 0.5f);
         turret.InvokeRepeating(CheckMagazine, 0.5f, 0.5f);
         turret.InvokeRepeating(RefillAmmo, 5f, 5f);
+
+        // retry-arming: if spawner provided desired loadout, keep trying until ready
+        if (!_armingStarted && !string.IsNullOrEmpty(DesiredGun))
+        {
+            _armingStarted = true;
+            // ensure sane defaults
+            if (string.IsNullOrEmpty(DesiredAmmo)) DesiredAmmo = "ammo.rifle";
+            if (DesiredAmmoCount < 500) DesiredAmmoCount = 500;
+
+            // Try immediately, then retry
+            InvokeRepeating(nameof(TryArmDesired), 0.1f, Mathf.Max(0.2f, ArmRetryIntervalSeconds));
+        }
     }
-    
+
+
+    private void TryArmDesired()
+    {
+        if (turret == null || turret.IsDestroyed) { CancelInvoke(nameof(TryArmDesired)); return; }
+        if (weaponReady) { CancelInvoke(nameof(TryArmDesired)); return; }
+
+        if (ArmRetriesLeft <= 0)
+        {
+            CancelInvoke(nameof(TryArmDesired));
+            return;
+        }
+
+        ArmRetriesLeft--;
+
+        // inventory might not be ready yet — plugin helper will handle and return if null
+        if (plugin != null)
+        {
+            int ammo = DesiredAmmoCount;
+            if (ammo < 500) ammo = 500;
+            plugin.GiveTurretWeapon(turret, DesiredGun, DesiredAmmo, ammo);
+        }
+    }
+
 	
     private void CheckMagazine()
     {
@@ -1389,13 +1438,38 @@ public class TrainAutoTurret : MonoBehaviour
     private void CheckTargetForFF()
     {
         if (turret == null || turret.IsDestroyed) return;
-        
-        if (turret.target != null)
+
+        var t = turret.target;
+        if (t != null)
         {
-            var targetDefender = turret.target.GetComponent<HellTrainDefender>();
-            if (targetDefender != null)
+            // never target our defenders
+            if (t.GetComponent<HellTrainDefender>() != null)
             {
                 turret.SetTarget(null);
+                return;
+            }
+
+            // only BasePlayer; never NPC
+            var player = t as BasePlayer;
+            if (player == null || player is NPCPlayer)
+            {
+                turret.SetTarget(null);
+                return;
+            }
+
+            // valid player — refresh sticky timestamp
+            _lastValidPlayerSeenAt = Time.realtimeSinceStartup;
+            return;
+        }
+
+        // sticky window: do nothing for short time after last valid player (prevents instant drop)
+        if (StickyTimeSeconds > 0f && _lastValidPlayerSeenAt > 0f)
+        {
+            float now = Time.realtimeSinceStartup;
+            if ((now - _lastValidPlayerSeenAt) <= StickyTimeSeconds)
+            {
+                // intentionally keep calm; do not force anything
+                return;
             }
         }
     }
@@ -1407,6 +1481,7 @@ public class TrainAutoTurret : MonoBehaviour
             CancelInvoke("CheckTargetForFF");
             CancelInvoke("CheckMagazine");
             CancelInvoke("RefillAmmo");
+            CancelInvoke(nameof(TryArmDesired));
         }
     }
 }
@@ -5834,16 +5909,17 @@ if (!string.IsNullOrEmpty(lootPresetKey) && Loottable != null)
             {
                 var turretComponent = turret.gameObject.AddComponent<TrainAutoTurret>();
                 turretComponent.plugin = this;
-                
+
+                // COBLAB contract: sticky + retry-arming with min ammo
+                turretComponent.StickyTimeSeconds = 2.0f;
+
                 if (!string.IsNullOrEmpty(obj.gun))
                 {
-                    timer.Once(2.0f, () =>
-                    {
-                        if (turret == null || turret.IsDestroyed)
-                            return;
-
-                        GiveTurretWeapon(turret, obj.gun, obj.ammo, obj.ammo_count);
-                    });
+                    turretComponent.DesiredGun = obj.gun;
+                    turretComponent.DesiredAmmo = string.IsNullOrEmpty(obj.ammo) ? "ammo.rifle" : obj.ammo;
+                    turretComponent.DesiredAmmoCount = (obj.ammo_count < 500) ? 500 : obj.ammo_count;
+                    turretComponent.ArmRetriesLeft = 20;
+                    turretComponent.ArmRetryIntervalSeconds = 1.0f;
                 }
             }
             else if (entity is SamSite samRT)
