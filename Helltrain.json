@@ -86,21 +86,21 @@
   "Generator": {
     "NpcMinDistanceMeters": 1.0,
     "NpcRetryLimit": 5,
-	  "COBLAB Heavy Turret Gun Pool": {
-    "lmg.m249": 1.0,
-    "rifle.ak": 1.0,
-	"minigun": 1.0,
-    "rifle.lr300": 1.0
-  },
-  "COBLAB Heavy Turret Count Weights": {
-  "0": 0.05,
-  "1": 0.15,
-  "2": 0.2,
-  "3": 0.35,
-  "4": 0.20
-},
-	"COBLAB Heavy Turret Ammo Shortname": "ammo.rifle",
-	"COBLAB Heavy Turret Ammo Amount": 1500,
+    "COBLAB Heavy Turret Gun Pool": {
+      "lmg.m249": 1.0,
+      "rifle.ak": 1.0,
+      "minigun": 1.0,
+      "rifle.lr300": 1.0
+    },
+    "COBLAB Heavy Turret Count Weights": {
+      "0": 0.05,
+      "1": 0.15,
+      "2": 0.2,
+      "3": 0.35,
+      "4": 0.2
+    },
+    "COBLAB Heavy Turret Ammo Shortname": "ammo.rifle",
+    "COBLAB Heavy Turret Ammo Amount": 1500,
     "Factions": {
       "BANDIT": {
         "NPCCountWeights": {
@@ -151,22 +151,96 @@
   "Минимальная длина трека для спавна (метры)": 200.0,
   "Safe Spawn: использовать пул если есть": true,
   "Safe Spawn: только пул (если пуст — запуск запрещён)": false,
-  "Safe Spawn Pool (точки)": [],
-  "Safe Spawn: использовать пул если есть": true,
-"Safe Spawn: только пул (если пуст — запуск запрещён)": false,
-"Safe Spawn Pool (точки)": [
-  { "Name": "SAFE_Q5",  "X": 568.68,   "Y": 8.16,  "Z": -1290.25, "Level": "any", "Enabled": true },
-  { "Name": "SAFE_T7",  "X": 1150.09,  "Y": 12.79, "Z": -923.65,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_V12", "X": 1546.93,  "Y": 2.71,  "Z": -138.78,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_Q20", "X": 658.49,   "Y": 34.20, "Z": 1287.33,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_I17", "X": -697.99,  "Y": 54.94, "Z": 858.24,   "Level": "any", "Enabled": true },
-  { "Name": "SAFE_G15", "X": -1201.89, "Y": 17.07, "Z": 367.28,   "Level": "any", "Enabled": true },
-  { "Name": "SAFE_H12", "X": -990.37,  "Y": 21.38, "Z": -152.88,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_H9",  "X": -1035.69, "Y": 29.62, "Z": -607.34,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_K7",  "X": -489.76,  "Y": 27.00, "Z": -994.32,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_T8",  "X": 1197.83,  "Y": 11.94, "Z": -857.53,  "Level": "any", "Enabled": true },
-  { "Name": "SAFE_S6",  "X": 923.84,   "Y": 11.46, "Z": -1188.32, "Level": "any", "Enabled": true }
-],
+  "Safe Spawn Pool (точки)": [
+    {
+      "Name": "SAFE_Q5",
+      "X": 568.68,
+      "Y": 8.16,
+      "Z": -1290.25,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_T7",
+      "X": 1150.09,
+      "Y": 12.79,
+      "Z": -923.65,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_V12",
+      "X": 1546.93,
+      "Y": 2.71,
+      "Z": -138.78,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_Q20",
+      "X": 658.49,
+      "Y": 34.2,
+      "Z": 1287.33,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_I17",
+      "X": -697.99,
+      "Y": 54.94,
+      "Z": 858.24,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_G15",
+      "X": -1201.89,
+      "Y": 17.07,
+      "Z": 367.28,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_H12",
+      "X": -990.37,
+      "Y": 21.38,
+      "Z": -152.88,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_H9",
+      "X": -1035.69,
+      "Y": 29.62,
+      "Z": -607.34,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_K7",
+      "X": -489.76,
+      "Y": 27.0,
+      "Z": -994.32,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_T8",
+      "X": 1197.83,
+      "Y": 11.94,
+      "Z": -857.53,
+      "Level": "any",
+      "Enabled": true
+    },
+    {
+      "Name": "SAFE_S6",
+      "X": 923.84,
+      "Y": 11.46,
+      "Z": -1188.32,
+      "Level": "any",
+      "Enabled": true
+    }
+  ],
   "Названия композиций для анонсов": {
     "bandit": "Угнанный поезд",
     "coblab": "Передвижная лаборотория",
@@ -206,5 +280,9 @@
   "PreSpawnClearForwardMeters": 1000.0,
   "PreSpawnClearStepMeters": 8.0,
   "PreSpawnClearNoseOffsetMeters": 150.0,
-  "PreSpawnClearDirection": "backward"
+  "PreSpawnClearDirection": "backward",
+  "EditorDecorPrefabs": {
+    "armor_plate": "assets/.../your.prefab",
+    "metal_frame": "assets/.../your.prefab"
+  }
 }
