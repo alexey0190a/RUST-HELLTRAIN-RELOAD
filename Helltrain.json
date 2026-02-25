@@ -16,68 +16,65 @@
   "Compositions": {
     "bandit": {
       "Tier": 0,
-      "Вес (вероятность спавна)": 35,
+      "Вес (вероятность спавна)": 34,
       "Loco": "loco_bandit",
-	    "Wagons": ["wagonA_bandit", "wagonB_bandit", "wagonC_bandit"],
-      "MinWagons": 2,
-      "MaxWagons": 5,
+      "MinWagons": 3,
+      "MaxWagons": 6,
       "WagonPools": {
         "A": {
-          "wagonA_bandit": 40.0
+          "wagonA_bandit": 1.0
         },
         "B": {
-          "wagonB_bandit": 40.0
+          "wagonB_bandit": 1.0
         },
         "C": {
-          "wagonC_bandit": 50.0
+          "wagonC_bandit": 1.0
         }
       },
       "Limits": {
-        "C": 1
+        "C": 2
       }
     },
     "coblab": {
       "Tier": 1,
-      "Вес (вероятность спавна)": 35,
+      "Вес (вероятность спавна)": 33,
       "Loco": "loco_coblab",
-	    "Wagons": ["wagonB_coblab", "wagonA_coblab", "wagonC_coblab"],
-      "MinWagons": 4,
-      "MaxWagons": 7,
+      "MinWagons": 3,
+      "MaxWagons": 6,
       "WagonPools": {
         "A": {
-          "wagonA_coblab": 35.0
+          "wagonA_coblab": 1.0
         },
         "B": {
-          "wagonB_coblab": 35.0
+          "wagonB_coblab": 1.0
         },
         "C": {
-          "wagonC_coblab": 30.0
+          "wagonC_coblab": 1.0
         }
       },
       "Limits": {
-        "C": 3
+        "C": 2
       }
     },
     "pmc": {
       "Tier": 2,
-      "Вес (вероятность спавна)": 30,
+      "Вес (вероятность спавна)": 33,
       "Loco": "loco_pmc",
-	    "Wagons": ["wagonA_pmc", "wagonB_pmc", "wagonC_pmc"],
-      "MinWagons": 5,
-      "MaxWagons": 8,
+      "MinWagons": 3,
+      "MaxWagons": 6,
       "WagonPools": {
         "A": {
-          "wagonA_pmc": 38.0
+          "wagonA_pmc": 1.0
         },
         "B": {
-          "wagonB_pmc": 42.0
+          "wagonB_pmc": 1.0
         },
         "C": {
-          "wagonC_pmc": 50.0
+          "wagonC_pmc": 1.0
         }
       },
       "Limits": {
-        "C": 1
+        "C": 2
       }
     }
   },
@@ -89,6 +86,21 @@
   "Generator": {
     "NpcMinDistanceMeters": 1.0,
     "NpcRetryLimit": 5,
+	  "COBLAB Heavy Turret Gun Pool": {
+    "lmg.m249": 1.0,
+    "rifle.ak": 1.0,
+	"minigun": 1.0,
+    "rifle.lr300": 1.0
+  },
+  "COBLAB Heavy Turret Count Weights": {
+  "0": 0.05,
+  "1": 0.15,
+  "2": 0.2,
+  "3": 0.35,
+  "4": 0.20
+},
+	"COBLAB Heavy Turret Ammo Shortname": "ammo.rifle",
+	"COBLAB Heavy Turret Ammo Amount": 1500,
     "Factions": {
       "BANDIT": {
         "NPCCountWeights": {
@@ -136,10 +148,28 @@
   "Разрешить спавн на поверхности": true,
   "Разрешить спавн в подземке": false,
   "Разрешить переходы между уровнями": false,
-  "Минимальная длина трека для спавна (метры)": 300.0,
+  "Минимальная длина трека для спавна (метры)": 200.0,
+  "Safe Spawn: использовать пул если есть": true,
+  "Safe Spawn: только пул (если пуст — запуск запрещён)": false,
+  "Safe Spawn Pool (точки)": [],
+  "Safe Spawn: использовать пул если есть": true,
+"Safe Spawn: только пул (если пуст — запуск запрещён)": false,
+"Safe Spawn Pool (точки)": [
+  { "Name": "SAFE_Q5",  "X": 568.68,   "Y": 8.16,  "Z": -1290.25, "Level": "any", "Enabled": true },
+  { "Name": "SAFE_T7",  "X": 1150.09,  "Y": 12.79, "Z": -923.65,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_V12", "X": 1546.93,  "Y": 2.71,  "Z": -138.78,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_Q20", "X": 658.49,   "Y": 34.20, "Z": 1287.33,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_I17", "X": -697.99,  "Y": 54.94, "Z": 858.24,   "Level": "any", "Enabled": true },
+  { "Name": "SAFE_G15", "X": -1201.89, "Y": 17.07, "Z": 367.28,   "Level": "any", "Enabled": true },
+  { "Name": "SAFE_H12", "X": -990.37,  "Y": 21.38, "Z": -152.88,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_H9",  "X": -1035.69, "Y": 29.62, "Z": -607.34,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_K7",  "X": -489.76,  "Y": 27.00, "Z": -994.32,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_T8",  "X": 1197.83,  "Y": 11.94, "Z": -857.53,  "Level": "any", "Enabled": true },
+  { "Name": "SAFE_S6",  "X": 923.84,   "Y": 11.46, "Z": -1188.32, "Level": "any", "Enabled": true }
+],
   "Названия композиций для анонсов": {
-    "bandit": "Бандитский состав",
-    "coblab": "Поезд ученых",
+    "bandit": "Угнанный поезд",
+    "coblab": "Передвижная лаборотория",
     "pmc": "ЧВК"
   },
   "Время жизни поезда (минуты)": 60.0,
@@ -162,5 +192,19 @@
     "Взрыв": "💥 {trainName} ВЗОРВАН!",
     "Успешная разгрузка": "✅ {trainName} успешно разгрузился",
     "Следующий поезд": "⏳ Следующий поезд через {minutes} {minutesWord}"
-  }
+  },
+  "ClearBlockingTrains": true,
+  "ClearBlockingTrainsAheadMeters": 20.0,
+  "ClearBlockingTrainsRadiusMeters": 7.0,
+  "ClearBlockingTrainsIntervalSeconds": 0.35,
+  "ClearBlockingTrainsStaticSpeedEps": 0.15,
+  "PreSpawnClearEnabled": true,
+  "PreSpawnClearHalfWidthMeters": 3.5,
+  "PreSpawnClearCarLengthMeters": 10.0,
+  "PreSpawnClearExtraMeters": 30.0,
+  "PreSpawnClearBackMeters": 1000.0,
+  "PreSpawnClearForwardMeters": 1000.0,
+  "PreSpawnClearStepMeters": 8.0,
+  "PreSpawnClearNoseOffsetMeters": 150.0,
+  "PreSpawnClearDirection": "backward"
 }
