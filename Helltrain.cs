@@ -7525,7 +7525,7 @@ private Quaternion m_StartRotation;
 // network throttle (уменьшаем лаги при перемещении)
 private float m_NextNetUpdateTime;
 private Vector3 m_EditPosVel;
-private const float NET_UPDATE_INTERVAL = 0.03f; // editor: чаще network update -> меньше ступенек при перемещении
+private const float NET_UPDATE_INTERVAL = 0.03f; // editor only: меньше ступенек
 
 
     public TrainCar TrainCar => m_TrainCar;
@@ -8186,9 +8186,9 @@ public BaseEntity CreateChildEntity(string prefab, Vector3 localPos, Quaternion 
         var rb = m_CurrentEntity.GetComponent<Rigidbody>();
         if (rb != null && rb.isKinematic)
         {
+            // Keep RB in sync WITHOUT MovePosition to avoid oscillation/jitter
             rb.position = m_CurrentEntity.transform.position;
             rb.rotation = m_CurrentEntity.transform.rotation;
-            rb.MovePosition(m_CurrentEntity.transform.position);
         }
         
         m_CurrentEntity.transform.hasChanged = true;
@@ -8203,34 +8203,33 @@ if (Time.realtimeSinceStartup >= m_NextNetUpdateTime)
 
     private void UpdatePlacement(ref Construction.Target constructionTarget)
     {
-        Vector3 position = m_CurrentEntity.transform.position;
-        Quaternion rotation = m_CurrentEntity.transform.rotation;
+        Vector3 curPos = m_CurrentEntity.transform.position;
+        Quaternion curRot = m_CurrentEntity.transform.rotation;
 
-        Vector3 direction = constructionTarget.ray.direction;
-        direction.y = 0f;
-        direction.Normalize();
+        // stable forward (flat) for yaw base
+        Vector3 flatDir = constructionTarget.ray.direction;
+        flatDir.y = 0f;
+        if (flatDir.sqrMagnitude < 0.0001f) flatDir = m_Player.transform.forward;
+        flatDir.Normalize();
 
-        Vector3 desiredPos = constructionTarget.ray.origin + (constructionTarget.ray.direction * m_Construction.maxplaceDistance);
+        // target point along view ray (same concept as before)
+        float dist = m_Construction.maxplaceDistance;
+        Vector3 desiredPos = constructionTarget.ray.origin + (constructionTarget.ray.direction * dist);
 
-        // 7A: collision stop along view ray (no snap/auto-align)
+        // collision clamp along view ray (prevents pushing through tight wagon walls)
+        RaycastHit hit;
+        if (Physics.Raycast(constructionTarget.ray, out hit, dist, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
-            const int EDIT_LAYERS = (1 << 0) | (1 << 8) | (1 << 10) | (1 << 17) | (1 << 26);
-            RaycastHit hit;
-            float dist = Vector3.Distance(constructionTarget.ray.origin, desiredPos);
-            if (Physics.Raycast(constructionTarget.ray, out hit, dist, EDIT_LAYERS, QueryTriggerInteraction.Ignore))
-            {
-                desiredPos = hit.point - constructionTarget.ray.direction * 0.05f;
-            }
+            desiredPos = hit.point - constructionTarget.ray.direction * 0.05f;
         }
 
+        // rotation target (keep existing rotation concept)
         Vector3 eulerRotation = constructionTarget.rotation + m_RotationOffset;
-        m_CurrentEntity.transform.rotation = Quaternion.Euler(eulerRotation) * Quaternion.LookRotation(direction);
+        Quaternion desiredRot = Quaternion.Euler(eulerRotation) * Quaternion.LookRotation(flatDir);
 
-        // very smooth position follow (kills visible jerks)
-        m_CurrentEntity.transform.position = Vector3.SmoothDamp(position, desiredPos, ref m_EditPosVel, 0.05f, Mathf.Infinity, Time.deltaTime);
-
-        // smooth rotation apply (keep existing rotation math, only smooth the result)
-        m_CurrentEntity.transform.rotation = Quaternion.Slerp(rotation, m_CurrentEntity.transform.rotation, Time.deltaTime * 25f);
+        // VERY smooth follow: removes visible stepping and "spring"
+        m_CurrentEntity.transform.position = Vector3.SmoothDamp(curPos, desiredPos, ref m_EditPosVel, 0.06f, Mathf.Infinity, Time.deltaTime);
+        m_CurrentEntity.transform.rotation = Quaternion.Slerp(curRot, desiredRot, Time.deltaTime * 25f);
     }
 
 
