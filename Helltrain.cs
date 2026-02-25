@@ -1302,7 +1302,7 @@ public class TrainAutoTurret : MonoBehaviour
 
     // Desired loadout (set by spawner)
     public string DesiredGun = null;
-    public string DesiredAmmo = null;
+    public string DesiredAmmo = "ammo.rifle";
     public int DesiredAmmoCount = 500;
 
     // Retry arming control
@@ -1350,13 +1350,7 @@ public class TrainAutoTurret : MonoBehaviour
         if (turret == null || turret.IsDestroyed) { CancelInvoke(nameof(TryArmDesired)); return; }
         if (weaponReady) { CancelInvoke(nameof(TryArmDesired)); return; }
 
-        if (ArmRetriesLeft <= 0)
-        {
-            CancelInvoke(nameof(TryArmDesired));
-            return;
-        }
-
-        ArmRetriesLeft--;
+        if (ArmRetriesLeft-- <= 0) { CancelInvoke(nameof(TryArmDesired)); return; }
 
         // inventory might not be ready yet — plugin helper will handle and return if null
         if (plugin != null)
@@ -1476,12 +1470,12 @@ public class TrainAutoTurret : MonoBehaviour
     
     void OnDestroy()
     {
+        CancelInvoke(nameof(TryArmDesired));
         if (turret != null && !turret.IsDestroyed)
         {
             CancelInvoke("CheckTargetForFF");
             CancelInvoke("CheckMagazine");
             CancelInvoke("RefillAmmo");
-            CancelInvoke(nameof(TryArmDesired));
         }
     }
 }
@@ -1912,7 +1906,7 @@ public class LootTimerRange { public int Min { get; set; } = 250; public int Max
     
     public SpeedSettings Speed { get; set; } = new SpeedSettings();
 	
-	public class GeneratorSettings
+public class GeneratorSettings
 {
     // Общие правила генератора (НЕ веса)
     [JsonProperty("NpcMinDistanceMeters")]
@@ -1928,6 +1922,30 @@ public class LootTimerRange { public int Min { get; set; } = 250; public int Max
         ["COBLAB"] = new FactionGenerator(),
         ["PMC"]    = new FactionGenerator(),
     };
+
+    [JsonProperty("COBLAB Heavy Turret Gun Pool")]
+    public Dictionary<string, float> CoblabHeavyTurretGunPool { get; set; } = new Dictionary<string, float>
+    {
+        ["rifle.ak"] = 1f,
+        ["rifle.lr300"] = 1f,
+        ["lmg.m249"] = 1f,
+    };
+
+    [JsonProperty("COBLAB Heavy Turret Count Weights")]
+    public Dictionary<int, float> CoblabHeavyTurretCountWeights { get; set; } = new Dictionary<int, float>
+    {
+        [0] = 0.10f,
+        [1] = 0.20f,
+        [2] = 0.30f,
+        [3] = 0.25f,
+        [4] = 0.15f,
+    };
+
+    [JsonProperty("COBLAB Heavy Turret Ammo Shortname")]
+    public string CoblabHeavyTurretAmmoShortname { get; set; } = "ammo.rifle";
+
+    [JsonProperty("COBLAB Heavy Turret Ammo Amount")]
+    public int CoblabHeavyTurretAmmoAmount { get; set; } = 500;
 }
 
 public class FactionGenerator
@@ -3770,6 +3788,42 @@ else
         #endregion
 
        #region HT.SPAWN.TRAIN
+
+private string PickWeightedString(Dictionary<string, float> pool, string fallback)
+{
+    if (pool == null || pool.Count == 0) return fallback;
+    float total = 0f;
+    foreach (var kv in pool) if (kv.Value > 0f) total += kv.Value;
+    if (total <= 0f) return fallback;
+
+    double roll = _rng.NextDouble() * total;
+    foreach (var kv in pool)
+    {
+        var w = kv.Value;
+        if (w <= 0f) continue;
+        roll -= w;
+        if (roll <= 0) return kv.Key;
+    }
+    return fallback;
+}
+
+private int PickWeightedInt(Dictionary<int, float> pool, int fallback)
+{
+    if (pool == null || pool.Count == 0) return fallback;
+    float total = 0f;
+    foreach (var kv in pool) if (kv.Value > 0f) total += kv.Value;
+    if (total <= 0f) return fallback;
+
+    double roll = _rng.NextDouble() * total;
+    foreach (var kv in pool)
+    {
+        var w = kv.Value;
+        if (w <= 0f) continue;
+        roll -= w;
+        if (roll <= 0) return kv.Key;
+    }
+    return fallback;
+}
 
 // ✅ НОВОЕ: WEIGHTED RANDOM ВЫБОР КОМПОЗИЦИИ
 private string ChooseWeightedComposition()
@@ -5620,12 +5674,24 @@ private void ScanRailwayNetwork()
 
 private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layout)
 {
-    if (_activeHeavyAssignments == null) return;
-    if (carIndex < 0 || carIndex >= _activeHeavyAssignments.Count) return;
+    string raw = "None";
+    string kind = null;
 
-    var raw = _activeHeavyAssignments[carIndex] ?? "None";
-    var kind = raw.Trim().ToLowerInvariant();
-    if (string.IsNullOrEmpty(kind) || kind == "none") return;
+    if (_activeHeavyAssignments != null && carIndex >= 0 && carIndex < _activeHeavyAssignments.Count)
+    {
+        raw = _activeHeavyAssignments[carIndex] ?? "None";
+        kind = raw.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(kind) || kind == "none") kind = null;
+    }
+
+    // Fallback: if generator didn't send HeavyAssignments, still allow COBLAB turret heavy
+    bool isCoblab = layout != null && string.Equals(layout.faction, "COBLAB", StringComparison.OrdinalIgnoreCase);
+    bool hasTurretSlots = layout?.TurretSlots != null && layout.TurretSlots.Count > 0;
+
+    if (kind == null && isCoblab && hasTurretSlots)
+        kind = "turret";
+
+    if (kind == null) return;
 
     // Fail-fast / Downgrade (по умолчанию): если слота нет — ничего не спавним, логируем.
     if (kind == "bradley")
@@ -5690,15 +5756,24 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
 
     if (kind == "turret")
     {
+        if (!isCoblab) return;
+
         var slots = layout?.TurretSlots;
-        if (slots == null || slots.Count == 0)
-        {
-            Puts($"[HEAVY] downgrade kind=turret carIndex={carIndex} reason=NO_TurretSlots layout={layout?.name ?? "NULL"}");
-            return;
-        }
+        if (slots == null || slots.Count == 0) return;
+
+        int maxSlots = slots.Count;
+        int desiredCount = PickWeightedInt(config.Generator.CoblabHeavyTurretCountWeights, maxSlots);
+        if (desiredCount < 0) desiredCount = 0;
+        if (desiredCount > maxSlots) desiredCount = maxSlots;
+        if (desiredCount == 0) return;
+
+        string ammoShort = config.Generator.CoblabHeavyTurretAmmoShortname;
+        if (string.IsNullOrEmpty(ammoShort)) ammoShort = "ammo.rifle";
+        int ammoAmt = config.Generator.CoblabHeavyTurretAmmoAmount;
+        if (ammoAmt < 500) ammoAmt = 500;
 
         int spawned = 0;
-        for (int i = 0; i < slots.Count; i++)
+        for (int i = 0; i < slots.Count && spawned < desiredCount; i++)
         {
             var s = slots[i];
             if (s == null) continue;
@@ -5711,8 +5786,30 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             ent.transform.localPosition = V3(s.pos);
             ent.transform.localRotation = Q3(s.rot);
             ent.Spawn();
-
             Track(ent);
+
+            // Defender only for COBLAB entities
+            if (wagonCar.GetComponent<HellTrainDefender>() == null)
+                wagonCar.gameObject.AddComponent<HellTrainDefender>();
+            if (ent.GetComponent<HellTrainDefender>() == null)
+                ent.gameObject.AddComponent<HellTrainDefender>();
+
+            // Attach TrainAutoTurret (ensure it exists)
+            var turret = ent as AutoTurret;
+            if (turret != null)
+            {
+                var comp = turret.GetComponent<TrainAutoTurret>() ?? turret.gameObject.AddComponent<TrainAutoTurret>();
+                comp.plugin = this;
+                comp.StickyTimeSeconds = 2.0f;
+
+                string gun = PickWeightedString(config.Generator.CoblabHeavyTurretGunPool, "rifle.ak");
+                comp.DesiredGun = gun;
+                comp.DesiredAmmo = ammoShort;
+                comp.DesiredAmmoCount = ammoAmt;
+                comp.ArmRetriesLeft = 20;
+                comp.ArmRetryIntervalSeconds = 1.0f;
+            }
+
             spawned++;
         }
 
