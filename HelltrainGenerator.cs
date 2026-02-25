@@ -835,6 +835,11 @@ private string PickHeavyKind(string factionKeyUpper)
 
 private void ApplyHeavyToWagons(string factionKeyUpper, string compositionKey, ref List<string> wagons, out List<string> heavyAssignmentsWagons)
 {
+	heavyAssignmentsWagons = new List<string>(wagons?.Count ?? 0);
+if (wagons == null) return;
+
+// единый ключ heavy-вагона (чтобы не было конфликтов имён heavyWagonKey)
+var heavyWagonKey = CanonicalizeWagonKey($"wagonC_{(compositionKey ?? "").Trim().ToLowerInvariant()}");
 	// --- FORCE EXACTLY 1 HEAVY FOR COBLAB ---
 if (string.Equals(factionKeyUpper, "COBLAB", StringComparison.OrdinalIgnoreCase))
 {
@@ -842,8 +847,7 @@ if (string.Equals(factionKeyUpper, "COBLAB", StringComparison.OrdinalIgnoreCase)
     for (int i = 0; i < wagons.Count; i++)
         heavyAssignmentsWagons.Add("None");
 
-    // Heavy uses wagonC_<composition>
-    var heavyWagonKey = CanonicalizeWagonKey($"wagonC_{(compositionKey ?? "").Trim().ToLowerInvariant()}");
+
 
     // Insert exactly one heavy wagon at random position
     int insertIndex = UnityEngine.Random.Range(0, wagons.Count + 1);
@@ -864,8 +868,6 @@ if (string.Equals(factionKeyUpper, "COBLAB", StringComparison.OrdinalIgnoreCase)
     int heavyCount = PickHeavyCount(factionKeyUpper);
     if (heavyCount <= 0) return;
 
-    // Heavy uses the same prefab/layout as wagonC_<composition>
-    var heavyWagonKey = CanonicalizeWagonKey($"wagonC_{(compositionKey ?? "").Trim().ToLowerInvariant()}");
 
     for (int n = 0; n < heavyCount; n++)
     {
