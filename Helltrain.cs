@@ -7525,7 +7525,7 @@ private Quaternion m_StartRotation;
 // network throttle (уменьшаем лаги при перемещении)
 private float m_NextNetUpdateTime;
 private Vector3 m_EditPosVel;
-private const float NET_UPDATE_INTERVAL = 0.03f; // editor only: меньше ступенек
+private const float NET_UPDATE_INTERVAL = 0.03f; // editor: меньше ступенек (как "более плавно")
 
 
     public TrainCar TrainCar => m_TrainCar;
@@ -8186,9 +8186,11 @@ public BaseEntity CreateChildEntity(string prefab, Vector3 localPos, Quaternion 
         var rb = m_CurrentEntity.GetComponent<Rigidbody>();
         if (rb != null && rb.isKinematic)
         {
-            // Keep RB in sync WITHOUT MovePosition to avoid oscillation/jitter
+            // Match TrainHeist editor behavior: do NOT call MovePosition (causes oscillation/jitter)
             rb.position = m_CurrentEntity.transform.position;
             rb.rotation = m_CurrentEntity.transform.rotation;
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
         }
         
         m_CurrentEntity.transform.hasChanged = true;
