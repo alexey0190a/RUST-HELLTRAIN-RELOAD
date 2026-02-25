@@ -58,7 +58,7 @@ private bool TryClearBlockingTrainAhead(TrainEngine engine, ref float nextTryAt)
         if (now < nextTryAt) return false;
         nextTryAt = now + interval;
 
-        float ahead = Mathf.Clamp(config.ClearBlockingTrainsAheadMeters, 5f, 35f);
+        float ahead = Mathf.Clamp(config.ClearBlockingTrainsAheadMeters, 1f, 35f);
         float radius = Mathf.Clamp(config.ClearBlockingTrainsRadiusMeters, 2f, 20f);
         float eps = Mathf.Max(0.01f, config.ClearBlockingTrainsStaticSpeedEps);
 
@@ -131,6 +131,103 @@ Vis.Entities(center, radius, ents, -1);
     catch (Exception ex)
     {
         PrintWarning($"[Helltrain] Cowcatcher error: {ex.Message}");
+        return false;
+    }
+}
+
+private void ApplyEventEngineFrontCouplingLock(TrainEngine engine)
+{
+    if (engine == null || engine.IsDestroyed) return;
+
+    var couplingController = engine.coupling;
+    if (couplingController == null) return;
+
+    var front = couplingController.frontCoupling;
+    var rear = couplingController.rearCoupling;
+
+    if (TrainCouplingIsValidField != null)
+    {
+        if (front != null) TrainCouplingIsValidField.SetValue(front, false);
+        if (rear != null) TrainCouplingIsValidField.SetValue(rear, true);
+    }
+
+    try
+    {
+        bool isCoupled = false;
+        if (front != null)
+        {
+            if (TrainCouplingIsCoupledProp != null)
+                isCoupled = Convert.ToBoolean(TrainCouplingIsCoupledProp.GetValue(front, null));
+            else
+                isCoupled = front.IsCoupled;
+        }
+
+        if (front != null && isCoupled)
+        {
+            if (TrainCouplingUncoupleMethod != null)
+                TrainCouplingUncoupleMethod.Invoke(front, new object[] { true });
+            else
+                front.Uncouple(reflect: true);
+        }
+    }
+    catch { }
+}
+
+private bool TryKillBlockingTrainAheadWhenStuck(TrainEngine engine, ref float nextTryAt)
+{
+    try
+    {
+        if (engine == null || engine.IsDestroyed) return false;
+        if (config == null || !config.ClearBlockingTrains) return false;
+
+        float now = Time.realtimeSinceStartup;
+        float interval = Mathf.Max(0.1f, config.ClearBlockingTrainsIntervalSeconds);
+        if (now < nextTryAt) return false;
+        nextTryAt = now + interval;
+
+        float ahead = Mathf.Clamp(config.ClearBlockingTrainsAheadMeters, 1f, 35f);
+        float radius = Mathf.Clamp(config.ClearBlockingTrainsRadiusMeters, 2f, 20f);
+
+        var p = engine.transform.position;
+        var fwd = engine.transform.forward;
+        var center = p + fwd * ahead;
+
+        var ents = Pool.GetList<BaseEntity>();
+        Vis.Entities(center, radius, ents, -1);
+
+        TrainCar best = null;
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < ents.Count; i++)
+        {
+            var e = ents[i];
+            if (e == null || e.IsDestroyed) continue;
+
+            var car = e as TrainCar;
+            if (car == null || car.IsDestroyed) continue;
+            if (_spawnedTrainEntities.Contains(car) || _spawnedCars.Contains(car)) continue;
+
+            var dir = (car.transform.position - p);
+            if (Vector3.Dot(dir.normalized, fwd) < 0.25f) continue;
+
+            float d = dir.sqrMagnitude;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = car;
+            }
+        }
+
+        Pool.FreeList(ref ents);
+
+        if (best == null) return false;
+
+        best.Kill();
+        return true;
+    }
+    catch (Exception ex)
+    {
+        PrintWarning($"[Helltrain] Stuck-kill error: {ex.Message}");
         return false;
     }
 }
@@ -845,6 +942,13 @@ private void CleanupOrphanedHelltrainEntities(string reason)
 
 private TrainEngine activeHellTrain = null;
 private ulong _eventEngineNetId = 0UL;
+private static readonly FieldInfo TrainCouplingIsValidField =
+    typeof(TrainCoupling).GetField("isValid", BindingFlags.NonPublic | BindingFlags.Instance)
+    ?? typeof(TrainCoupling).GetField("isValid", BindingFlags.Public | BindingFlags.Instance);
+private static readonly PropertyInfo TrainCouplingIsCoupledProp =
+    typeof(TrainCoupling).GetProperty("IsCoupled", BindingFlags.Public | BindingFlags.Instance);
+private static readonly MethodInfo TrainCouplingUncoupleMethod =
+    typeof(TrainCoupling).GetMethod("Uncouple", BindingFlags.Public | BindingFlags.Instance);
 private Timer _couplingRetryTimer = null;
         private Timer respawnTimer = null;
 		// RESPawn scheduler (CORE)
@@ -1326,7 +1430,6 @@ public class HellTrainComponent : MonoBehaviour
     public Helltrain plugin;
     public TrainEngine engine;
     private int zeroSpeedTicks = 0;
-    private bool movingForward = true;
 	private float _nextCowcatcherAt = 0f;
 
     private void FixedUpdate()
@@ -1345,28 +1448,19 @@ public class HellTrainComponent : MonoBehaviour
         }
 
         float speed = engine.GetTrackSpeed();
-		// STABILITY: proactive cowcatcher — убираем "мертвые" чужие вагоны/поезда впереди,
-// чтобы не терять скорость и не уходить в авто-реверс из-за статика.
-if (plugin != null && plugin.TryClearBlockingTrainAhead(engine, ref _nextCowcatcherAt))
-{
-    zeroSpeedTicks = 0; // если только что расчистили препятствие — не копим "до реверса"
-}
+        const float speedEps = 0.1f;
 
-
-        if (Mathf.Abs(speed) < 0.1f)
+        if (Mathf.Abs(speed) < speedEps)
         {
             zeroSpeedTicks++;
 
-            if (zeroSpeedTicks >= 90)
+            int ticksNeeded = Mathf.CeilToInt(5f / Time.fixedDeltaTime);
+            if (zeroSpeedTicks >= ticksNeeded)
             {
-                movingForward = !movingForward;
-
-                if (movingForward)
-                    engine.SetThrottle(TrainEngine.EngineSpeeds.Fwd_Hi);
-                else
-                    engine.SetThrottle(TrainEngine.EngineSpeeds.Rev_Hi);
-
-                plugin.Puts($"⚠️ Поезд застрял! Реверс → {(movingForward ? "ВПЕРЁД" : "НАЗАД")}");
+                if (plugin != null)
+                {
+                    plugin.TryKillBlockingTrainAheadWhenStuck(engine, ref _nextCowcatcherAt);
+                }
 
                 zeroSpeedTicks = 0;
             }
@@ -1981,20 +2075,8 @@ public float PreSpawnClearForwardMeters { get; set; } = 50f;
 public float PreSpawnClearStepMeters { get; set; } = 12f;
 
 // Смещение точки отсчёта по spline вперёд, чтобы считать именно "от носа"
-    [JsonProperty("PreSpawnClearNoseOffsetMeters")]
-    public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
-
-	// How many turrets to spawn out of available TurretSlots (0..N), weighted.
-	// Keys are counts, values are weights.
-	[JsonProperty("COBLAB Heavy Turret Count Weights")]
-	public Dictionary<int, float> CoblabHeavyTurretCountWeights { get; set; } = new Dictionary<int, float>
-	{
-		[0] = 0.05f,
-		[1] = 0.15f,
-		[2] = 0.35f,
-		[3] = 0.30f,
-		[4] = 0.15f
-	};
+[JsonProperty("PreSpawnClearNoseOffsetMeters")]
+public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
 }
 
 
@@ -3393,6 +3475,7 @@ EventLog(
     
     activeHellTrain = trainEngine;
 	_eventEngineNetId = (trainEngine != null && trainEngine.net != null) ? trainEngine.net.ID.Value : 0UL;
+    ApplyEventEngineFrontCouplingLock(trainEngine);
     StartSwitchman();
     
     var antiStuckComponent = trainEngine.gameObject.AddComponent<HellTrainComponent>();
@@ -5328,7 +5411,7 @@ private object CanMountEntity(BasePlayer player, BaseMountable baseMountable)
 
 private object OnTrainCarUncouple(TrainCar trainCar, BasePlayer player)
 {
-    if (trainCar && _spawnedCars.Contains(trainCar))
+    if (trainCar && (_spawnedCars.Contains(trainCar) || _spawnedTrainEntities.Contains(trainCar)))
     {
         player.ChatMessage("⚠️ Нельзя отцепить вагоны Hell Train!");
         return false;
@@ -5539,64 +5622,9 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
             return;
         }
 
-        string factionUpper = (layout?.faction ?? string.Empty).ToUpperInvariant();
-        bool isCoblab = factionUpper == "COBLAB";
-
-        // COBLAB-only: pick how many turrets to spawn (0..slots.Count) by weights.
-        int spawnCount = slots.Count;
-        if (isCoblab)
-        {
-            var weights = config?.CoblabHeavyTurretCountWeights;
-            double total = 0;
-            if (weights != null && weights.Count > 0)
-            {
-                foreach (var kv in weights)
-                {
-                    if (kv.Key < 0 || kv.Key > slots.Count) continue;
-                    total += Mathf.Max(0.0001f, kv.Value);
-                }
-            }
-
-            if (total > 0.0001)
-            {
-                double roll = UnityEngine.Random.Range(0f, 1f) * total;
-                int picked = slots.Count;
-                foreach (var kv in weights)
-                {
-                    if (kv.Key < 0 || kv.Key > slots.Count) continue;
-                    roll -= Mathf.Max(0.0001f, kv.Value);
-                    if (roll <= 0)
-                    {
-                        picked = kv.Key;
-                        break;
-                    }
-                }
-                spawnCount = Mathf.Clamp(picked, 0, slots.Count);
-            }
-        }
-
-        // Choose which slot indices to spawn into (random subset of size spawnCount).
-        var chosen = new HashSet<int>();
-        if (spawnCount > 0 && spawnCount < slots.Count)
-        {
-            var indices = new List<int>(slots.Count);
-            for (int idx = 0; idx < slots.Count; idx++) indices.Add(idx);
-            for (int a = indices.Count - 1; a > 0; a--)
-            {
-                int b = UnityEngine.Random.Range(0, a + 1);
-                int tmp = indices[a];
-                indices[a] = indices[b];
-                indices[b] = tmp;
-            }
-            for (int i = 0; i < spawnCount; i++) chosen.Add(indices[i]);
-        }
-
         int spawned = 0;
         for (int i = 0; i < slots.Count; i++)
         {
-            if (spawnCount == 0) break;
-            if (spawnCount < slots.Count && !chosen.Contains(i)) continue;
-
             var s = slots[i];
             if (s == null) continue;
 
