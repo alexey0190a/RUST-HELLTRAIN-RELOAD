@@ -5686,6 +5686,7 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
 
 
     if (kind == null) return;
+	bool isCoblab = string.Equals(_activeFactionKey, "COBLAB", StringComparison.OrdinalIgnoreCase);
 
     // Fail-fast / Downgrade (по умолчанию): если слота нет — ничего не спавним, логируем.
     if (kind == "bradley")
