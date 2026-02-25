@@ -1283,11 +1283,16 @@ public List<string> savedKits = new List<string>();
 
 public class SlotMarker : MonoBehaviour
 {
-    public enum Kind { Npc, Crate }
+    public enum Kind { Npc, Crate, Turret }
     public Kind kind;
 }
 
 public class ShelfMarker : MonoBehaviour
+{
+    public string prefab;
+}
+
+public class DecorMarker : MonoBehaviour
 {
     public string prefab;
 }
@@ -1822,6 +1827,9 @@ private static string NormalizeLayoutName(string name)
 
 private class ConfigData
 {
+	
+    [JsonProperty("EditorDecorPrefabs")]
+    public Dictionary<string, string> EditorDecorPrefabs { get; set; } = new Dictionary<string, string>();
 	
 	[JsonProperty("LootTimerRanges")]
 public Dictionary<string, LootTimerRange> LootTimerRanges { get; set; } = new Dictionary<string, LootTimerRange>
@@ -2522,6 +2530,9 @@ private class TrainLayout
 
     [JsonProperty("Shelves")]
     public List<ShelfSpec> Shelves { get; set; }
+
+    [JsonProperty("Decor")]
+    public List<DecorSpec> Decor { get; set; }
 	
 	
     // ✅ HEAVY (variant C): точки спавна боевых сущностей (локальные)
@@ -2557,6 +2568,18 @@ class SlotSpec
 
 
 private class ShelfSpec
+{
+    [JsonProperty("prefab")]
+    public string prefab;
+
+    [JsonProperty("pos")]
+    public float[] pos; // local xyz
+
+    [JsonProperty("rot")]
+    public float[] rot; // local euler xyz
+}
+
+private class DecorSpec
 {
     [JsonProperty("prefab")]
     public string prefab;
@@ -7133,6 +7156,8 @@ private void CmdHtEdit(BasePlayer player, string command, string[] args)
         player.ChatMessage("/htedit spawn npcslot");
         player.ChatMessage("/htedit spawn crateslot");
         player.ChatMessage("/htedit spawn shelf <prefab>");
+        player.ChatMessage("/htedit spawn turretslot");
+        player.ChatMessage("/htedit spawn decor <key|prefab>");
         player.ChatMessage("🖱️ ЛКМ - разместить | ПКМ - отмена | RELOAD - поворот");
         return;
 
@@ -7140,10 +7165,11 @@ private void CmdHtEdit(BasePlayer player, string command, string[] args)
 
         string entityType = args[1].ToLower();
 		// --- DIFF#1: slots/spawn preview (MAIN approved) ---
-if (entityType == "npcslot" || entityType == "crateslot" || entityType == "shelf")
+if (entityType == "npcslot" || entityType == "crateslot" || entityType == "turretslot" || entityType == "decor" || entityType == "shelf")
 {
 const string NPC_SLOT_MARKER_PREFAB   = "assets/prefabs/deployable/signs/sign.post.single.prefab";
 const string CRATE_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/woodbox_deployed.prefab";
+const string TURRET_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/woodbox_deployed.prefab";
 
 
     Vector3 worldPos = player.transform.position + (player.eyes.BodyForward() * 3f);
@@ -7193,6 +7219,42 @@ return;
         return;
     }
 
+    // decor <key|prefab>
+    if (entityType == "decor")
+    {
+        if (args.Length < 3) { player.ChatMessage("❌ /htedit spawn decor <key|prefab>"); return; }
+
+        string keyOrPrefab = args[2];
+        string decorPrefab = keyOrPrefab;
+
+        if (config != null && config.EditorDecorPrefabs != null &&
+            config.EditorDecorPrefabs.TryGetValue(keyOrPrefab, out var mapped))
+        {
+            decorPrefab = mapped;
+        }
+
+        var ent = wagonEditor.CreateChildEntity(decorPrefab, localPos, Quaternion.identity, null, null, null, 0, 0f);
+        if (!ent) { player.ChatMessage("❌ Не удалось создать decor"); return; }
+
+        ent.gameObject.AddComponent<DecorMarker>().prefab = decorPrefab;
+        wagonEditor.GetChildren().Add(ent);
+        wagonEditor.StartEditingEntity(ent, true);
+        player.ChatMessage($"✅ DECOR создан: {keyOrPrefab}");
+        return;
+    }
+
+    if (entityType == "turretslot")
+    {
+        var ent = wagonEditor.CreateChildEntity(TURRET_SLOT_MARKER_PREFAB, localPos, Quaternion.identity, null, null, null, 0, 0f);
+        if (!ent) { player.ChatMessage("❌ Не удалось создать turretslot"); return; }
+
+        ent.gameObject.AddComponent<SlotMarker>().kind = SlotMarker.Kind.Turret;
+        wagonEditor.GetChildren().Add(ent);
+        wagonEditor.StartEditingEntity(ent, true);
+        player.ChatMessage("✅ TURRET SLOT создан");
+        return;
+    }
+
     // shelf <prefab>
     if (args.Length < 3) { player.ChatMessage("❌ /htedit spawn shelf <prefab>"); return; }
 
@@ -7207,7 +7269,7 @@ return;
     return;
 }
 // --- /DIFF#1 ---
-player.ChatMessage("❌ Неизвестный тип! (в DIFF#1 только: npcslot | crateslot | shelf <prefab>)");
+player.ChatMessage("❌ Неизвестный тип! (в DIFF#1 только: npcslot | crateslot | turretslot | decor <key|prefab> | shelf <prefab>)");
 return;
 
 }
@@ -7523,19 +7585,22 @@ private const float NET_UPDATE_INTERVAL = 0.10f; // 10 раз/сек. Больш
     bool hasSlots =
         (layout.NpcSlots != null && layout.NpcSlots.Count > 0) ||
         (layout.CrateSlots != null && layout.CrateSlots.Count > 0) ||
-        (layout.Shelves != null && layout.Shelves.Count > 0);
+        (layout.Shelves != null && layout.Shelves.Count > 0) ||
+        (layout.TurretSlots != null && layout.TurretSlots.Count > 0) ||
+        (layout.Decor != null && layout.Decor.Count > 0);
 
     // ✅ Backward compat: старые лэйауты без слотов открываем, но ничего не спавним (слоты пустые)
     if (!hasSlots)
     {
         m_IsLoading = false;
-        m_Player.ChatMessage("⚠️ Это legacy-лэйаут без слотов (NpcSlots/CrateSlots/Shelves). Слоты пустые — добавляй через /htedit spawn npcslot/crateslot/shelf.");
+        m_Player.ChatMessage("⚠️ Это legacy-лэйаут без слотов (NpcSlots/CrateSlots/Shelves/TurretSlots/Decor). Слоты пустые — добавляй через /htedit spawn npcslot/crateslot/turretslot/shelf/decor.");
         return;
     }
 
 // ✅ Preview-ориентиры (похожи на финал, но используются только в редакторе)
 const string NPC_SLOT_MARKER_PREFAB   = "assets/prefabs/deployable/signs/sign.post.single.prefab";
 const string CRATE_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/woodbox_deployed.prefab";
+const string TURRET_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/woodbox_deployed.prefab";
 
 
     // 1) NPC slots
@@ -7590,6 +7655,32 @@ const string CRATE_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/woo
         }
     }
 
+    // 2.5) Turret slots (COBLAB heavy): preview markers (slots only)
+    if (layout.TurretSlots != null)
+    {
+        foreach (var s in layout.TurretSlots)
+        {
+            var lp = new Vector3(
+                (s.pos != null && s.pos.Length >= 3) ? s.pos[0] : 0f,
+                (s.pos != null && s.pos.Length >= 3) ? s.pos[1] : 0f,
+                (s.pos != null && s.pos.Length >= 3) ? s.pos[2] : 0f
+            );
+            var lr = Quaternion.Euler(
+                (s.rot != null && s.rot.Length >= 3) ? s.rot[0] : 0f,
+                (s.rot != null && s.rot.Length >= 3) ? s.rot[1] : 0f,
+                (s.rot != null && s.rot.Length >= 3) ? s.rot[2] : 0f
+            );
+
+            var ent = CreateChildEntity(TURRET_SLOT_MARKER_PREFAB, lp, lr);
+            if (ent == null) continue;
+
+            var mk = ent.gameObject.AddComponent<SlotMarker>();
+            mk.kind = SlotMarker.Kind.Turret;
+
+            m_Children.Add(ent);
+        }
+    }
+
     // 3) Shelves (реальные префабы полок)
     if (layout.Shelves != null)
     {
@@ -7613,6 +7704,34 @@ const string CRATE_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/woo
 
             var mk = ent.gameObject.AddComponent<ShelfMarker>();
             mk.prefab = sh.prefab;
+
+            m_Children.Add(ent);
+        }
+    }
+
+    // 4) Decor (произвольные префабы "обвеса")
+    if (layout.Decor != null)
+    {
+        foreach (var d in layout.Decor)
+        {
+            if (string.IsNullOrEmpty(d.prefab)) continue;
+
+            var lp = new Vector3(
+                (d.pos != null && d.pos.Length >= 3) ? d.pos[0] : 0f,
+                (d.pos != null && d.pos.Length >= 3) ? d.pos[1] : 0f,
+                (d.pos != null && d.pos.Length >= 3) ? d.pos[2] : 0f
+            );
+            var lr = Quaternion.Euler(
+                (d.rot != null && d.rot.Length >= 3) ? d.rot[0] : 0f,
+                (d.rot != null && d.rot.Length >= 3) ? d.rot[1] : 0f,
+                (d.rot != null && d.rot.Length >= 3) ? d.rot[2] : 0f
+            );
+
+            var ent = CreateChildEntity(d.prefab, lp, lr);
+            if (ent == null) continue;
+
+            var mk = ent.gameObject.AddComponent<DecorMarker>();
+            mk.prefab = d.prefab;
 
             m_Children.Add(ent);
         }
@@ -7666,6 +7785,8 @@ public void Load(TrainCar trainCar, TrainLayout layout, Helltrain plugin)
     var npcSlots = new List<SlotSpec>();
     var crateSlots = new List<SlotSpec>();
     var shelves = new List<ShelfSpec>();
+    var turretSlots = new List<SlotSpec>();
+    var decor = new List<DecorSpec>();
 
     foreach (var child in m_Children)
     {
@@ -7684,7 +7805,8 @@ public void Load(TrainCar trainCar, TrainLayout layout, Helltrain plugin)
             };
 
             if (sm.kind == SlotMarker.Kind.Npc) npcSlots.Add(s);
-            else crateSlots.Add(s);
+            else if (sm.kind == SlotMarker.Kind.Crate) crateSlots.Add(s);
+            else if (sm.kind == SlotMarker.Kind.Turret) turretSlots.Add(s);
 
             continue;
         }
@@ -7698,6 +7820,19 @@ public void Load(TrainCar trainCar, TrainLayout layout, Helltrain plugin)
                 pos = new float[] { lp.x, lp.y, lp.z },
                 rot = new float[] { eul.x, eul.y, eul.z }
             });
+            continue;
+        }
+
+        var dm = child.GetComponent<DecorMarker>();
+        if (dm != null)
+        {
+            decor.Add(new DecorSpec
+            {
+                prefab = dm.prefab,
+                pos = new float[] { lp.x, lp.y, lp.z },
+                rot = new float[] { eul.x, eul.y, eul.z }
+            });
+            continue;
         }
     }
 
@@ -7722,6 +7857,8 @@ else
     m_Layout.NpcSlots = npcSlots;
     m_Layout.CrateSlots = crateSlots;
     m_Layout.Shelves = shelves;
+    m_Layout.TurretSlots = turretSlots;
+    m_Layout.Decor = decor;
 
     // Legacy objects НЕ трогаем (совместимость; конвертации нет по ТЗ)
     // m_Layout.objects оставляем как было.
@@ -7729,7 +7866,7 @@ else
     string dataKey = $"Helltrain/Layouts/{m_Layout.name}";
     Interface.Oxide.DataFileSystem.WriteObject(dataKey, m_Layout, true);
 
-    m_Player.ChatMessage($"💾 Сохранено слотов: NPC={npcSlots.Count}, Crate={crateSlots.Count}, Shelves={shelves.Count} → {m_Layout.name}.json");
+    m_Player.ChatMessage($"💾 Сохранено: NPC={npcSlots.Count}, Crate={crateSlots.Count}, Turret={turretSlots.Count}, Shelves={shelves.Count}, Decor={decor.Count} → {m_Layout.name}.json");
 }
 
 
@@ -7739,7 +7876,9 @@ private void WriteAutosave()
     {
         NpcSlots = new List<SlotSpec>(),
         CrateSlots = new List<SlotSpec>(),
-        Shelves = new List<ShelfSpec>()
+        TurretSlots = new List<SlotSpec>(),
+        Shelves = new List<ShelfSpec>(),
+        Decor = new List<DecorSpec>()
     };
 
     foreach (var child in m_Children)
@@ -7758,7 +7897,8 @@ private void WriteAutosave()
                 rot = new float[] { eul.x, eul.y, eul.z }
             };
             if (sm.kind == SlotMarker.Kind.Npc) snapshot.NpcSlots.Add(s);
-            else snapshot.CrateSlots.Add(s);
+            else if (sm.kind == SlotMarker.Kind.Crate) snapshot.CrateSlots.Add(s);
+            else if (sm.kind == SlotMarker.Kind.Turret) snapshot.TurretSlots.Add(s);
             continue;
         }
 
@@ -7771,6 +7911,19 @@ private void WriteAutosave()
                 pos = new float[] { lp.x, lp.y, lp.z },
                 rot = new float[] { eul.x, eul.y, eul.z }
             });
+            continue;
+        }
+
+        var dm = child.GetComponent<DecorMarker>();
+        if (dm != null)
+        {
+            snapshot.Decor.Add(new DecorSpec
+            {
+                prefab = dm.prefab,
+                pos = new float[] { lp.x, lp.y, lp.z },
+                rot = new float[] { eul.x, eul.y, eul.z }
+            });
+            continue;
         }
     }
 
