@@ -7524,7 +7524,8 @@ private Quaternion m_StartRotation;
 
 // network throttle (уменьшаем лаги при перемещении)
 private float m_NextNetUpdateTime;
-private const float NET_UPDATE_INTERVAL = 0.10f; // 10 раз/сек. Больше = тяжелее, меньше = легче
+private Vector3 m_EditPosVel;
+private const float NET_UPDATE_INTERVAL = 0.03f; // editor: чаще network update -> меньше ступенек при перемещении
 
 
     public TrainCar TrainCar => m_TrainCar;
@@ -7963,6 +7964,7 @@ private void WriteAutosave()
     public void StartEditingEntity(BaseEntity baseEntity, bool justSpawned)
     {
 		m_CurrentEntity = baseEntity;
+        m_EditPosVel = Vector3.zero;
         if (!justSpawned)
         {
             m_StartPosition = baseEntity.transform.localPosition;
@@ -7989,7 +7991,10 @@ private void WriteAutosave()
     public void DeleteWagonEntity(BaseEntity baseEntity)
     {
         if (baseEntity == m_CurrentEntity)
+        {
+            m_EditPosVel = Vector3.zero;
             m_CurrentEntity = null;
+        }
 
         m_Children.Remove(baseEntity);
 baseEntity.Kill();
@@ -8042,6 +8047,7 @@ baseEntity.Kill();
             m_Player.ChatMessage($"✅ Размещён: <color=#ce422b>{m_CurrentEntity.ShortPrefabName}</color>");
             m_Player.ChatMessage($"   Local: {finalLocalPos}");
 
+            m_EditPosVel = Vector3.zero;
             m_CurrentEntity = null;
             m_RotationOffset = Vector3.zero;
             m_NextClickFrame = Time.frameCount + 20;
@@ -8064,6 +8070,7 @@ m_CurrentEntity.Kill();
 
             }
 
+            m_EditPosVel = Vector3.zero;
             m_CurrentEntity = null;
             m_RotationOffset = Vector3.zero;
         }
@@ -8203,13 +8210,27 @@ if (Time.realtimeSinceStartup >= m_NextNetUpdateTime)
         direction.y = 0f;
         direction.Normalize();
 
-        m_CurrentEntity.transform.position = constructionTarget.ray.origin + (constructionTarget.ray.direction * m_Construction.maxplaceDistance);
+        Vector3 desiredPos = constructionTarget.ray.origin + (constructionTarget.ray.direction * m_Construction.maxplaceDistance);
+
+        // 7A: collision stop along view ray (no snap/auto-align)
+        {
+            const int EDIT_LAYERS = (1 << 0) | (1 << 8) | (1 << 10) | (1 << 17) | (1 << 26);
+            RaycastHit hit;
+            float dist = Vector3.Distance(constructionTarget.ray.origin, desiredPos);
+            if (Physics.Raycast(constructionTarget.ray, out hit, dist, EDIT_LAYERS, QueryTriggerInteraction.Ignore))
+            {
+                desiredPos = hit.point - constructionTarget.ray.direction * 0.05f;
+            }
+        }
 
         Vector3 eulerRotation = constructionTarget.rotation + m_RotationOffset;
         m_CurrentEntity.transform.rotation = Quaternion.Euler(eulerRotation) * Quaternion.LookRotation(direction);
 
-        m_CurrentEntity.transform.position = Vector3.Lerp(position, m_CurrentEntity.transform.position, Time.deltaTime * 6f);
-        m_CurrentEntity.transform.rotation = Quaternion.Lerp(rotation, m_CurrentEntity.transform.rotation, Time.deltaTime * 10f);
+        // very smooth position follow (kills visible jerks)
+        m_CurrentEntity.transform.position = Vector3.SmoothDamp(position, desiredPos, ref m_EditPosVel, 0.05f, Mathf.Infinity, Time.deltaTime);
+
+        // smooth rotation apply (keep existing rotation math, only smooth the result)
+        m_CurrentEntity.transform.rotation = Quaternion.Slerp(rotation, m_CurrentEntity.transform.rotation, Time.deltaTime * 25f);
     }
 
 
