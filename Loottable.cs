@@ -5726,10 +5726,10 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
 
             #region Utility
 
-            private static void CreateItemPanel(Cui cui, in Anchor anchor, int itemCat, LootItem item, Action<BasePlayer> onClick, UiColor? backgroundOverride = null, bool hideChance = false)
+            private static void CreateItemPanel(Cui cui, in PluginComponents.Loottable.Cui.Anchor anchor, int itemCat, LootItem item, Action<BasePlayer> onClick, UiColor? backgroundOverride = null, bool hideChance = false)
                 => CreateItemPanel(cui, anchor, item.ItemId, item.SkinId, (itemCat != -1 || hideChance) ? $"x{item.Amount}" : $"x{item.Amount}\n{(item.Chance * 100)}%", onClick, item.Condition, item.IsBlueprint, itemCat, backgroundOverride, item.Extras?.Count ?? 0);
 
-            private static void CreateItemPanel(Cui cui, in Anchor anchor, int itemId, ulong skinId, string text, Action<BasePlayer> onClick,
+            private static void CreateItemPanel(Cui cui, in PluginComponents.Loottable.Cui.Anchor anchor, int itemId, ulong skinId, string text, Action<BasePlayer> onClick,
                 in MinMaxFloat condition = default, bool isBlueprint = false, int categoryId = -1, UiColor? backgroundOverride = null, int bulletCount = 0)
             {
                 var hasCondition = !isBlueprint && condition != default && (ItemManager.FindItemDefinition(itemId)?.condition.enabled ?? false);
@@ -5772,7 +5772,7 @@ cui.AddButton(PluginComponents.Loottable.Cui.Anchor.Fill, "Refresh Loot", p =>
                 }
             }
 
-            private static void CreateInputField(Cui cui, in Anchor anchor, string label, [CanBeNull] string value, Action<string> onChange, InputFieldFlags flags = InputFieldFlags.None,
+            private static void CreateInputField(Cui cui, in PluginComponents.Loottable.Cui.Anchor anchor, string label, [CanBeNull] string value, Action<string> onChange, InputFieldFlags flags = InputFieldFlags.None,
                 string buttonText = null, Action onButton = null, UiColor? buttonColor = null, in LabelStyle labelStyle = default, float buttonXMin = 0.7f)
             {
                 using (cui.CreateContainer(anchor, UiColor.Transparent))
