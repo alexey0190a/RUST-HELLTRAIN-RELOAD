@@ -397,6 +397,12 @@ private readonly HashSet<BaseNetworkable> _spawnedTrainEntities = new HashSet<Ba
 // GENERATOR: активная фракция текущего запуска (BANDIT/COBLAB/PMC)
 private string _activeFactionKey = "BANDIT";
 private string _activeLayoutName = null;
+// NPC: net.ID всех NPC, которых заспавнил/экипировал наш ивент (истина, без компонентов)
+private readonly HashSet<NetworkableId> _eventNpcNetIds = new HashSet<NetworkableId>();
+private bool _alarmTriggered = false;
+private bool _alarmArmed = false;
+private Timer _alarmArmTimer;
+
 
 		// 🔇 Антиспам по хак-крейту
 
@@ -1645,6 +1651,30 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 {
     if (_suppressHooks) return;
+	    // ALARM: первая смерть "нашего" NPC → включить alarmsound на составе (только PMC/COBLAB)
+    if (!_alarmTriggered && _alarmArmed &&
+    (_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB") &&
+    entity != null && entity.net != null &&
+    _eventNpcNetIds.Contains(entity.net.ID))
+{
+    _alarmTriggered = true;
+    TriggerAlarmSoundOnTrain();
+    Puts($"[ALARM] triggered by OnEntityDeath (tracked id): {entity.net.ID} prefab={entity.PrefabName}");
+}
+	Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
+
+var marker = entity?.GetComponent<NPCTypeMarker>();
+Puts($"[ALARM DEBUG] Marker={(marker != null ? "YES" : "NO")}");
+	    // ALARM: первая смерть "нашего" NPC → включить тревогу на составе (только PMC/COBLAB)
+    if (!_alarmTriggered && _alarmArmed &&
+    (_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB") &&
+    entity != null &&
+    entity.GetComponent<NPCTypeMarker>() != null)
+{
+    _alarmTriggered = true;
+    TriggerAlarmSoundOnTrain();
+    Puts($"[ALARM] triggered by OnEntityDeath (marker) prefab={entity.PrefabName}");
+}
 
     var engine = entity as TrainEngine;
     if (engine == null) return;
@@ -1674,7 +1704,27 @@ if (!isOurEngine)
     KillEventTrainCars("engine_died");
 }
 
+private void OnPlayerDie(BasePlayer player, HitInfo info)
+{
+    if (_suppressHooks) return;
+    if (!_alarmArmed) return;
+    if (_alarmTriggered) return;
 
+    if (player == null || !player.IsNpc) return;
+    if (!(_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB")) return;
+
+    var id = player.net?.ID;
+    bool isEventNpc =
+        (id != null && _eventNpcNetIds.Contains(id.Value)) ||
+        (player.GetComponent<NPCTypeMarker>() != null);
+
+    if (!isEventNpc) return;
+
+    _alarmTriggered = true;
+    TriggerAlarmSoundOnTrain();
+
+    Puts($"[ALARM] triggered by OnPlayerDie: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
+}
 
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
@@ -1792,6 +1842,11 @@ catch (Exception ex)
         _suppressHooks = false;               // снова слушаем хуки
         _engineCleanupTriggered = false;      // разрешим будущие триггеры
         _engineCleanupCooldownUntil = 0f;
+		       _alarmTriggered = false;
+_alarmArmed = false;
+_eventNpcNetIds.Clear();
+
+if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
     }
 }
 
@@ -3185,14 +3240,36 @@ yield return null;
     string firstWagonName = wagons.Count > 0 ? wagons[0] : null;
     var firstLayout = !string.IsNullOrEmpty(firstWagonName) ? GetLayout(firstWagonName) : null;
     
-    bool firstIsLoco = false;
-    if (firstLayout != null && firstLayout.cars != null && firstLayout.cars.Count > 0)
-    {
-        var firstCar = firstLayout.cars[0];
-        firstIsLoco = (firstCar.type?.ToLower() == "locomotive" || firstCar.variant == "LOCO");
-    }
-    
-    int wagonStartIndex = firstIsLoco ? 1 : 0;
+   bool firstIsLoco = false;
+
+if (firstLayout != null && firstLayout.cars != null && firstLayout.cars.Count > 0)
+{
+    var firstCar = firstLayout.cars[0];
+    firstIsLoco = (firstCar.type?.ToLower() == "locomotive" || firstCar.variant == "LOCO");
+}
+
+// ✅ Локо-layout: берём из composition (comp.Loco). Если wagons[0] реально LOCO — fallback на старое поведение.
+string locoLayoutName = null;
+TrainLayout locoLayout = null;
+
+if (!string.IsNullOrEmpty(comp?.Loco))
+{
+    locoLayoutName = comp.Loco;
+    locoLayout = GetLayout(locoLayoutName);
+}
+
+if (locoLayout == null && firstIsLoco && firstLayout != null)
+{
+    locoLayoutName = firstWagonName;
+    locoLayout = firstLayout;
+}
+
+if (locoLayout == null)
+{
+    PrintWarning($"[Helltrain][LOCO_LAYOUT] missing. comp.Loco='{comp?.Loco ?? "NULL"}' firstIsLoco={firstIsLoco} first='{firstWagonName ?? "NULL"}'");
+}
+
+int wagonStartIndex = firstIsLoco ? 1 : 0;
     
     List<SpawnPosition> spawnPositions = new List<SpawnPosition>();
     
@@ -3220,13 +3297,13 @@ yield return null;
     
     //Puts($"✅ Рассчитано {spawnPositions.Count} позиций");
 
-    string locoPrefab = EnginePrefab;
+     string locoPrefab = EnginePrefab;
 
-    if (firstIsLoco && firstLayout != null && firstLayout.cars != null && firstLayout.cars.Count > 0)
-    {
-        locoPrefab = GetWagonPrefabByVariant(firstLayout.cars[0].variant);
-        Puts($"🚂 Используем локомотив из лэйаута: {firstWagonName}");
-    }
+if (locoLayout != null && locoLayout.cars != null && locoLayout.cars.Count > 0)
+{
+    locoPrefab = GetWagonPrefabByVariant(locoLayout.cars[0].variant);
+    Puts($"🚂 Используем локомотив из лэйаута: {locoLayoutName}");
+}
 
     TrainCar locoEnt = GameManager.server.CreateEntity(
         locoPrefab, 
@@ -3640,12 +3717,12 @@ Puts($"[PLAN PIPE] gotPlan={(planObj != null ? "true" : "false")} planSlots={got
 ApplyPopulatePlan(planObj);
 Puts($"[Helltrain][PLAN OK] faction={factionKey} layout={layoutName} compositionKey={compositionKey}");
     
-    // Спавним объекты на локомотив
-    if (firstIsLoco && firstLayout != null)
-    {
-        SpawnLayoutObjects(locoEnt, firstLayout);
-        Puts($"   🎯 Объекты локомотива заспавнены из лэйаута: {firstWagonName}");
-    }
+     // Спавним объекты на локомотив (включая Decor)
+if (locoLayout != null)
+{
+    SpawnLayoutObjects(locoEnt, locoLayout);
+    Puts($"   🎯 Объекты локомотива заспавнены из лэйаута: {locoLayoutName}");
+}
     
     // Спавним объекты на вагоны
     positionIndex = 1;
@@ -3887,6 +3964,19 @@ private void SpawnHellTrain(BasePlayer player = null)
     string chosen = ChooseWeightedComposition();
 	   // keep SoT consistent: chosen composition => active faction key for generator/lifecycle
     _activeFactionKey = chosen.ToUpperInvariant();
+	// ALARM: сброс на новый прогон + окно на спавн/экипировку NPC
+_alarmTriggered = false;
+_alarmArmed = false;
+_eventNpcNetIds.Clear();
+
+if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
+
+// 55–60 сек окно: поезд собирается, NPC спавнятся/экипируются
+_alarmArmTimer = timer.Once(60f, () =>
+{
+    _alarmArmed = true;
+    Puts("[ALARM] armed (NPC window passed)");
+});
 
     if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
     {
@@ -4669,6 +4759,7 @@ private void CmdHtInfo(BasePlayer player, string command, string[] args)
     player.ChatMessage(sb.ToString());
 }
 
+
 [ChatCommand("htdebug")]
 private void CmdHtDebug(BasePlayer player, string command, string[] args)
 {
@@ -4869,6 +4960,159 @@ private void CmdHtDebug(BasePlayer player, string command, string[] args)
     sb.AppendLine($"════════════════════════════════════════");
 
     player.ChatMessage(sb.ToString());
+}
+
+private void TriggerAlarmSoundOnTrain()
+{
+    const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
+
+    bool IsTarget(string prefab)
+    {
+        return !string.IsNullOrEmpty(prefab) && prefab.Equals(AlarmSoundPrefab, StringComparison.Ordinal);
+    }
+
+    void TryPower(BaseEntity ent)
+    {
+        if (ent is IOEntity io)
+        {
+            io.SetFlag(IOEntity.Flag_HasPower, true, false, true);
+            io.UpdateFromInput(100, 0);
+            io.SetFlag(BaseEntity.Flags.On, true, false, true);
+            io.SendNetworkUpdate();
+        }
+    }
+
+    // 1) Основной источник: трекер наших энтити
+    if (_spawnedTrainEntities != null && _spawnedTrainEntities.Count > 0)
+    {
+        foreach (var net in _spawnedTrainEntities)
+        {
+            var ent = net as BaseEntity;
+            if (ent == null || ent.IsDestroyed) continue;
+
+            if (IsTarget(ent.PrefabName))
+                TryPower(ent);
+        }
+    }
+
+    // 2) Фолбэк: дети вагонов (если что-то не затрекалось)
+    if (_spawnedCars != null && _spawnedCars.Count > 0)
+    {
+        for (int i = 0; i < _spawnedCars.Count; i++)
+        {
+            var car = _spawnedCars[i] as BaseEntity;
+            if (car == null || car.IsDestroyed) continue;
+
+            var children = car.children;
+            if (children == null || children.Count == 0) continue;
+
+            for (int c = 0; c < children.Count; c++)
+            {
+                var child = children[c] as BaseEntity;
+                if (child == null || child.IsDestroyed) continue;
+
+                if (IsTarget(child.PrefabName))
+                    TryPower(child);
+            }
+        }
+    }
+}
+
+[ChatCommand("htalarmtest")]
+private void CmdHtAlarmTest(BasePlayer player, string command, string[] args)
+{
+    if (!player.IsAdmin)
+    {
+        player.ChatMessage("❌ Только для админов!");
+        return;
+    }
+
+    // Prefabs (делаем список, чтобы быть устойчивыми к разным вариантам)
+   // const string AudioAlarmPrefab = "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab";
+    const string SirenLightDeployedPrefab = "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab";
+    const string SirenLightWorldPropPrefab = "assets/content/props/light_fixtures/sirenlight.prefab"; // на случай, если где-то попался
+	const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
+
+   bool IsTarget(string prefab)
+{
+    if (string.IsNullOrEmpty(prefab)) return false;
+
+    return prefab.Equals(AlarmSoundPrefab, StringComparison.Ordinal)
+        || prefab.Equals(SirenLightDeployedPrefab, StringComparison.Ordinal)
+        || prefab.Equals(SirenLightWorldPropPrefab, StringComparison.Ordinal);
+}
+
+    void TryPower(BaseEntity ent, ref int powered, ref int notIo)
+    {
+        if (ent is IOEntity io)
+        {
+            io.SetFlag(IOEntity.Flag_HasPower, true, false, true);
+            io.UpdateFromInput(100, 0);
+            io.SetFlag(BaseEntity.Flags.On, true, false, true);
+            io.SendNetworkUpdate();
+            powered++;
+        }
+        else
+        {
+            notIo++;
+        }
+    }
+
+    int found = 0;
+    int poweredCount = 0;
+    int notIoCount = 0;
+    int missing = 0;
+
+    int foundInTracked = 0;
+    int foundInChildren = 0;
+
+    // 1) Поиск в трекере наших сущностей
+    if (_spawnedTrainEntities != null && _spawnedTrainEntities.Count > 0)
+    {
+        foreach (var net in _spawnedTrainEntities)
+        {
+            if (net == null) { missing++; continue; }
+
+            var ent = net as BaseEntity;
+            if (ent == null || ent.IsDestroyed) { missing++; continue; }
+
+            var prefab = ent.PrefabName;
+            if (!IsTarget(prefab)) continue;
+
+            found++;
+            foundInTracked++;
+            TryPower(ent, ref poweredCount, ref notIoCount);
+        }
+    }
+
+    // 2) Фолбэк: поиск среди детей вагонов/локомотива (если что-то не затрекалось)
+    if (_spawnedCars != null && _spawnedCars.Count > 0)
+    {
+        for (int i = 0; i < _spawnedCars.Count; i++)
+        {
+            var car = _spawnedCars[i] as BaseEntity;
+            if (car == null || car.IsDestroyed) { missing++; continue; }
+
+            var children = car.children;
+            if (children == null || children.Count == 0) continue;
+
+            for (int c = 0; c < children.Count; c++)
+            {
+                var child = children[c] as BaseEntity;
+                if (child == null || child.IsDestroyed) continue;
+
+                var prefab = child.PrefabName;
+                if (!IsTarget(prefab)) continue;
+
+                found++;
+                foundInChildren++;
+                TryPower(child, ref poweredCount, ref notIoCount);
+            }
+        }
+    }
+
+    player.ChatMessage($"🔊 AlarmTest: found={found} (tracked={foundInTracked}, children={foundInChildren}), powered={poweredCount}, notIO={notIoCount}, missing={missing}");
+    player.ChatMessage($"ℹ️ targetPrefabs: audioalarm OK, sirenlight MUST be deployed: {SirenLightDeployedPrefab}");
 }
 
 [ChatCommand("htcheck")]
@@ -5839,24 +6083,25 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
     Puts($"[HEAVY] ignore carIndex={carIndex} kind='{raw}' reason=UNKNOWN_KIND");
 }
 
-private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
-{
-    if (layout.objects == null || layout.objects.Count == 0)
-{
-    int npcCount = layout.NpcSlots?.Count ?? 0;
-    int crateCount = layout.CrateSlots?.Count ?? 0;
-    int shelfCount = layout.Shelves?.Count ?? 0;
+ private void SpawnLayoutObjects(TrainCar trainCar, TrainLayout layout)
+ {
+     if (layout.objects == null || layout.objects.Count == 0)
+ {
+     int npcCount = layout.NpcSlots?.Count ?? 0;
+     int crateCount = layout.CrateSlots?.Count ?? 0;
+     int shelfCount = layout.Shelves?.Count ?? 0;
+     int decorCount = layout.Decor?.Count ?? 0;
 
-    if (npcCount > 0 || crateCount > 0 || shelfCount > 0)
-    {
-        Puts($"Slots spawn: npc={npcCount}, crates={crateCount}, shelves={shelfCount}");
-        SpawnLayoutSlots(trainCar, layout);
-        return;
-    }
-
-    Puts($"   ⚠️ SpawnLayoutObjects({layout.name}): objects пуст! (null={layout.objects == null}, count={layout.objects?.Count ?? 0})");
-    return;
-}
+    if (npcCount > 0 || crateCount > 0 || shelfCount > 0 || decorCount > 0)
+     {
+        Puts($"Slots spawn: npc={npcCount}, crates={crateCount}, shelves={shelfCount}, decor={decorCount}");
+         SpawnLayoutSlots(trainCar, layout);
+         return;
+     }
+ 
+     Puts($"   ⚠️ SpawnLayoutObjects({layout.name}): objects пуст! (null={layout.objects == null}, count={layout.objects?.Count ?? 0})");
+     return;
+ }
 
     
   //  Puts($"   🎯 Спавним {layout.objects.Count} объектов из {layout.name}...");
@@ -6056,6 +6301,16 @@ if (!string.IsNullOrEmpty(lootPresetKey) && Loottable != null)
     marker.npcType = obj.npc_type;
 	marker.savedKit = obj.kit;                              // сохранить кит из JSON
 marker.savedKits = obj.kits != null ? new List<string>(obj.kits) : new List<string>();
+// ✅ Истина: NPC считается "нашим" сразу после спавна, НЕ после выдачи кита
+if (npc.net != null)
+{
+    _eventNpcNetIds.Add(npc.net.ID);
+    Puts($"[ALARM DEBUG] Track NPC NOW: id={npc.net.ID} prefab={npc.PrefabName} npcType={marker.npcType}");
+}
+else
+{
+    Puts($"[ALARM DEBUG] Track NPC NOW: no-net prefab={npc.PrefabName} npcType={marker.npcType}");
+}
 
     
     // ✅ КРИТИЧНО: Захватываем obj в локальную переменную!
@@ -6068,7 +6323,7 @@ marker.savedKits = obj.kits != null ? new List<string>(obj.kits) : new List<stri
 
         Puts($"   🎯 Выдаём предметы NPC ({marker.npcType})...");
         GiveNPCItems(npc, capturedObj);  // ← Используем ЗАХВАЧЕННЫЙ obj!
-    });
+		       });
 }
             
             Puts($"   🎯 Заспавнен: {obj.type} на {trainCar.ShortPrefabName}");
@@ -6380,6 +6635,40 @@ if (factionGen == null)
             Track(ent); // ✅ MAIN: чтобы Stop/Cleanup не оставлял сирот
         }
     }
+	
+	// 1.5) Decor (обвес): ВСЕГДА 100% как в layout (никаких шансов/весов)
+    if (layout.Decor != null)
+    {
+        foreach (var d in layout.Decor)
+        {
+            if (d == null || string.IsNullOrEmpty(d.prefab)) continue;
+
+            var lp = ReadLocalPos(d.pos);
+            var lr = ReadLocalRot(d.rot);
+
+            Vector3 worldPos = trainCar.transform.TransformPoint(lp);
+            Quaternion worldRot = trainCar.transform.rotation * lr;
+
+            var ent = GameManager.server.CreateEntity(d.prefab, worldPos, worldRot);
+            if (ent == null)
+            {
+                PrintWarning($"[Helltrain][Decor] CreateEntity failed: '{d.prefab}'");
+                continue;
+            }
+
+            ent.enableSaving = false;
+            ent.SetParent(trainCar, false, false);
+            ent.transform.localPosition = lp;
+            ent.transform.localRotation = lr;
+
+            var rb = ent.GetComponent<Rigidbody>();
+            if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
+
+            ent.Spawn();
+            Track(ent); // ✅ обязательно, чтобы cleanup убирал decor
+        }
+    }
+ 
 
     // 2) NPC slots (GENERATOR: N по весам/рандому, без повторов слотов, minDistance только NPC↔NPC, retryLimit=5)
 if (layout.NpcSlots != null && layout.NpcSlots.Count > 0)
@@ -6509,6 +6798,22 @@ _spawnedNPCs.Add(npc);
 
 // STRICT: никаких дефолтных NPC
 npc.inventory?.Strip();
+
+// ✅ ALARM/TRACK: Slot-NPC тоже должен считаться "NPC поезда"
+var marker = npc.gameObject.GetComponent<NPCTypeMarker>();
+if (marker == null) marker = npc.gameObject.AddComponent<NPCTypeMarker>();
+marker.npcType = "slot_npc";
+
+// Трекаем сразу, без ожиданий экипировки
+if (npc.net != null)
+{
+    _eventNpcNetIds.Add(npc.net.ID);
+    Puts($"[ALARM DEBUG] Track SLOT NPC: id={npc.net.ID} prefab={npc.PrefabName} kit={kitKey}");
+}
+else
+{
+    Puts($"[ALARM DEBUG] Track SLOT NPC: no-net prefab={npc.PrefabName} kit={kitKey}");
+}
 
 var result = KitsSuite?.Call("GiveKit", (BaseEntity)npc, kitKey);
 
@@ -7182,23 +7487,6 @@ const string TURRET_SLOT_MARKER_PREFAB = "assets/prefabs/deployable/woodenbox/wo
 
         ent.gameObject.AddComponent<SlotMarker>().kind = SlotMarker.Kind.Npc;
 
-// Freeze preview NPC (чтобы не двигался/не агрил)
-var npc = ent as ScientistNPC;
-if (npc != null)
-{
-    var brain = npc.GetComponent<BaseAIBrain>();
-    if (brain != null) brain.enabled = false;
-
-    var nav = npc.GetComponent<BaseNavigator>();
-    if (nav != null)
-    {
-        nav.CanUseNavMesh = false;
-        nav.SetDestination(npc.transform.position, BaseNavigator.NavigationSpeed.Slow, 0f);
-    }
-
-    npc.CancelInvoke();
-    npc.SendNetworkUpdate();
-}
 
 wagonEditor.GetChildren().Add(ent);
 wagonEditor.StartEditingEntity(ent, true);
@@ -7517,15 +7805,12 @@ public string CurrentFaction => (m_Layout?.faction ?? "BANDIT").ToUpper();
     private BaseEntity m_CurrentEntity;
     private Construction m_Construction;
     private Vector3 m_RotationOffset = Vector3.zero;
+	// Editor rotate axis: 0=X, 1=Y, 2=Z
+	private int m_RotateAxis = 1; // default Y
     private int m_NextRotateFrame;
     private int m_NextClickFrame;
     private Vector3 m_StartPosition;
 private Quaternion m_StartRotation;
-
-// network throttle (уменьшаем лаги при перемещении)
-private float m_NextNetUpdateTime;
-private Vector3 m_EditPosVel;
-private const float NET_UPDATE_INTERVAL = 0.03f; // editor only: меньше ступенек
 
 
     public TrainCar TrainCar => m_TrainCar;
@@ -7962,16 +8247,22 @@ private void WriteAutosave()
     public bool IsTrainEntity(BaseEntity baseEntity) => m_Children.Contains(baseEntity);
 
     public void StartEditingEntity(BaseEntity baseEntity, bool justSpawned)
+{
+    if (!justSpawned)
     {
-		m_CurrentEntity = baseEntity;
-        m_EditPosVel = Vector3.zero;
-        if (!justSpawned)
-        {
-            m_StartPosition = baseEntity.transform.localPosition;
-            m_StartRotation = baseEntity.transform.localRotation;
-        }
+        m_StartPosition = baseEntity.transform.localPosition;
+        m_StartRotation = baseEntity.transform.localRotation;
+    }
+    else
+    {
+        // Для превью (spawn) отмена должна удалять объект, а не "откатывать" к прошлым значениям.
+        m_StartPosition = Vector3.zero;
+        m_StartRotation = Quaternion.identity;
+    }
 
-        m_NextNetUpdateTime = 0f;
+    m_CurrentEntity = baseEntity;
+	// TEMP: editor move tool — allow entity to update/replicate while dragging
+m_CurrentEntity.enabled = true;
 
 
         m_Construction = PrefabAttribute.server.Find<Construction>(m_CurrentEntity.prefabID);
@@ -7992,7 +8283,7 @@ private void WriteAutosave()
     {
         if (baseEntity == m_CurrentEntity)
         {
-            m_EditPosVel = Vector3.zero;
+            
             m_CurrentEntity = null;
         }
 
@@ -8027,19 +8318,34 @@ baseEntity.Kill();
         UpdatePlacement(ref target);
 
         UpdateNetworkTransform();
+		// Axis select (E)
+if (m_Player.serverInput.WasJustPressed(BUTTON.USE))
+{
+    m_RotateAxis = (m_RotateAxis + 1) % 3;
+    string axisName = m_RotateAxis == 0 ? "X" : (m_RotateAxis == 1 ? "Y" : "Z");
+    m_Player.ChatMessage($"🧭 Ось вращения: {axisName}");
+}
 
         if (m_Player.serverInput.WasJustReleased(BUTTON.RELOAD) && Time.frameCount > m_NextRotateFrame)
-        {
-            if (m_Player.serverInput.IsDown(BUTTON.DUCK))
-                m_RotationOffset.z = Mathf.Repeat(m_RotationOffset.z + 90f, 360);
-            else if (m_Player.serverInput.IsDown(BUTTON.SPRINT))
-                m_RotationOffset.x = Mathf.Repeat(m_RotationOffset.x + 90f, 360);
-            else
-                m_RotationOffset.y = Mathf.Repeat(m_RotationOffset.y + 90f, 360);
+{
+    // Step: base=15°, SHIFT=30°, CTRL=1° (CTRL wins if both)
+    float step = 15f;
 
-            m_NextRotateFrame = Time.frameCount + 20;
-            m_Player.ChatMessage($"🔄 Поворот: X={m_RotationOffset.x:F0}° Y={m_RotationOffset.y:F0}° Z={m_RotationOffset.z:F0}°");
-        }
+    if (m_Player.serverInput.IsDown(BUTTON.DUCK)) // CTRL
+        step = 1f;
+    else if (m_Player.serverInput.IsDown(BUTTON.SPRINT)) // SHIFT
+        step = 30f;
+
+    if (m_RotateAxis == 0) m_RotationOffset.x = Mathf.Repeat(m_RotationOffset.x + step, 360f);
+    else if (m_RotateAxis == 1) m_RotationOffset.y = Mathf.Repeat(m_RotationOffset.y + step, 360f);
+    else m_RotationOffset.z = Mathf.Repeat(m_RotationOffset.z + step, 360f);
+
+    m_NextRotateFrame = Time.frameCount + 10;
+
+    string axisName = m_RotateAxis == 0 ? "X" : (m_RotateAxis == 1 ? "Y" : "Z");
+    float axisVal = m_RotateAxis == 0 ? m_RotationOffset.x : (m_RotateAxis == 1 ? m_RotationOffset.y : m_RotationOffset.z);
+    m_Player.ChatMessage($"🔄 Поворот: {axisName}={axisVal:F0}° (step {step:F0}°)");
+}
 
         if (m_Player.serverInput.WasJustPressed(BUTTON.FIRE_PRIMARY) && Time.frameCount > m_NextClickFrame)
         {
@@ -8047,10 +8353,14 @@ baseEntity.Kill();
             m_Player.ChatMessage($"✅ Размещён: <color=#ce422b>{m_CurrentEntity.ShortPrefabName}</color>");
             m_Player.ChatMessage($"   Local: {finalLocalPos}");
 
-            m_EditPosVel = Vector3.zero;
+            
+			// TEMP: freeze back after placement
+if (m_CurrentEntity != null && !m_CurrentEntity.IsDestroyed)
+    m_CurrentEntity.enabled = false;
             m_CurrentEntity = null;
             m_RotationOffset = Vector3.zero;
             m_NextClickFrame = Time.frameCount + 20;
+	
         }
         else if (m_Player.serverInput.WasJustPressed(BUTTON.FIRE_SECONDARY))
         {
@@ -8070,7 +8380,7 @@ m_CurrentEntity.Kill();
 
             }
 
-            m_EditPosVel = Vector3.zero;
+            
             m_CurrentEntity = null;
             m_RotationOffset = Vector3.zero;
         }
@@ -8121,7 +8431,16 @@ m_CurrentEntity.Kill();
         }
     }
 
+    // --- EDITOR PREVIEW FREEZE (as TrainHeist) ---
+    baseEntity.enableSaving = false;
+    baseEntity.enabled = false;
+
+    var baseAiBrain = baseEntity.GetComponent<BaseAIBrain>();
+    if (baseAiBrain != null)
+        baseAiBrain.enabled = false;
+    // --- /EDITOR PREVIEW FREEZE ---
     baseEntity.Spawn();
+	
 
     // маркер типа NPC (для сохранения в layout)
     if (!string.IsNullOrEmpty(npcType) && baseEntity is global::HumanNPC)
@@ -8179,58 +8498,38 @@ public BaseEntity CreateChildEntity(string prefab, Vector3 localPos, Quaternion 
 
 
     private void UpdateNetworkTransform()
-    {
-        if (m_CurrentEntity == null || m_CurrentEntity.IsDestroyed)
-            return;
-        
-        var rb = m_CurrentEntity.GetComponent<Rigidbody>();
-        if (rb != null && rb.isKinematic)
-        {
-            // Keep RB in sync WITHOUT MovePosition to avoid oscillation/jitter
-            rb.position = m_CurrentEntity.transform.position;
-            rb.rotation = m_CurrentEntity.transform.rotation;
-        }
-        
-        m_CurrentEntity.transform.hasChanged = true;
-
-if (Time.realtimeSinceStartup >= m_NextNetUpdateTime)
 {
-    m_NextNetUpdateTime = Time.realtimeSinceStartup + NET_UPDATE_INTERVAL;
-    m_CurrentEntity.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+    if (m_CurrentEntity == null || m_CurrentEntity.IsDestroyed)
+        return;
+
+    // TEMP editor tool: force correct transform replication
+    m_CurrentEntity.InvalidateNetworkCache();
+    m_CurrentEntity.SendNetworkUpdateImmediate();
 }
 
-    }
-
     private void UpdatePlacement(ref Construction.Target constructionTarget)
-    {
-        Vector3 curPos = m_CurrentEntity.transform.position;
-        Quaternion curRot = m_CurrentEntity.transform.rotation;
+{
+    Vector3 position = m_CurrentEntity.transform.position;
+    Quaternion rotation = m_CurrentEntity.transform.rotation;
 
-        // stable forward (flat) for yaw base
-        Vector3 flatDir = constructionTarget.ray.direction;
-        flatDir.y = 0f;
-        if (flatDir.sqrMagnitude < 0.0001f) flatDir = m_Player.transform.forward;
-        flatDir.Normalize();
+    // Всегда точка луча на 1.5м
+    const float EDITOR_PLACE_DISTANCE = 2.3f;
+    Vector3 desiredPos = constructionTarget.ray.origin + (constructionTarget.ray.direction * EDITOR_PLACE_DISTANCE);
 
-        // target point along view ray (same concept as before)
-        float dist = m_Construction.maxplaceDistance;
-        Vector3 desiredPos = constructionTarget.ray.origin + (constructionTarget.ray.direction * dist);
+    // "Спиной" к игроку: yaw = взгляд + 180°
+    Vector3 direction = constructionTarget.ray.direction;
+    direction.y = 0f;
+    if (direction.sqrMagnitude < 0.0001f)
+        direction = m_Player.transform.forward;
+    direction.Normalize();
 
-        // collision clamp along view ray (prevents pushing through tight wagon walls)
-        RaycastHit hit;
-        if (Physics.Raycast(constructionTarget.ray, out hit, dist, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
-        {
-            desiredPos = hit.point - constructionTarget.ray.direction * 0.05f;
-        }
+    Quaternion baseRot = Quaternion.LookRotation(direction) * Quaternion.Euler(0f, 180f, 0f);
+    Quaternion desiredRot = Quaternion.Euler(m_RotationOffset) * baseRot;
 
-        // rotation target (keep existing rotation concept)
-        Vector3 eulerRotation = constructionTarget.rotation + m_RotationOffset;
-        Quaternion desiredRot = Quaternion.Euler(eulerRotation) * Quaternion.LookRotation(flatDir);
-
-        // VERY smooth follow: removes visible stepping and "spring"
-        m_CurrentEntity.transform.position = Vector3.SmoothDamp(curPos, desiredPos, ref m_EditPosVel, 0.06f, Mathf.Infinity, Time.deltaTime);
-        m_CurrentEntity.transform.rotation = Quaternion.Slerp(curRot, desiredRot, Time.deltaTime * 25f);
-    }
+    // Плавное движение/поворот каждый кадр
+    m_CurrentEntity.transform.position = Vector3.Lerp(position, desiredPos, Time.deltaTime * 12f);
+    m_CurrentEntity.transform.rotation = Quaternion.Lerp(rotation, desiredRot, Time.deltaTime * 12f);
+}
 
 
 
