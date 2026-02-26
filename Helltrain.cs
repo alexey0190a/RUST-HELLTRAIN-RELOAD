@@ -3972,7 +3972,7 @@ _eventNpcNetIds.Clear();
 if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
 
 // 55–60 сек окно: поезд собирается, NPC спавнятся/экипируются
-_alarmArmTimer = timer.Once(60f, () =>
+_alarmArmTimer = timer.Once(5f, () =>
 {
     _alarmArmed = true;
     Puts("[ALARM] armed (NPC window passed)");
@@ -5574,7 +5574,7 @@ _eventNpcNetIds.Clear();
 
 if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
 
-_alarmArmTimer = timer.Once(60f, () =>
+_alarmArmTimer = timer.Once(5f, () =>
 {
     _alarmArmed = true;
     Puts("[ALARM] armed (NPC window passed)");
