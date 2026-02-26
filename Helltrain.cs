@@ -1704,7 +1704,7 @@ if (!isOurEngine)
     KillEventTrainCars("engine_died");
 }
 
-private void OnPlayerDie(BasePlayer player, HitInfo info)
+private void OnPlayerDeath(BasePlayer player, HitInfo info)
 {
     if (_suppressHooks) return;
     if (!_alarmArmed) return;
@@ -1723,7 +1723,7 @@ private void OnPlayerDie(BasePlayer player, HitInfo info)
     _alarmTriggered = true;
     TriggerAlarmSoundOnTrain();
 
-    Puts($"[ALARM] triggered by OnPlayerDie: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
+    Puts($"[ALARM] triggered by OnPlayerDeath: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
 }
 
 // Хелпер: снести весь наш состав (только ивентовые entities)
