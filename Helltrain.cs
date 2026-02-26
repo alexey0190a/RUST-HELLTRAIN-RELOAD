@@ -1704,7 +1704,7 @@ if (!isOurEngine)
     KillEventTrainCars("engine_died");
 }
 
-private void OnPlayerDie(BasePlayer player, HitInfo info)
+private void OnPlayerDeath(BasePlayer player, HitInfo info)
 {
     if (_suppressHooks) return;
     if (!_alarmArmed) return;
@@ -1723,7 +1723,7 @@ private void OnPlayerDie(BasePlayer player, HitInfo info)
     _alarmTriggered = true;
     TriggerAlarmSoundOnTrain();
 
-    Puts($"[ALARM] triggered by OnPlayerDie: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
+    Puts($"[ALARM] triggered by OnPlayerDeath: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
 }
 
 // Хелпер: снести весь наш состав (только ивентовые entities)
@@ -4964,9 +4964,9 @@ private void CmdHtDebug(BasePlayer player, string command, string[] args)
 
 private void TriggerAlarmSoundOnTrain()
 {
-    const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
     const string SirenLightDeployedPrefab = "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab";
     const string SirenLightWorldPropPrefab = "assets/content/props/light_fixtures/sirenlight.prefab";
+    const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
 
     bool IsTarget(string prefab)
     {
@@ -5568,6 +5568,17 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
 _activeFactionKey = faction.ToUpperInvariant();
 _activeLayoutName = NormalizeLayoutName(layoutName); // алиасы wagona/wagonb/wagonc -> wagonA/B/C
 
+_alarmTriggered = false;
+_alarmArmed = false;
+_eventNpcNetIds.Clear();
+
+if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
+
+_alarmArmTimer = timer.Once(60f, () =>
+{
+    _alarmArmed = true;
+    Puts("[ALARM] armed (NPC window passed)");
+});
 
     SendReply(player, $"🚂 Запуск Helltrain: faction={faction}, composition={compositionName}");
     SpawnTrainFromComposition(compositionName, trackSpline, distOnSpline);
@@ -6804,6 +6815,9 @@ _spawnedNPCs.Add(npc);
 
 // STRICT: никаких дефолтных NPC
 npc.inventory?.Strip();
+
+if (npc.GetComponent<HellTrainDefender>() == null)
+    npc.gameObject.AddComponent<HellTrainDefender>();
 
 // ✅ ALARM/TRACK: Slot-NPC тоже должен считаться "NPC поезда"
 var marker = npc.gameObject.GetComponent<NPCTypeMarker>();
