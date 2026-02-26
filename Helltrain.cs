@@ -5568,6 +5568,17 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
 _activeFactionKey = faction.ToUpperInvariant();
 _activeLayoutName = NormalizeLayoutName(layoutName); // алиасы wagona/wagonb/wagonc -> wagonA/B/C
 
+_alarmTriggered = false;
+_alarmArmed = false;
+_eventNpcNetIds.Clear();
+
+if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
+
+_alarmArmTimer = timer.Once(60f, () =>
+{
+    _alarmArmed = true;
+    Puts("[ALARM] armed (NPC window passed)");
+});
 
     SendReply(player, $"🚂 Запуск Helltrain: faction={faction}, composition={compositionName}");
     SpawnTrainFromComposition(compositionName, trackSpline, distOnSpline);
