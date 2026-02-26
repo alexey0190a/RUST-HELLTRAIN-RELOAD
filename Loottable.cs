@@ -36,6 +36,7 @@ using PluginComponents.Loottable;
 using PluginComponents.Loottable.Assertions;
 using PluginComponents.Loottable.Core;
 using PluginComponents.Loottable.Cui;
+using Anchor = PluginComponents.Loottable.Cui.Anchor;
 using PluginComponents.Loottable.Cui.Images;
 using PluginComponents.Loottable.Cui.Style;
 using PluginComponents.Loottable.Extensions.Reflection;
