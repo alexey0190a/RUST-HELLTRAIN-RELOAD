@@ -4964,11 +4964,17 @@ private void CmdHtDebug(BasePlayer player, string command, string[] args)
 
 private void TriggerAlarmSoundOnTrain()
 {
+    const string SirenLightDeployedPrefab = "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab";
+    const string SirenLightWorldPropPrefab = "assets/content/props/light_fixtures/sirenlight.prefab";
     const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
 
     bool IsTarget(string prefab)
     {
-        return !string.IsNullOrEmpty(prefab) && prefab.Equals(AlarmSoundPrefab, StringComparison.Ordinal);
+        if (string.IsNullOrEmpty(prefab)) return false;
+
+        return prefab.Equals(AlarmSoundPrefab, StringComparison.Ordinal)
+            || prefab.Equals(SirenLightDeployedPrefab, StringComparison.Ordinal)
+            || prefab.Equals(SirenLightWorldPropPrefab, StringComparison.Ordinal);
     }
 
     void TryPower(BaseEntity ent)
@@ -6798,6 +6804,9 @@ _spawnedNPCs.Add(npc);
 
 // STRICT: никаких дефолтных NPC
 npc.inventory?.Strip();
+
+if (npc.GetComponent<HellTrainDefender>() == null)
+    npc.gameObject.AddComponent<HellTrainDefender>();
 
 // ✅ ALARM/TRACK: Slot-NPC тоже должен считаться "NPC поезда"
 var marker = npc.gameObject.GetComponent<NPCTypeMarker>();
