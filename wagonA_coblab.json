@@ -1,0 +1,102 @@
+{
+  "name": "wagonA_coblab",
+  "faction": "COBLAB",
+  "cars": [
+    {
+      "type": null,
+      "variant": "A"
+    }
+  ],
+  "objects": [],
+  "NpcSlots": [
+    {
+      "pos": [
+        -1.9807477,
+        1.000377,
+        3.598165
+      ],
+      "rot": [
+        358.189484,
+        183.631973,
+        359.8851
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.989579,
+        1.01094508,
+        -3.470587
+      ],
+      "rot": [
+        1.81407142,
+        359.4892,
+        359.983826
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.98479676,
+        1.0116204,
+        -6.524991
+      ],
+      "rot": [
+        358.187317,
+        182.301834,
+        359.927155
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.87151337,
+        1.01609659,
+        -6.63803339
+      ],
+      "rot": [
+        358.907959,
+        127.001328,
+        1.44872582
+      ],
+      "kitPool": null,
+      "lootKey": null
+    }
+  ],
+  "CrateSlots": [],
+  "Shelves": [],
+  "Decor": [
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+      "pos": [
+        -0.0579886436,
+        3.63298154,
+        6.40108156
+      ],
+      "rot": [
+        25.8417072,
+        269.95285,
+        88.6300659
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/io/electric/other/alarmsound.prefab",
+      "pos": [
+        -1.13074863,
+        1.86041474,
+        5.18389463
+      ],
+      "rot": [
+        358.782,
+        181.665634,
+        359.9646
+      ]
+    }
+  ],
+  "BradleySlot": null,
+  "SamSiteSlot": null,
+  "TurretSlots": []
+}

@@ -1,0 +1,60 @@
+{
+  "name": "wagonB_coblab",
+  "faction": "COBLAB",
+  "cars": [
+    {
+      "type": null,
+      "variant": "B"
+    }
+  ],
+  "objects": [],
+  "NpcSlots": [
+    {
+      "pos": [
+        -0.0933437943,
+        1.54790032,
+        -0.9754647
+      ],
+      "rot": [
+        3.547877,
+        187.68512,
+        0.478436619
+      ],
+      "kitPool": null,
+      "lootKey": null
+    }
+  ],
+  "CrateSlots": [],
+  "Shelves": [],
+  "Decor": [
+    {
+      "prefab": "assets/prefabs/io/electric/other/alarmsound.prefab",
+      "pos": [
+        -1.06878412,
+        1.86725879,
+        -4.75214958
+      ],
+      "rot": [
+        359.436737,
+        1.96651411,
+        359.980652
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+      "pos": [
+        0.003127575,
+        3.95560026,
+        6.322634
+      ],
+      "rot": [
+        1.2419486,
+        93.91662,
+        269.4376
+      ]
+    }
+  ],
+  "BradleySlot": null,
+  "SamSiteSlot": null,
+  "TurretSlots": []
+}
