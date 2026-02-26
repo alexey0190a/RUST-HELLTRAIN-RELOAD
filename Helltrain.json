@@ -143,6 +143,25 @@
       }
     }
   },
+  "Heavy": {
+    "Factions": {
+      "PMC": {
+        "CountWeights": {
+          "2": 1.0
+        },
+        "KindWeights": {
+          "bradley": 0.5,
+          "samsite": 0.5
+        }
+      },
+      "COBLAB": {
+        "CountWeights": {
+          "1": 1.0
+        }
+      }
+    }
+  },
+   "AutoRespawn": true,
   "AutoRespawn": true,
   "RespawnTime": 60.0,
   "Разрешить спавн на поверхности": true,
@@ -282,7 +301,10 @@
   "PreSpawnClearNoseOffsetMeters": 150.0,
   "PreSpawnClearDirection": "backward",
   "EditorDecorPrefabs": {
-    "armor_plate": "assets/.../your.prefab",
-    "metal_frame": "assets/.../your.prefab"
+    "door": "assets/bundled/prefabs/static/door.hinged.cargo_ship.prefab",
+    "metalwall": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+	"electric.audioalarm": "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab",
+	"electric.sirenlight": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+	"alarmsound" : "assets/prefabs/io/electric/other/alarmsound.prefab"
   }
 }
