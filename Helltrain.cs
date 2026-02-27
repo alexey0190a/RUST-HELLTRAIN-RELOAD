@@ -371,6 +371,7 @@ finally
 {
     try
     {
+        StopPmcEscort("unload");
         // Сносим наш состав и все наши прикреплённые сущности
         try
 {
@@ -402,6 +403,9 @@ private readonly HashSet<NetworkableId> _eventNpcNetIds = new HashSet<Networkabl
 private bool _alarmTriggered = false;
 private bool _alarmArmed = false;
 private Timer _alarmArmTimer;
+private PatrolHelicopter _pmcEscortHeli;
+private bool _pmcEscortSpawned = false;
+private Timer _pmcEscortTimer;
 
 
 		// 🔇 Антиспам по хак-крейту
@@ -1338,9 +1342,9 @@ public class TrainAutoTurret : MonoBehaviour
         turret.isLootable = false;
         turret.sightRange = 30f;
         
-        turret.InvokeRepeating(CheckTargetForFF, 0.2f, 0.2f);
-        turret.InvokeRepeating(CheckMagazine, 1.0f, 1.0f);
-        turret.InvokeRepeating(RefillAmmo, 8f, 8f);
+        turret.InvokeRepeating(CheckTargetForFF, 0.5f, 0.5f);
+        turret.InvokeRepeating(CheckMagazine, 0.5f, 0.5f);
+        turret.InvokeRepeating(RefillAmmo, 5f, 5f);
 
         // retry-arming: if spawner provided desired loadout, keep trying until ready
         if (!_armingStarted && !string.IsNullOrEmpty(DesiredGun))
@@ -1659,6 +1663,7 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 {
     _alarmTriggered = true;
     TriggerAlarmSoundOnTrain();
+    StartPmcEscortHeliOnFirstNpcDeath();
     Puts($"[ALARM] triggered by OnEntityDeath (tracked id): {entity.net.ID} prefab={entity.PrefabName}");
 }
 	Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
@@ -1704,6 +1709,113 @@ if (!isOurEngine)
     KillEventTrainCars("engine_died");
 }
 
+private void StartPmcEscortHeliOnFirstNpcDeath()
+{
+    if (_activeFactionKey != "PMC") return;
+    if (_pmcEscortSpawned) return;
+
+    var targetCar = GetEscortTargetCar();
+    if (targetCar == null || targetCar.IsDestroyed) return;
+
+    Vector3 targetPos = targetCar.transform.position + Vector3.up * 150f;
+    Vector3 spawnPos = ComputeEscortSpawnPosition(targetPos);
+
+    var entity = GameManager.server.CreateEntity("assets/prefabs/npc/patrol helicopter/patrolhelicopter.prefab", spawnPos, Quaternion.identity, true);
+    var heli = entity as PatrolHelicopter;
+    if (heli == null)
+    {
+        if (entity != null && !entity.IsDestroyed) entity.Kill();
+        return;
+    }
+
+    heli.Spawn();
+    if (heli == null || heli.IsDestroyed || heli.myAI == null)
+    {
+        if (heli != null && !heli.IsDestroyed) heli.Kill();
+        return;
+    }
+
+    _pmcEscortHeli = heli;
+    _pmcEscortSpawned = true;
+    _pmcEscortTimer?.Destroy();
+    _pmcEscortTimer = timer.Every(1f, UpdatePmcEscortApproach);
+    UpdatePmcEscortApproach();
+}
+
+private void StopPmcEscort(string reason)
+{
+    _pmcEscortTimer?.Destroy();
+    _pmcEscortTimer = null;
+
+    if (_pmcEscortHeli != null && !_pmcEscortHeli.IsDestroyed)
+        _pmcEscortHeli.Kill();
+
+    _pmcEscortHeli = null;
+    _pmcEscortSpawned = false;
+}
+
+private TrainCar GetEscortTargetCar()
+{
+    if (_spawnedCars == null || _spawnedCars.Count == 0) return null;
+
+    int wagonIndex = 0;
+    TrainCar lastWagon = null;
+
+    for (int i = 0; i < _spawnedCars.Count; i++)
+    {
+        var car = _spawnedCars[i] as TrainCar;
+        if (car == null || car.IsDestroyed) continue;
+        if (car is TrainEngine) continue;
+
+        wagonIndex++;
+        lastWagon = car;
+        if (wagonIndex == 10) return car;
+    }
+
+    return lastWagon;
+}
+
+private Vector3 ComputeEscortSpawnPosition(Vector3 targetPos)
+{
+    const int attempts = 8;
+    Vector3 fallback = targetPos + Vector3.up * 50f;
+
+    for (int i = 0; i < attempts; i++)
+    {
+        float angle = UnityEngine.Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        float radius = UnityEngine.Random.Range(450f, 550f);
+
+        Vector3 candidate = targetPos + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+        Vector3 rayStart = candidate + Vector3.up * 600f;
+
+        RaycastHit hit;
+        if (Physics.Raycast(rayStart, Vector3.down, out hit, 2000f, -1, QueryTriggerInteraction.Ignore))
+        {
+            candidate.y = hit.point.y + UnityEngine.Random.Range(120f, 180f);
+            return candidate;
+        }
+
+        fallback = candidate;
+    }
+
+    return fallback;
+}
+
+private void UpdatePmcEscortApproach()
+{
+    if (_pmcEscortHeli == null || _pmcEscortHeli.IsDestroyed || _pmcEscortHeli.myAI == null)
+    {
+        StopPmcEscort("invalid");
+        return;
+    }
+
+    var targetCar = GetEscortTargetCar();
+    if (targetCar == null || targetCar.IsDestroyed) return;
+
+    Vector3 targetPos = targetCar.transform.position + Vector3.up * 150f;
+    _pmcEscortHeli.myAI.State_Move_Enter(targetPos);
+}
+
 private void OnPlayerDeath(BasePlayer player, HitInfo info)
 {
     if (_suppressHooks) return;
@@ -1729,6 +1841,7 @@ private void OnPlayerDeath(BasePlayer player, HitInfo info)
 // Хелпер: снести весь наш состав (только ивентовые entities)
 private void KillEventTrainCars(string reason, bool force = false)
 {
+	StopPmcEscort(reason);
 	StopSwitchman();
 	_abortRequested = true;
 	_buildToken++;
