@@ -1819,13 +1819,28 @@ private void UpdatePmcEscortApproach()
 
     if (heliDelta.sqrMagnitude <= escortArrivalRadius * escortArrivalRadius)
     {
+        float combatHoldRadiusSqr = escortCombatHoldRadius * escortCombatHoldRadius;
+
         foreach (var player in BasePlayer.activePlayerList)
         {
             if (player == null || !player.IsConnected || player.IsDead() || player.IsNpc) continue;
 
-            Vector3 delta = player.transform.position - center;
-            delta.y = 0f;
-            if (delta.sqrMagnitude <= escortCombatHoldRadius * escortCombatHoldRadius)
+            bool nearTrain = false;
+            for (int i = 0; i < _spawnedCars.Count; i++)
+            {
+                var car = _spawnedCars[i] as TrainCar;
+                if (car == null || car.IsDestroyed) continue;
+
+                Vector3 delta = player.transform.position - car.transform.position;
+                delta.y = 0f;
+                if (delta.sqrMagnitude <= combatHoldRadiusSqr)
+                {
+                    nearTrain = true;
+                    break;
+                }
+            }
+
+            if (nearTrain)
                 return;
         }
     }
