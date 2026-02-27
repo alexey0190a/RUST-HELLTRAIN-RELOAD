@@ -1716,7 +1716,7 @@ private void StartPmcEscortHeliOnFirstNpcDeath()
     var targetCar = GetEscortTargetCar();
     if (targetCar == null || targetCar.IsDestroyed) return;
 
-    Vector3 targetPos = targetCar.transform.position + Vector3.up * 150f;
+    Vector3 targetPos = targetCar.transform.position + new Vector3(UnityEngine.Random.Range(-100f, 100f), 150f, UnityEngine.Random.Range(-100f, 100f));
     Vector3 spawnPos = ComputeEscortSpawnPosition(targetPos);
 
     var entity = GameManager.server.CreateEntity("assets/prefabs/npc/patrol helicopter/patrolhelicopter.prefab", spawnPos, Quaternion.identity, true);
@@ -1777,12 +1777,13 @@ private TrainCar GetEscortTargetCar()
 private Vector3 ComputeEscortSpawnPosition(Vector3 targetPos)
 {
     const int attempts = 8;
-    Vector3 fallback = targetPos + Vector3.up * 50f;
+    float fallbackAngle = UnityEngine.Random.Range(0f, 360f) * Mathf.Deg2Rad;
+    Vector3 fallback = targetPos + new Vector3(Mathf.Cos(fallbackAngle) * 350f, 0f, Mathf.Sin(fallbackAngle) * 350f);
 
     for (int i = 0; i < attempts; i++)
     {
         float angle = UnityEngine.Random.Range(0f, 360f) * Mathf.Deg2Rad;
-        float radius = UnityEngine.Random.Range(450f, 550f);
+        float radius = 280f;
 
         Vector3 candidate = targetPos + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
         Vector3 rayStart = candidate + Vector3.up * 600f;
@@ -1793,8 +1794,6 @@ private Vector3 ComputeEscortSpawnPosition(Vector3 targetPos)
             candidate.y = hit.point.y + UnityEngine.Random.Range(120f, 180f);
             return candidate;
         }
-
-        fallback = candidate;
     }
 
     return fallback;
@@ -1811,7 +1810,7 @@ private void UpdatePmcEscortApproach()
     var targetCar = GetEscortTargetCar();
     if (targetCar == null || targetCar.IsDestroyed) return;
 
-    Vector3 targetPos = targetCar.transform.position + Vector3.up * 150f;
+    Vector3 targetPos = targetCar.transform.position + new Vector3(UnityEngine.Random.Range(-100f, 100f), 150f, UnityEngine.Random.Range(-100f, 100f));
     _pmcEscortHeli.myAI.State_Move_Enter(targetPos);
 }
 
