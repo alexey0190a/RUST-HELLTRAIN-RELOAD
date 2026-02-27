@@ -1810,17 +1810,24 @@ private void UpdatePmcEscortApproach()
     var targetCar = GetEscortTargetCar();
     if (targetCar == null || targetCar.IsDestroyed) return;
 
+    const float escortArrivalRadius = 80f;
     const float escortCombatHoldRadius = 380f;
+
     Vector3 center = targetCar.transform.position;
+    Vector3 heliDelta = _pmcEscortHeli.transform.position - center;
+    heliDelta.y = 0f;
 
-    foreach (var player in BasePlayer.activePlayerList)
+    if (heliDelta.sqrMagnitude <= escortArrivalRadius * escortArrivalRadius)
     {
-        if (player == null || !player.IsConnected || player.IsDead() || player.IsNpc) continue;
+        foreach (var player in BasePlayer.activePlayerList)
+        {
+            if (player == null || !player.IsConnected || player.IsDead() || player.IsNpc) continue;
 
-        Vector3 delta = player.transform.position - center;
-        delta.y = 0f;
-        if (delta.sqrMagnitude <= escortCombatHoldRadius * escortCombatHoldRadius)
-            return;
+            Vector3 delta = player.transform.position - center;
+            delta.y = 0f;
+            if (delta.sqrMagnitude <= escortCombatHoldRadius * escortCombatHoldRadius)
+                return;
+        }
     }
 
     Vector3 targetPos = targetCar.transform.position + new Vector3(UnityEngine.Random.Range(-100f, 100f), 150f, UnityEngine.Random.Range(-100f, 100f));
