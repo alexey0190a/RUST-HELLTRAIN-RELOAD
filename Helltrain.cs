@@ -1663,7 +1663,6 @@ private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 {
     _alarmTriggered = true;
     TriggerAlarmSoundOnTrain();
-    StartPmcEscortHeliOnFirstNpcDeath();
     Puts($"[ALARM] triggered by OnEntityDeath (tracked id): {entity.net.ID} prefab={entity.PrefabName}");
 }
 	Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
@@ -5090,6 +5089,8 @@ private void TriggerAlarmSoundOnTrain()
             || prefab.Equals(SirenLightWorldPropPrefab, StringComparison.Ordinal);
     }
 
+    bool anyPowered = false;
+
     void TryPower(BaseEntity ent)
     {
         if (ent is IOEntity io)
@@ -5098,6 +5099,7 @@ private void TriggerAlarmSoundOnTrain()
             io.UpdateFromInput(100, 0);
             io.SetFlag(BaseEntity.Flags.On, true, false, true);
             io.SendNetworkUpdate();
+            anyPowered = true;
         }
     }
 
@@ -5135,6 +5137,9 @@ private void TriggerAlarmSoundOnTrain()
             }
         }
     }
+
+    if (anyPowered)
+        StartPmcEscortHeliOnFirstNpcDeath();
 }
 
 [ChatCommand("htalarmtest")]
