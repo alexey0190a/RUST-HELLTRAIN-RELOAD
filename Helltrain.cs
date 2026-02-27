@@ -1338,9 +1338,9 @@ public class TrainAutoTurret : MonoBehaviour
         turret.isLootable = false;
         turret.sightRange = 30f;
         
-        turret.InvokeRepeating(CheckTargetForFF, 0.5f, 0.5f);
-        turret.InvokeRepeating(CheckMagazine, 0.5f, 0.5f);
-        turret.InvokeRepeating(RefillAmmo, 5f, 5f);
+        turret.InvokeRepeating(CheckTargetForFF, 0.2f, 0.2f);
+        turret.InvokeRepeating(CheckMagazine, 1.0f, 1.0f);
+        turret.InvokeRepeating(RefillAmmo, 8f, 8f);
 
         // retry-arming: if spawner provided desired loadout, keep trying until ready
         if (!_armingStarted && !string.IsNullOrEmpty(DesiredGun))
