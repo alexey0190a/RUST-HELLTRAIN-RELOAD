@@ -5135,13 +5135,13 @@ private void TriggerAlarmSoundOnTrain()
 {
     const string SirenLightDeployedPrefab = "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab";
     const string SirenLightWorldPropPrefab = "assets/content/props/light_fixtures/sirenlight.prefab";
-    const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
+    const string AudioAlarmPrefab = "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab";
 
     bool IsTarget(string prefab)
     {
         if (string.IsNullOrEmpty(prefab)) return false;
 
-        return prefab.Equals(AlarmSoundPrefab, StringComparison.Ordinal)
+        return prefab.Equals(AudioAlarmPrefab, StringComparison.Ordinal)
             || prefab.Equals(SirenLightDeployedPrefab, StringComparison.Ordinal)
             || prefab.Equals(SirenLightWorldPropPrefab, StringComparison.Ordinal);
     }
@@ -5215,16 +5215,15 @@ private void CmdHtAlarmTest(BasePlayer player, string command, string[] args)
     }
 
     // Prefabs (делаем список, чтобы быть устойчивыми к разным вариантам)
-   // const string AudioAlarmPrefab = "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab";
+    const string AudioAlarmPrefab = "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab";
     const string SirenLightDeployedPrefab = "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab";
     const string SirenLightWorldPropPrefab = "assets/content/props/light_fixtures/sirenlight.prefab"; // на случай, если где-то попался
-	const string AlarmSoundPrefab = "assets/prefabs/io/electric/other/alarmsound.prefab";
 
    bool IsTarget(string prefab)
 {
     if (string.IsNullOrEmpty(prefab)) return false;
 
-    return prefab.Equals(AlarmSoundPrefab, StringComparison.Ordinal)
+    return prefab.Equals(AudioAlarmPrefab, StringComparison.Ordinal)
         || prefab.Equals(SirenLightDeployedPrefab, StringComparison.Ordinal)
         || prefab.Equals(SirenLightWorldPropPrefab, StringComparison.Ordinal);
 }
@@ -5299,7 +5298,7 @@ private void CmdHtAlarmTest(BasePlayer player, string command, string[] args)
     }
 
     player.ChatMessage($"🔊 AlarmTest: found={found} (tracked={foundInTracked}, children={foundInChildren}), powered={poweredCount}, notIO={notIoCount}, missing={missing}");
-    player.ChatMessage($"ℹ️ targetPrefabs: audioalarm OK, sirenlight MUST be deployed: {SirenLightDeployedPrefab}");
+    player.ChatMessage($"ℹ️ targetPrefabs: audioalarm + sirenlight(deployed): {SirenLightDeployedPrefab}");
 }
 
 [ChatCommand("htcheck")]
