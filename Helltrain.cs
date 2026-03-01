@@ -4308,8 +4308,6 @@ private void KillEntitySafe(BaseNetworkable e)
                 if (car.rearCoupling != null)
                     car.rearCoupling = null;
 
-                if (car.coupling != null && car.coupling.rearCoupling != null)
-                    car.coupling.rearCoupling = null;
 
                 return;
             }
