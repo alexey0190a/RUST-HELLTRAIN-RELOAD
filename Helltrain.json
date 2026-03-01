@@ -138,6 +138,11 @@
           "None": 1.0,
           "DefaultCrate": 1.0
         },
+        "CrateTypeWeights": {
+          "CratePMCMil_A": 1.0,
+          "CratePMCElite_B": 1.0,
+          "CratePMCHACKS_C": 0.25
+        },
         "KitPools": {},
         "LootKeys": {}
       }

@@ -64,6 +64,7 @@ private class HelltrainGeneratorCfg
 private class HelltrainFactionGenCfg
 {
     public Dictionary<string, float> CrateSlotWeights = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, float> CrateTypeWeights = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
 }
 
 
@@ -304,6 +305,51 @@ private Dictionary<string, float> GetCrateSlotWeightsFromHelltrain(string factio
         return fc.CrateSlotWeights;
 
     return null;
+}
+
+private Dictionary<string, float> GetCrateTypeWeightsFromHelltrain(string factionKey)
+{
+    if (_helltrainCfg?.Generator?.Factions == null || string.IsNullOrWhiteSpace(factionKey))
+        return null;
+
+    var key = factionKey.Trim();
+    if (_helltrainCfg.Generator.Factions.TryGetValue(key, out var fc) && fc?.CrateTypeWeights != null)
+        return fc.CrateTypeWeights;
+
+    var up = key.ToUpperInvariant();
+    if (_helltrainCfg.Generator.Factions.TryGetValue(up, out fc) && fc?.CrateTypeWeights != null)
+        return fc.CrateTypeWeights;
+
+    return null;
+}
+
+private string PickCrateLootKey(List<string> pool, Dictionary<string, float> crateTypeWeights)
+{
+    if (pool == null || pool.Count == 0)
+        return null;
+
+    if (crateTypeWeights != null && crateTypeWeights.Count > 0)
+    {
+        var tmp = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < pool.Count; i++)
+        {
+            var key = pool[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            float w = 1f;
+            if (crateTypeWeights.TryGetValue(key, out var ww))
+                w = Math.Max(0f, ww);
+
+            tmp[key] = w;
+        }
+
+        var weightedPick = PickWeightedKey(tmp);
+        if (!string.IsNullOrWhiteSpace(weightedPick))
+            return weightedPick;
+    }
+
+    return pool[_rng.Next(pool.Count)];
 }
 
 // true => DefaultCrate, false => None
@@ -1110,6 +1156,7 @@ if (slotsDegraded)
 // slot weights from Helltrain.json (SoT)
 // If weights missing -> RollCrateSlot will use defaults (None=1, DefaultCrate=1)
 var slotWeights = GetCrateSlotWeightsFromHelltrain(activeFactionKey);
+var crateTypeWeights = GetCrateTypeWeightsFromHelltrain(activeFactionKey);
 
 // crate pool: Tier SoT (keys) — use existing mapping
 var pool = BuildCrateTypePool(activeFactionKey);
@@ -1147,7 +1194,7 @@ for (int attempt = 0; attempt < 2; attempt++)
             continue;
         }
 
-        var pickedLootKey = pool[_rng.Next(pool.Count)];
+        var pickedLootKey = PickCrateLootKey(pool, crateTypeWeights);
         if (!TryResolveCratePrefabPath(pickedLootKey, out var prefabPath))
         {
             // No fallback content: if Tier mapping is missing -> leave empty and mark degraded.
