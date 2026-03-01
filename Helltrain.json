@@ -19,7 +19,7 @@
       "Вес (вероятность спавна)": 34,
       "Loco": "loco_bandit",
       "MinWagons": 3,
-      "MaxWagons": 6,
+      "MaxWagons": 5,
       "WagonPools": {
         "A": {
           "wagonA_bandit": 1.0
@@ -32,14 +32,14 @@
         }
       },
       "Limits": {
-        "C": 2
+        "C": 1
       }
     },
     "coblab": {
       "Tier": 1,
       "Вес (вероятность спавна)": 33,
       "Loco": "loco_coblab",
-      "MinWagons": 3,
+      "MinWagons": 9,
       "MaxWagons": 6,
       "WagonPools": {
         "A": {
@@ -53,15 +53,15 @@
         }
       },
       "Limits": {
-        "C": 2
+        "C": 1
       }
     },
     "pmc": {
       "Tier": 2,
       "Вес (вероятность спавна)": 33,
       "Loco": "loco_pmc",
-      "MinWagons": 3,
-      "MaxWagons": 6,
+      "MinWagons": 10,
+      "MaxWagons": 15,
       "WagonPools": {
         "A": {
           "wagonA_pmc": 1.0
@@ -70,18 +70,18 @@
           "wagonB_pmc": 1.0
         },
         "C": {
-          "wagonC_pmc": 1.0
+          "wagonC_pmc": 0.3
         }
       },
       "Limits": {
-        "C": 2
+        "C": 1
       }
     }
   },
   "Speed": {
-    "PMC (Heavy) - максимальная скорость": 10.0,
-    "COBLAB (Medium) - максимальная скорость": 12.0,
-    "Bandit (Light) - максимальная скорость": 14.0
+    "PMC (Heavy) - максимальная скорость": 8.0,
+    "COBLAB (Medium) - максимальная скорость": 13.0,
+    "Bandit (Light) - максимальная скорость": 15.0
   },
   "Generator": {
     "NpcMinDistanceMeters": 1.0,
@@ -141,7 +141,7 @@
         "CrateTypeWeights": {
           "CratePMCMil_A": 1.0,
           "CratePMCElite_B": 1.0,
-          "CratePMCHACKS_C": 0.25
+          "CratePMCHACKS_C": 0.05
         },
         "KitPools": {},
         "LootKeys": {}
