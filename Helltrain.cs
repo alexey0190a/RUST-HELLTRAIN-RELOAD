@@ -2751,8 +2751,10 @@ private void UpdateTrainZoneMarker()
     _trainZoneMarker.color1 = color;
     _trainZoneMarker.color2 = color;
     _trainZoneMarker.radius = TRAIN_ZONE_MARKER_RADIUS;
-    _trainZoneMarker.text = label;
     _trainZoneMarker.SendUpdate();
+
+    if (!string.IsNullOrEmpty(label))
+        Puts($"[TRAIN MARKER] {label}");
 }
 
 private void DestroyTrainZoneMarker()
