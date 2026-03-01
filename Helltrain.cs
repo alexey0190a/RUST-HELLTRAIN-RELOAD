@@ -5195,13 +5195,14 @@ private void TriggerAlarmSoundOnTrain()
         }
     }
 
-    if (anyPowered)
-    {
-        if (_activeFactionKey == "PMC")
-            Broadcast("[ЧВК] : Диспетчер состава вызвал воздушную поддержку. ");
-
-        StartPmcEscortHeliOnFirstNpcDeath();
-    }
+    // TEMP: escort heli branch disabled
+    // if (anyPowered)
+    // {
+    //     if (_activeFactionKey == "PMC")
+    //         Broadcast("[ЧВК] : Диспетчер состава вызвал воздушную поддержку. ");
+    //
+    //     StartPmcEscortHeliOnFirstNpcDeath();
+    // }
 }
 
 [ChatCommand("htalarmtest")]
