@@ -1205,6 +1205,15 @@ private void EnsureRespawnScheduledFromStateOrDefault()
 
     if (remain.TotalSeconds <= 1)
 {
+    // Для фиксированного расписания догонять нельзя: ждём следующий слот
+    if (config != null && config.FixedSchedule != null && config.FixedSchedule.Enabled)
+    {
+        _nextRespawnUtc = null;
+        SaveRespawnState();
+        StartRespawnTimer();
+        return;
+    }
+
     // Просрочено: догоняем (стартуем скоро), фиксируя это в state
     CancelRespawnTimerOnly();
 
@@ -2226,6 +2235,29 @@ public class FactionGenerator
 [JsonProperty("Generator")]
 public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
 
+public class FixedScheduleEntry
+{
+    [JsonProperty("Начало")]
+    public string Start { get; set; } = "12:00";
+
+    [JsonProperty("Конец")]
+    public string End { get; set; } = "13:00";
+}
+
+public class FixedScheduleSettings
+{
+    [JsonProperty("Включено")]
+    public bool Enabled { get; set; } = false;
+
+    [JsonProperty("Часовой пояс UTC")]
+    public int UtcOffsetHours { get; set; } = 3;
+
+    [JsonProperty("Окна")]
+    public List<FixedScheduleEntry> Windows { get; set; } = new List<FixedScheduleEntry>();
+}
+
+[JsonProperty("Фиксированное расписание")]
+public FixedScheduleSettings FixedSchedule { get; set; } = new FixedScheduleSettings();
 
     
     public bool AutoRespawn { get; set; } = true;
@@ -2704,6 +2736,62 @@ RestoreProtectionForAll();
 }
 
 
+private bool TryParseHhMm(string raw, out TimeSpan tod)
+{
+    tod = TimeSpan.Zero;
+    if (string.IsNullOrWhiteSpace(raw)) return false;
+
+    var parts = raw.Trim().Split(':');
+    if (parts.Length != 2) return false;
+
+    int h, m;
+    if (!int.TryParse(parts[0], out h)) return false;
+    if (!int.TryParse(parts[1], out m)) return false;
+    if (h < 0 || h > 23 || m < 0 || m > 59) return false;
+
+    tod = new TimeSpan(h, m, 0);
+    return true;
+}
+
+private bool TryGetNextFixedScheduleUtc(out DateTime nextUtc)
+{
+    nextUtc = default(DateTime);
+
+    var fs = config?.FixedSchedule;
+    if (fs == null || !fs.Enabled || fs.Windows == null || fs.Windows.Count == 0)
+        return false;
+
+    int offsetHours = fs.UtcOffsetHours;
+    if (offsetHours < -12) offsetHours = -12;
+    if (offsetHours > 14) offsetHours = 14;
+
+    var offset = TimeSpan.FromHours(offsetHours);
+    var nowTz = DateTime.UtcNow + offset;
+
+    DateTime? best = null;
+
+    for (int i = 0; i < fs.Windows.Count; i++)
+    {
+        var w = fs.Windows[i];
+        if (w == null) continue;
+
+        TimeSpan startTod;
+        if (!TryParseHhMm(w.Start, out startTod)) continue;
+
+        var candidate = nowTz.Date + startTod;
+        if (candidate <= nowTz) candidate = candidate.AddDays(1);
+
+        if (!best.HasValue || candidate < best.Value)
+            best = candidate;
+    }
+
+    if (!best.HasValue)
+        return false;
+
+    nextUtc = best.Value - offset;
+    return true;
+}
+
 private void StartRespawnTimer(float? overrideMinutes = null)
 {
     // idempotency: если override НЕ задан — второй вызов можно игнорировать
@@ -2716,27 +2804,63 @@ private void StartRespawnTimer(float? overrideMinutes = null)
 
      CancelRespawnTimerOnly();
 
-    float minutes = overrideMinutes ?? config.TrainRespawnMinutes;
-    var delaySeconds = minutes * 60f;
+    bool useFixedSchedule = !overrideMinutes.HasValue && config != null && config.FixedSchedule != null && config.FixedSchedule.Enabled;
 
-    _nextRespawnUtc = DateTime.UtcNow.AddSeconds(delaySeconds);
+    if (useFixedSchedule)
+    {
+        DateTime nextUtc;
+        if (!TryGetNextFixedScheduleUtc(out nextUtc))
+        {
+            PrintWarning("[Helltrain] FixedSchedule enabled, but no valid windows found. Fallback to TrainRespawnMinutes.");
+            useFixedSchedule = false;
+        }
+        else
+        {
+            _nextRespawnUtc = nextUtc;
+            SaveRespawnState();
+
+            var delaySeconds = Mathf.Max(1f, (float)(_nextRespawnUtc.Value - DateTime.UtcNow).TotalSeconds);
+            var minutes = Mathf.Max(1f, delaySeconds / 60f);
+
+            respawnTimer = timer.Once(delaySeconds, () =>
+            {
+                _nextRespawnUtc = null;
+                SaveRespawnState();
+                SpawnHellTrain();
+                StartRespawnTimer();
+            });
+
+            string minutesWord = GetMinutesWord((int)minutes);
+            string message = config.Messages.NextTrain
+                .Replace("{minutes}", minutes.ToString("F0"))
+                .Replace("{minutesWord}", minutesWord);
+
+            Server.Broadcast(message);
+            Puts($"⏳ FixedSchedule: следующий поезд через {minutes:F0} минут (UTC={_nextRespawnUtc.Value:O})");
+            return;
+        }
+    }
+
+    float minutesLegacy = overrideMinutes ?? config.TrainRespawnMinutes;
+    var delaySecondsLegacy = minutesLegacy * 60f;
+
+    _nextRespawnUtc = DateTime.UtcNow.AddSeconds(delaySecondsLegacy);
     SaveRespawnState();
 
-    respawnTimer = timer.Once(delaySeconds, () =>
+    respawnTimer = timer.Once(delaySecondsLegacy, () =>
     {
         _nextRespawnUtc = null;
         SaveRespawnState();
         SpawnHellTrain();
     });
 
-    // ✅ ИЗМЕНЕНО: АНОНС СЛЕДУЮЩЕГО ПОЕЗДА
-    string minutesWord = GetMinutesWord((int)minutes);
-    string message = config.Messages.NextTrain
-        .Replace("{minutes}", minutes.ToString("F0"))
-        .Replace("{minutesWord}", minutesWord);
+    string minutesWordLegacy = GetMinutesWord((int)minutesLegacy);
+    string messageLegacy = config.Messages.NextTrain
+        .Replace("{minutes}", minutesLegacy.ToString("F0"))
+        .Replace("{minutesWord}", minutesWordLegacy);
 
-    Server.Broadcast(message);
-    Puts($"⏳ Респавн через {minutes} минут");
+    Server.Broadcast(messageLegacy);
+    Puts($"⏳ Респавн через {minutesLegacy} минут");
 }
 
 #endregion
