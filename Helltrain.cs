@@ -5850,7 +5850,7 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         if (!HasPerm(player, PERM_ADMIN)) { SendReply(player, "⛔ Нет прав."); return; }
         ForceDestroyHellTrain();
         SendReply(player, "🧹 Helltrain остановлен и очищен.");
-        StartRespawnTimer(5f);
+        StartRespawnTimer();
         return;
     }
 	
