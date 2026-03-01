@@ -8997,6 +8997,12 @@ public BaseEntity CreateChildEntity(string prefab, Vector3 localPos, Quaternion 
     Quaternion baseRot = Quaternion.LookRotation(direction) * Quaternion.Euler(0f, 180f, 0f);
     Quaternion desiredRot = Quaternion.Euler(m_RotationOffset) * baseRot;
 
+    var isDecorOrShelf = m_CurrentEntity.GetComponent<DecorMarker>() != null || m_CurrentEntity.GetComponent<ShelfMarker>() != null;
+    if (isDecorOrShelf)
+    {
+        desiredRot = baseRot * Quaternion.Euler(m_RotationOffset);
+    }
+
     // Плавное движение/поворот каждый кадр
     m_CurrentEntity.transform.position = Vector3.Lerp(position, desiredPos, Time.deltaTime * 12f);
     m_CurrentEntity.transform.rotation = Quaternion.Lerp(rotation, desiredRot, Time.deltaTime * 12f);
