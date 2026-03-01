@@ -412,6 +412,8 @@ private Timer _pmcEscortTimer;
 
 
  private bool _explosionTimerArmedOnce = false;
+ private Timer _pmcHackC4SpawnTimer;
+ private Timer _pmcHackExplosionTimer;
  private Timer _engineWatchdog;
  private bool _explodedOnce = false;
  // глушилка хуков и анти-дубль очистки по локомотиву
@@ -460,6 +462,10 @@ private readonly Dictionary<ulong, string> _crateTypeName = new Dictionary<ulong
 
 private const string PMC_HACK_CRATE_LOOT_KEY = "CratePMCHACKS_C";
 private const float PMC_HACK_CRATE_HACK_SECONDS = 300f;
+private const float PMC_HACK_C4_SPAWN_DELAY_SECONDS = 9f * 60f;
+private const float PMC_HACK_EVENT_END_DELAY_SECONDS = 10f * 60f;
+private const float PMC_HACK_C4_FUSE_SECONDS = 60f;
+private const int PMC_HACK_C4_PER_WAGON = 3;
 
 private void EnsurePmcHackCrateTimer(HackableLockedCrate crate, string reason)
 {
@@ -480,6 +486,81 @@ private void EnsurePmcHackCrateTimer(HackableLockedCrate crate, string reason)
     crate.SendNetworkUpdate();
 
     Puts($"[PMC HACK TIMER] crate={id} lootKey={lootKey} set={PMC_HACK_CRATE_HACK_SECONDS:F0}s reason={reason}");
+}
+
+private bool IsPmcHackCrate(HackableLockedCrate crate)
+{
+    if (crate == null || crate.IsDestroyed || crate.net == null) return false;
+
+    ulong id = crate.net.ID.Value;
+
+    string lootKey;
+    if (!_crateTypeName.TryGetValue(id, out lootKey)) return false;
+    if (!string.Equals(lootKey, PMC_HACK_CRATE_LOOT_KEY, StringComparison.OrdinalIgnoreCase)) return false;
+
+    string faction;
+    if (!_crateFaction.TryGetValue(id, out faction)) return false;
+    if (!string.Equals(faction, "PMC", StringComparison.OrdinalIgnoreCase)) return false;
+
+    return true;
+}
+
+private void CancelPmcHackExplosionTimers()
+{
+    if (_pmcHackC4SpawnTimer != null)
+    {
+        _pmcHackC4SpawnTimer.Destroy();
+        _pmcHackC4SpawnTimer = null;
+    }
+
+    if (_pmcHackExplosionTimer != null)
+    {
+        _pmcHackExplosionTimer.Destroy();
+        _pmcHackExplosionTimer = null;
+    }
+
+    _explosionTimerArmedOnce = false;
+}
+
+private void ArmPmcHackExplosionFlow(HackableLockedCrate crate)
+{
+    if (!IsPmcHackCrate(crate)) return;
+    if (_explosionTimerArmedOnce) return;
+
+    _explosionTimerArmedOnce = true;
+
+    _pmcHackC4SpawnTimer = timer.Once(PMC_HACK_C4_SPAWN_DELAY_SECONDS, () =>
+    {
+        SpawnC4OnTrain(PMC_HACK_C4_PER_WAGON, PMC_HACK_C4_FUSE_SECONDS);
+    });
+
+    _pmcHackExplosionTimer = timer.Once(PMC_HACK_EVENT_END_DELAY_SECONDS, () =>
+    {
+        DestroyTrainAfterExplosion();
+    });
+
+    Puts($"[PMC HACK FLOW] armed: C4 in {PMC_HACK_C4_SPAWN_DELAY_SECONDS:F0}s, event end in {PMC_HACK_EVENT_END_DELAY_SECONDS:F0}s");
+}
+
+private void EnsureMinimumPmcHackCrate()
+{
+    if (!string.Equals(_activeFactionKey, "PMC", StringComparison.OrdinalIgnoreCase)) return;
+    if (_activeCrateAssignments == null || _activeCrateAssignments.Count == 0) return;
+
+    for (int i = 0; i < _activeCrateAssignments.Count; i++)
+    {
+        var a = _activeCrateAssignments[i];
+        if (a != null && string.Equals(a.lootKey, PMC_HACK_CRATE_LOOT_KEY, StringComparison.OrdinalIgnoreCase))
+            return;
+    }
+
+    _activeCrateAssignments[0] = new CrateAssignRt
+    {
+        lootKey = PMC_HACK_CRATE_LOOT_KEY,
+        prefabPath = GetCratePrefabForPresetKey(PMC_HACK_CRATE_LOOT_KEY)
+    };
+
+    Puts("[PMC HACK FLOW] force-injected minimum 1 hackcrate into populate plan");
 }
 
 private enum CrateState { Idle, CountingDown, Open }
@@ -766,6 +847,8 @@ if (dict.TryGetValue("NpcAssignments", out var na) && na != null)
 
 
 
+
+EnsureMinimumPmcHackCrate();
 
     // минимальный лог-доказательство применения плана (по данным плана, без спама)
     if (_activeCrateAssignments != null)
@@ -1691,35 +1774,26 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
 private void OnCrateHack(HackableLockedCrate crate, BasePlayer player)
 {
     EnsurePmcHackCrateTimer(crate, "start_hack");
+    ArmPmcHackExplosionFlow(crate);
+
+    if (_suppressHooks) return;
+    if (!_alarmArmed) return;
+    if (_alarmTriggered) return;
+    if (!(_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB")) return;
+
+    _alarmTriggered = true;
+    TriggerAlarmSoundOnTrain();
+
+    Puts($"[ALARM] triggered by OnCrateHack (first laptop set): crate={(crate?.net != null ? crate.net.ID.Value.ToString() : "no-net")} faction={_activeFactionKey}");
 }
 
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 {
     if (_suppressHooks) return;
-	    // ALARM: первая смерть "нашего" NPC → включить alarmsound на составе (только PMC/COBLAB)
-    if (!_alarmTriggered && _alarmArmed &&
-    (_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB") &&
-    entity != null && entity.net != null &&
-    _eventNpcNetIds.Contains(entity.net.ID))
-{
-    _alarmTriggered = true;
-    TriggerAlarmSoundOnTrain();
-    Puts($"[ALARM] triggered by OnEntityDeath (tracked id): {entity.net.ID} prefab={entity.PrefabName}");
-}
 	Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
 
 var marker = entity?.GetComponent<NPCTypeMarker>();
 Puts($"[ALARM DEBUG] Marker={(marker != null ? "YES" : "NO")}");
-	    // ALARM: первая смерть "нашего" NPC → включить тревогу на составе (только PMC/COBLAB)
-    if (!_alarmTriggered && _alarmArmed &&
-    (_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB") &&
-    entity != null &&
-    entity.GetComponent<NPCTypeMarker>() != null)
-{
-    _alarmTriggered = true;
-    TriggerAlarmSoundOnTrain();
-    Puts($"[ALARM] triggered by OnEntityDeath (marker) prefab={entity.PrefabName}");
-}
 
     var engine = entity as TrainEngine;
     if (engine == null) return;
@@ -1892,24 +1966,6 @@ private void UpdatePmcEscortApproach()
 
 private void OnPlayerDeath(BasePlayer player, HitInfo info)
 {
-    if (_suppressHooks) return;
-    if (!_alarmArmed) return;
-    if (_alarmTriggered) return;
-
-    if (player == null || !player.IsNpc) return;
-    if (!(_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB")) return;
-
-    var id = player.net?.ID;
-    bool isEventNpc =
-        (id != null && _eventNpcNetIds.Contains(id.Value)) ||
-        (player.GetComponent<NPCTypeMarker>() != null);
-
-    if (!isEventNpc) return;
-
-    _alarmTriggered = true;
-    TriggerAlarmSoundOnTrain();
-
-    Puts($"[ALARM] triggered by OnPlayerDeath: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
 }
 
 // Хелпер: снести весь наш состав (только ивентовые entities)
@@ -2029,6 +2085,7 @@ catch (Exception ex)
         _suppressHooks = false;               // снова слушаем хуки
         _engineCleanupTriggered = false;      // разрешим будущие триггеры
         _engineCleanupCooldownUntil = 0f;
+		CancelPmcHackExplosionTimers();
 		       _alarmTriggered = false;
 _alarmArmed = false;
 _eventNpcNetIds.Clear();
@@ -2654,17 +2711,13 @@ if (id == 0U) continue;
 
 private void SpawnC4OnTrain()
 {
-    int perWagon = Mathf.Max(1, config.C4PerWagon);
-    float fuse = Mathf.Max(3f, config.ExplosionTimerSeconds);
+    SpawnC4OnTrain(config.C4PerWagon, Mathf.Max(3f, config.ExplosionTimerSeconds));
+}
 
-    Vector3[] offsets = new Vector3[]
-    {
-        new Vector3(-2f, 0.5f, -2f),
-        new Vector3( 2f, 0.5f, -2f),
-        new Vector3(-2f, 0.5f,  2f),
-        new Vector3( 2f, 0.5f,  2f),
-        new Vector3( 0f, 0.5f,  0f)
-    };
+private void SpawnC4OnTrain(int perWagon, float fuse)
+{
+    perWagon = Mathf.Max(1, perWagon);
+    fuse = Mathf.Max(3f, fuse);
 
     foreach (var car in _spawnedCars)
     {
@@ -2673,7 +2726,12 @@ private void SpawnC4OnTrain()
 
         for (int i = 0; i < perWagon; i++)
         {
-            Vector3 pos = tc.transform.TransformPoint(offsets[i % offsets.Length]);
+            float x = UnityEngine.Random.Range(-2f, 2f);
+            float z = UnityEngine.Random.Range(-2f, 2f);
+            if (Mathf.Abs(x) < 1f) x = Mathf.Sign(x == 0f ? 1f : x) * 1f;
+            if (Mathf.Abs(z) < 1f) z = Mathf.Sign(z == 0f ? 1f : z) * 1f;
+
+            Vector3 pos = tc.transform.TransformPoint(new Vector3(x, 0.5f, z));
             var c4 = GameManager.server.CreateEntity("assets/prefabs/tools/c4/explosive.timed.deployed.prefab", pos) as TimedExplosive;
             if (c4 == null) continue;
 
@@ -2692,6 +2750,7 @@ private void DestroyTrainAfterExplosion()
 {
     if (_explodedOnce) return;           // защита от двойного вызова
     _explodedOnce = true;
+CancelPmcHackExplosionTimers();
 SpawnExplosionFXAndDamage();
 	StopEngineWatchdog();
 
@@ -4264,6 +4323,7 @@ private string ChooseWeightedComposition()
 private void SpawnHellTrain(BasePlayer player = null)
 {
 	// reset crate state (антиспам + первый ящик)
+    CancelPmcHackExplosionTimers();
     if (config.Compositions.Count == 0)
     {
         PrintError("❌ Нет композиций в конфиге!");
@@ -4983,7 +5043,7 @@ private void ForceDestroyHellTrain()
     _buildToken++; // invalidate active BuildTrainWithSpline token
 
     KillEventTrainCars("force_destroy", force: true);
-    _explosionTimerArmedOnce = false;
+    CancelPmcHackExplosionTimers();
     _firstLootAnnounced = false;
     _explodedOnce = false;
 }
@@ -5908,6 +5968,8 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
 
     if (_spawnedCars.Count > 0 || _spawnedTrainEntities.Count > 0 || activeHellTrain != null)
         KillEventTrainCars("manual_start");
+
+CancelPmcHackExplosionTimers();
 
 _activeFactionKey = faction.ToUpperInvariant();
 _activeLayoutName = NormalizeLayoutName(layoutName); // алиасы wagona/wagonb/wagonc -> wagonA/B/C
