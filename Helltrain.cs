@@ -406,6 +406,9 @@ private Timer _alarmArmTimer;
 private PatrolHelicopter _pmcEscortHeli;
 private bool _pmcEscortSpawned = false;
 private Timer _pmcEscortTimer;
+private MapMarkerGenericRadius _trainZoneMarker;
+private const float TRAIN_ZONE_MARKER_RADIUS = 120f;
+private string _activeCompositionPreset = null;
 
 
 		// 🔇 Антиспам по хак-крейту
@@ -2117,6 +2120,7 @@ catch (Exception ex)
 
         _explosionDamageArmed = false;
         _explodedOnce = false;
+        DestroyTrainZoneMarker();
         activeHellTrain = null;
         _trainLifecycle = null;
 
@@ -2675,10 +2679,87 @@ private void CheckTrainGrid()
 {
     // если поезда нет — ничего не делаем
     if (activeHellTrain == null || _trainLifecycle == null)
+    {
+        DestroyTrainZoneMarker();
         return;
+    }
+
+    UpdateTrainZoneMarker();
 
     // при желании можно добавить тут свои проверки (например уход из грида/декора)
     // сейчас просто «пинг», чтобы не падала компиляция
+}
+
+private bool IsTrainUndergroundForMarker(TrainEngine engine)
+{
+    if (engine == null || engine.IsDestroyed) return false;
+
+    if (availableUnderworldSplines != null && availableUnderworldSplines.Count > 0)
+    {
+        TrainTrackSpline spline;
+        float dist;
+        if (TrainTrackSpline.TryFindTrackNear(engine.transform.position, 25f, out spline, out dist))
+            return spline != null && availableUnderworldSplines.Contains(spline);
+    }
+
+    return engine.transform.position.y < 0f;
+}
+
+private void UpdateTrainZoneMarker()
+{
+    if (activeHellTrain == null || activeHellTrain.IsDestroyed) return;
+
+    bool isUnderground = IsTrainUndergroundForMarker(activeHellTrain);
+    string label;
+    Color color;
+
+    if (isUnderground)
+    {
+        label = _activeCompositionPreset ?? "UNKNOWN";
+        color = Color.black;
+    }
+    else
+    {
+        string type = (_trainLifecycle?.CompositionType ?? string.Empty).ToUpperInvariant();
+        if (type == "BANDIT")
+        {
+            label = "Поезд : БАНДИТСКИЙ";
+            color = Color.green;
+        }
+        else if (type == "COBLAB")
+        {
+            label = "Поезд COBALT";
+            color = Color.yellow;
+        }
+        else
+        {
+            label = "Поезд ЧВК";
+            color = Color.red;
+        }
+    }
+
+    if (_trainZoneMarker == null || _trainZoneMarker.IsDestroyed)
+    {
+        _trainZoneMarker = GameManager.server.CreateEntity("assets/prefabs/tools/map/genericradiusmarker.prefab", activeHellTrain.transform.position) as MapMarkerGenericRadius;
+        if (_trainZoneMarker == null) return;
+        _trainZoneMarker.alpha = 0.65f;
+        _trainZoneMarker.radius = TRAIN_ZONE_MARKER_RADIUS;
+        _trainZoneMarker.Spawn();
+    }
+
+    _trainZoneMarker.transform.position = activeHellTrain.transform.position;
+    _trainZoneMarker.color1 = color;
+    _trainZoneMarker.color2 = color;
+    _trainZoneMarker.radius = TRAIN_ZONE_MARKER_RADIUS;
+    _trainZoneMarker.text = label;
+    _trainZoneMarker.SendUpdate();
+}
+
+private void DestroyTrainZoneMarker()
+{
+    if (_trainZoneMarker != null && !_trainZoneMarker.IsDestroyed)
+        _trainZoneMarker.Kill();
+    _trainZoneMarker = null;
 }
 
 
@@ -4203,6 +4284,7 @@ Server.Broadcast(spawnMessage);
 
 StopGridCheckTimer();
 _gridCheckTimer = timer.Repeat(10f, 0, CheckTrainGrid);
+UpdateTrainZoneMarker();
 
 StartLifecycleTimer();
 StartEngineWatchdog();
@@ -4370,6 +4452,7 @@ private void SpawnHellTrain(BasePlayer player = null)
 {
 	// reset crate state (антиспам + первый ящик)
     CancelPmcHackExplosionTimers();
+    _activeCompositionPreset = null;
     if (config.Compositions.Count == 0)
     {
         PrintError("❌ Нет композиций в конфиге!");
@@ -4378,6 +4461,7 @@ private void SpawnHellTrain(BasePlayer player = null)
 
     // ✅ ИЗМЕНЕНО: ИСПОЛЬЗУЕМ WEIGHTED RANDOM
     string chosen = ChooseWeightedComposition();
+    _activeCompositionPreset = chosen;
 	   // keep SoT consistent: chosen composition => active faction key for generator/lifecycle
     _activeFactionKey = chosen.ToUpperInvariant();
 	// ALARM: сброс на новый прогон + окно на спавн/экипировку NPC
@@ -6018,6 +6102,7 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
 CancelPmcHackExplosionTimers();
 
 _activeFactionKey = faction.ToUpperInvariant();
+_activeCompositionPreset = compositionName;
 _activeLayoutName = NormalizeLayoutName(layoutName); // алиасы wagona/wagonb/wagonc -> wagonA/B/C
 
 _alarmTriggered = false;
