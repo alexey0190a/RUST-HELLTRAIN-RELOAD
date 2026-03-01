@@ -18,7 +18,7 @@
       "Tier": 0,
       "Вес (вероятность спавна)": 34,
       "Loco": "loco_bandit",
-      "MinWagons": 3,
+      "MinWagons": 4,
       "MaxWagons": 6,
       "WagonPools": {
         "A": {
@@ -39,8 +39,8 @@
       "Tier": 1,
       "Вес (вероятность спавна)": 33,
       "Loco": "loco_coblab",
-      "MinWagons": 3,
-      "MaxWagons": 6,
+      "MinWagons": 7,
+      "MaxWagons": 9,
       "WagonPools": {
         "A": {
           "wagonA_coblab": 1.0
@@ -53,15 +53,15 @@
         }
       },
       "Limits": {
-        "C": 2
+        "C": 1
       }
     },
     "pmc": {
       "Tier": 2,
       "Вес (вероятность спавна)": 33,
       "Loco": "loco_pmc",
-      "MinWagons": 3,
-      "MaxWagons": 6,
+      "MinWagons": 10,
+      "MaxWagons": 15,
       "WagonPools": {
         "A": {
           "wagonA_pmc": 1.0
@@ -70,18 +70,18 @@
           "wagonB_pmc": 1.0
         },
         "C": {
-          "wagonC_pmc": 1.0
+          "wagonC_pmc": 0.30
         }
       },
       "Limits": {
-        "C": 2
+        "C": 1
       }
     }
   },
   "Speed": {
-    "PMC (Heavy) - максимальная скорость": 10.0,
+    "PMC (Heavy) - максимальная скорость": 9.0,
     "COBLAB (Medium) - максимальная скорость": 12.0,
-    "Bandit (Light) - максимальная скорость": 14.0
+    "Bandit (Light) - максимальная скорость": 15.0
   },
   "Generator": {
     "NpcMinDistanceMeters": 1.0,
@@ -100,7 +100,7 @@
       "4": 0.2
     },
     "COBLAB Heavy Turret Ammo Shortname": "ammo.rifle",
-    "COBLAB Heavy Turret Ammo Amount": 1500,
+    "COBLAB Heavy Turret Ammo Amount": 2500,
     "Factions": {
       "BANDIT": {
         "NPCCountWeights": {
@@ -130,12 +130,12 @@
       },
       "PMC": {
         "NPCCountWeights": {
-          "2": 1.0,
-          "3": 1.0,
+          "2": 0.30,
+          "3": 0.70,
           "4": 1.0
         },
         "CrateSlotWeights": {
-          "None": 1.0,
+          "None": 0.20,
           "DefaultCrate": 1.0
         },
         "KitPools": {},
@@ -305,6 +305,11 @@
     "metalwall": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
 	"electric.audioalarm": "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab",
 	"electric.sirenlight": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
-	"alarmsound" : "assets/prefabs/io/electric/other/alarmsound.prefab"
+	"alarmsound": "assets/prefabs/io/electric/other/alarmsound.prefab",
+	"luke.iron": "assets/prefabs/building/floor.ladder.hatch/floor.ladder.hatch.prefab",
+	"hqmwall": "assets/prefabs/building core/wall/wall.toptier.full.prefab",
+	"hqmdoorway": "assets/prefabs/building core/wall.doorway/wall.doorway.toptier.prefab",
+	"door.loco": "assets/prefabs/building/door.hinged/door.hinged.toptier.prefab",
+	"metalwindow": "assets/prefabs/building/wall.window.embrasure/shutter.metal.embrasure.a.prefab"
   }
 }
