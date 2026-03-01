@@ -7976,7 +7976,7 @@ return;
             decorPrefab = mapped;
         }
 
-        var ent = wagonEditor.CreateChildEntity(decorPrefab, localPos, Quaternion.identity, null, null, null, 0, 0f);
+        var ent = wagonEditor.CreateChildEntity(decorPrefab, localPos, Quaternion.identity, null, null, null, 0, 0f, true);
         if (!ent) { player.ChatMessage("❌ Не удалось создать decor"); return; }
 
         ent.gameObject.AddComponent<DecorMarker>().prefab = decorPrefab;
@@ -8002,7 +8002,7 @@ return;
     if (args.Length < 3) { player.ChatMessage("❌ /htedit spawn shelf <prefab>"); return; }
 
     string shelfPrefab = args[2];
-    var shelfEnt = wagonEditor.CreateChildEntity(shelfPrefab, localPos, Quaternion.identity, null, null, null, 0, 0f);
+    var shelfEnt = wagonEditor.CreateChildEntity(shelfPrefab, localPos, Quaternion.identity, null, null, null, 0, 0f, true);
     if (!shelfEnt) { player.ChatMessage("❌ Не удалось создать shelf"); return; }
 
     shelfEnt.gameObject.AddComponent<ShelfMarker>().prefab = shelfPrefab;
@@ -8852,7 +8852,8 @@ m_CurrentEntity.Kill();
     string gun = null,
     string ammo = null,
     int ammoCount = 0,
-    float hackTimer = 0
+    float hackTimer = 0,
+    bool useVisualCenterPivot = false
 )
 {
     if (m_TrainCar == null || string.IsNullOrEmpty(prefab))
@@ -8895,6 +8896,21 @@ m_CurrentEntity.Kill();
         baseAiBrain.enabled = false;
     // --- /EDITOR PREVIEW FREEZE ---
     baseEntity.Spawn();
+
+    if (shouldParent && useVisualCenterPivot)
+    {
+        var renderers = baseEntity.GetComponentsInChildren<Renderer>();
+        if (renderers != null && renderers.Length > 0)
+        {
+            Bounds b = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                b.Encapsulate(renderers[i].bounds);
+
+            Vector3 worldOffset = b.center - baseEntity.transform.position;
+            Vector3 localOffset = m_TrainCar.transform.InverseTransformVector(worldOffset);
+            baseEntity.transform.localPosition -= localOffset;
+        }
+    }
 	
 
     // маркер типа NPC (для сохранения в layout)
@@ -8945,7 +8961,7 @@ m_CurrentEntity.Kill();
 
 public BaseEntity CreateChildEntity(string prefab, Vector3 localPos, Quaternion localRot)
 {
-    return CreateChildEntity(prefab, localPos, localRot, null, null, null, 0, 0f);
+    return CreateChildEntity(prefab, localPos, localRot, null, null, null, 0, 0f, false);
 }
 
 
