@@ -1691,35 +1691,25 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
 private void OnCrateHack(HackableLockedCrate crate, BasePlayer player)
 {
     EnsurePmcHackCrateTimer(crate, "start_hack");
+
+    if (_suppressHooks) return;
+    if (!_alarmArmed) return;
+    if (_alarmTriggered) return;
+    if (!(_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB")) return;
+
+    _alarmTriggered = true;
+    TriggerAlarmSoundOnTrain();
+
+    Puts($"[ALARM] triggered by OnCrateHack (first laptop set): crate={(crate?.net != null ? crate.net.ID.Value.ToString() : "no-net")} faction={_activeFactionKey}");
 }
 
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 {
     if (_suppressHooks) return;
-	    // ALARM: первая смерть "нашего" NPC → включить alarmsound на составе (только PMC/COBLAB)
-    if (!_alarmTriggered && _alarmArmed &&
-    (_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB") &&
-    entity != null && entity.net != null &&
-    _eventNpcNetIds.Contains(entity.net.ID))
-{
-    _alarmTriggered = true;
-    TriggerAlarmSoundOnTrain();
-    Puts($"[ALARM] triggered by OnEntityDeath (tracked id): {entity.net.ID} prefab={entity.PrefabName}");
-}
 	Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
 
 var marker = entity?.GetComponent<NPCTypeMarker>();
 Puts($"[ALARM DEBUG] Marker={(marker != null ? "YES" : "NO")}");
-	    // ALARM: первая смерть "нашего" NPC → включить тревогу на составе (только PMC/COBLAB)
-    if (!_alarmTriggered && _alarmArmed &&
-    (_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB") &&
-    entity != null &&
-    entity.GetComponent<NPCTypeMarker>() != null)
-{
-    _alarmTriggered = true;
-    TriggerAlarmSoundOnTrain();
-    Puts($"[ALARM] triggered by OnEntityDeath (marker) prefab={entity.PrefabName}");
-}
 
     var engine = entity as TrainEngine;
     if (engine == null) return;
@@ -1892,24 +1882,6 @@ private void UpdatePmcEscortApproach()
 
 private void OnPlayerDeath(BasePlayer player, HitInfo info)
 {
-    if (_suppressHooks) return;
-    if (!_alarmArmed) return;
-    if (_alarmTriggered) return;
-
-    if (player == null || !player.IsNpc) return;
-    if (!(_activeFactionKey == "PMC" || _activeFactionKey == "COBLAB")) return;
-
-    var id = player.net?.ID;
-    bool isEventNpc =
-        (id != null && _eventNpcNetIds.Contains(id.Value)) ||
-        (player.GetComponent<NPCTypeMarker>() != null);
-
-    if (!isEventNpc) return;
-
-    _alarmTriggered = true;
-    TriggerAlarmSoundOnTrain();
-
-    Puts($"[ALARM] triggered by OnPlayerDeath: id={id} prefab={player.PrefabName} faction={_activeFactionKey}");
 }
 
 // Хелпер: снести весь наш состав (только ивентовые entities)
