@@ -6781,6 +6781,31 @@ private (string type, string name) PickCandidate(
 }
 
 
+private void EnsureAlwaysOnTrainLight(BaseEntity ent)
+{
+    if (ent == null || ent.IsDestroyed) return;
+
+    const string IndustrialWallLampRedPrefab = "assets/prefabs/misc/permstore/industriallight/industrial.wall.lamp.red.deployed.prefab";
+    const string IndustrialWallLampPrefab = "assets/prefabs/misc/permstore/industriallight/industrial.wall.lamp.deployed.prefab";
+
+    string prefab = ent.PrefabName;
+    if (string.IsNullOrEmpty(prefab)) return;
+
+    bool isAlwaysOnLamp =
+        prefab.Equals(IndustrialWallLampRedPrefab, StringComparison.Ordinal) ||
+        prefab.Equals(IndustrialWallLampPrefab, StringComparison.Ordinal);
+
+    if (!isAlwaysOnLamp) return;
+
+    if (ent is IOEntity io)
+    {
+        io.SetFlag(IOEntity.Flag_HasPower, true, false, true);
+        io.UpdateFromInput(100, 0);
+        io.SetFlag(BaseEntity.Flags.On, true, false, true);
+        io.SendNetworkUpdate();
+    }
+}
+
 private void SpawnLayoutSlots(TrainCar trainCar, TrainLayout layout)
 {
     if (trainCar == null || trainCar.IsDestroyed || layout == null) return;
@@ -6829,6 +6854,7 @@ if (factionGen == null)
             if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
             ent.Spawn();
+            EnsureAlwaysOnTrainLight(ent);
             Track(ent); // ✅ MAIN: чтобы Stop/Cleanup не оставлял сирот
         }
     }
@@ -6862,6 +6888,7 @@ if (factionGen == null)
             if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
             ent.Spawn();
+            EnsureAlwaysOnTrainLight(ent);
             Track(ent); // ✅ обязательно, чтобы cleanup убирал decor
         }
     }
