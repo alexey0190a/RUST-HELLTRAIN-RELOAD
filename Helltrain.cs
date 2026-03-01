@@ -2174,6 +2174,14 @@ public class FactionGenerator
         ["DefaultCrate"] = 1f
     };
 
+    [JsonProperty("CrateTypeWeights")]
+    public Dictionary<string, float> CrateTypeWeights { get; set; } = new Dictionary<string, float>
+    {
+        ["CratePMCMil_A"] = 1f,
+        ["CratePMCElite_B"] = 1f,
+        ["CratePMCHACKS_C"] = 0.25f
+    };
+
     // Под будущее (без внедрения логики сейчас)
     [JsonProperty("KitPools")]
     public Dictionary<string, Dictionary<string, float>> KitPools { get; set; } = new Dictionary<string, Dictionary<string, float>>();
