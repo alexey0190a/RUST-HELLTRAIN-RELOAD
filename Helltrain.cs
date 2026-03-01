@@ -458,6 +458,31 @@ private List<string> _activeHeavyAssignments = null;
 
 private readonly Dictionary<ulong, string> _crateTypeName = new Dictionary<ulong, string>(); // netId -> CrateTypeName
 
+private const string PMC_HACK_CRATE_LOOT_KEY = "CratePMCHACKS_C";
+private const float PMC_HACK_CRATE_HACK_SECONDS = 300f;
+private const float PMC_POST_HACK_TOTAL_SECONDS = 600f;
+private const float PMC_POST_HACK_C4_BEFORE_END_SECONDS = 60f;
+
+private void EnsurePmcHackCrateTimer(HackableLockedCrate crate, string reason)
+{
+    if (crate == null || crate.IsDestroyed || crate.net == null) return;
+
+    ulong id = crate.net.ID.Value;
+
+    string lootKey;
+    if (!_crateTypeName.TryGetValue(id, out lootKey)) return;
+    if (!string.Equals(lootKey, PMC_HACK_CRATE_LOOT_KEY, StringComparison.OrdinalIgnoreCase)) return;
+
+    string faction;
+    if (_crateFaction.TryGetValue(id, out faction) && !string.Equals(faction, "PMC", StringComparison.OrdinalIgnoreCase))
+        return;
+
+    float target = Mathf.Max(0f, HackableLockedCrate.requiredHackSeconds - PMC_HACK_CRATE_HACK_SECONDS);
+    crate.hackSeconds = target;
+    crate.SendNetworkUpdate();
+
+    Puts($"[PMC HACK TIMER] crate={id} lootKey={lootKey} set={PMC_HACK_CRATE_HACK_SECONDS:F0}s reason={reason}");
+}
 
 private enum CrateState { Idle, CountingDown, Open }
 
@@ -961,6 +986,9 @@ private static readonly MethodInfo TrainCouplingUncoupleMethod =
     typeof(TrainCoupling).GetMethod("Uncouple", BindingFlags.Public | BindingFlags.Instance);
 private Timer _couplingRetryTimer = null;
         private Timer respawnTimer = null;
+private Timer _pmcPostHackC4Timer = null;
+private Timer _pmcPostHackCleanupTimer = null;
+private bool _pmcPostHackSequenceArmed = false;
 		// RESPawn scheduler (CORE)
 private bool _suppressAutoRespawn;
 private DateTime? _nextRespawnUtc;
@@ -1182,6 +1210,15 @@ private void EnsureRespawnScheduledFromStateOrDefault()
 
     if (remain.TotalSeconds <= 1)
 {
+    // Для фиксированного расписания догонять нельзя: ждём следующий слот
+    if (config != null && config.FixedSchedule != null && config.FixedSchedule.Enabled)
+    {
+        _nextRespawnUtc = null;
+        SaveRespawnState();
+        StartRespawnTimer();
+        return;
+    }
+
     // Просрочено: догоняем (стартуем скоро), фиксируя это в state
     CancelRespawnTimerOnly();
 
@@ -1628,6 +1665,10 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
         return true;
 }
 
+    var crate = entity as HackableLockedCrate;
+    if (crate != null)
+        EnsurePmcHackCrateTimer(crate, "damage");
+
     // --- Friendly fire: Bradley projectile hitting SAM/Turret ---
     if (info?.Initiator != null)
     {
@@ -1650,6 +1691,57 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
     }
 
     return null;
+}
+
+private void ArmPmcPostHackSequence(HackableLockedCrate crate)
+{
+    if (_pmcPostHackSequenceArmed) return;
+    if (!string.Equals(_activeFactionKey, "PMC", StringComparison.OrdinalIgnoreCase)) return;
+    if (crate == null || crate.net == null) return;
+
+    string lootKey;
+    if (!_crateTypeName.TryGetValue(crate.net.ID.Value, out lootKey)) return;
+    if (!string.Equals(lootKey, PMC_HACK_CRATE_LOOT_KEY, StringComparison.OrdinalIgnoreCase)) return;
+
+    _pmcPostHackSequenceArmed = true;
+
+    if (_pmcPostHackC4Timer != null) { _pmcPostHackC4Timer.Destroy(); _pmcPostHackC4Timer = null; }
+    if (_pmcPostHackCleanupTimer != null) { _pmcPostHackCleanupTimer.Destroy(); _pmcPostHackCleanupTimer = null; }
+
+    CancelLifecycleTimer();
+
+    float total = PMC_POST_HACK_TOTAL_SECONDS;
+    float c4At = Mathf.Max(1f, total - PMC_POST_HACK_C4_BEFORE_END_SECONDS);
+
+    _pmcPostHackC4Timer = timer.Once(c4At, () =>
+    {
+        _pmcPostHackC4Timer = null;
+        PlayPreDetonationFx();
+        SpawnC4OnTrain();
+    });
+
+    _pmcPostHackCleanupTimer = timer.Once(total, () =>
+    {
+        _pmcPostHackCleanupTimer = null;
+        DestroyTrainAfterExplosion();
+    });
+
+    string trainName = _trainLifecycle != null && config.CompositionNames.ContainsKey(_trainLifecycle.CompositionType)
+        ? config.CompositionNames[_trainLifecycle.CompositionType]
+        : "Hell Train";
+
+    string msg = config.Messages.HackStarted
+        .Replace("{trainName}", trainName)
+        .Replace("{minutes}", "10");
+
+    Server.Broadcast(msg);
+    Puts("[PMC HACK] Post-hack sequence armed: C4 at T+9m, explosion/cleanup at T+10m.");
+}
+
+private void OnCrateHack(HackableLockedCrate crate, BasePlayer player)
+{
+    EnsurePmcHackCrateTimer(crate, "start_hack");
+    ArmPmcPostHackSequence(crate);
 }
 
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
@@ -1897,6 +1989,9 @@ private void KillEventTrainCars(string reason, bool force = false)
     StopEngineWatchdog();
     StopGridCheckTimer();
     CancelLifecycleTimer();
+    if (_pmcPostHackC4Timer != null) { _pmcPostHackC4Timer.Destroy(); _pmcPostHackC4Timer = null; }
+    if (_pmcPostHackCleanupTimer != null) { _pmcPostHackCleanupTimer.Destroy(); _pmcPostHackCleanupTimer = null; }
+    _pmcPostHackSequenceArmed = false;
 
     try
     {
@@ -2174,6 +2269,14 @@ public class FactionGenerator
         ["DefaultCrate"] = 1f
     };
 
+    [JsonProperty("CrateTypeWeights")]
+    public Dictionary<string, float> CrateTypeWeights { get; set; } = new Dictionary<string, float>
+    {
+        ["CratePMCMil_A"] = 1f,
+        ["CratePMCElite_B"] = 1f,
+        ["CratePMCHACKS_C"] = 0.25f
+    };
+
     // Под будущее (без внедрения логики сейчас)
     [JsonProperty("KitPools")]
     public Dictionary<string, Dictionary<string, float>> KitPools { get; set; } = new Dictionary<string, Dictionary<string, float>>();
@@ -2186,6 +2289,29 @@ public class FactionGenerator
 [JsonProperty("Generator")]
 public GeneratorSettings Generator { get; set; } = new GeneratorSettings();
 
+public class FixedScheduleEntry
+{
+    [JsonProperty("Начало")]
+    public string Start { get; set; } = "12:00";
+
+    [JsonProperty("Конец")]
+    public string End { get; set; } = "13:00";
+}
+
+public class FixedScheduleSettings
+{
+    [JsonProperty("Включено")]
+    public bool Enabled { get; set; } = false;
+
+    [JsonProperty("Часовой пояс UTC")]
+    public int UtcOffsetHours { get; set; } = 3;
+
+    [JsonProperty("Окна")]
+    public List<FixedScheduleEntry> Windows { get; set; } = new List<FixedScheduleEntry>();
+}
+
+[JsonProperty("Фиксированное расписание")]
+public FixedScheduleSettings FixedSchedule { get; set; } = new FixedScheduleSettings();
 
     
     public bool AutoRespawn { get; set; } = true;
@@ -2655,6 +2781,7 @@ RestoreProtectionForAll();
         _spawnedNPCs.Clear();
         _savedProtection.Clear();
         _explosionDamageArmed = false;
+        _pmcPostHackSequenceArmed = false;
         activeHellTrain = null;
         _trainLifecycle = null;
     }
@@ -2663,6 +2790,62 @@ RestoreProtectionForAll();
     StartRespawnTimer();
 }
 
+
+private bool TryParseHhMm(string raw, out TimeSpan tod)
+{
+    tod = TimeSpan.Zero;
+    if (string.IsNullOrWhiteSpace(raw)) return false;
+
+    var parts = raw.Trim().Split(':');
+    if (parts.Length != 2) return false;
+
+    int h, m;
+    if (!int.TryParse(parts[0], out h)) return false;
+    if (!int.TryParse(parts[1], out m)) return false;
+    if (h < 0 || h > 23 || m < 0 || m > 59) return false;
+
+    tod = new TimeSpan(h, m, 0);
+    return true;
+}
+
+private bool TryGetNextFixedScheduleUtc(out DateTime nextUtc)
+{
+    nextUtc = default(DateTime);
+
+    var fs = config?.FixedSchedule;
+    if (fs == null || !fs.Enabled || fs.Windows == null || fs.Windows.Count == 0)
+        return false;
+
+    int offsetHours = fs.UtcOffsetHours;
+    if (offsetHours < -12) offsetHours = -12;
+    if (offsetHours > 14) offsetHours = 14;
+
+    var offset = TimeSpan.FromHours(offsetHours);
+    var nowTz = DateTime.UtcNow + offset;
+
+    DateTime? best = null;
+
+    for (int i = 0; i < fs.Windows.Count; i++)
+    {
+        var w = fs.Windows[i];
+        if (w == null) continue;
+
+        TimeSpan startTod;
+        if (!TryParseHhMm(w.Start, out startTod)) continue;
+
+        var candidate = nowTz.Date + startTod;
+        if (candidate <= nowTz) candidate = candidate.AddDays(1);
+
+        if (!best.HasValue || candidate < best.Value)
+            best = candidate;
+    }
+
+    if (!best.HasValue)
+        return false;
+
+    nextUtc = best.Value - offset;
+    return true;
+}
 
 private void StartRespawnTimer(float? overrideMinutes = null)
 {
@@ -2676,27 +2859,63 @@ private void StartRespawnTimer(float? overrideMinutes = null)
 
      CancelRespawnTimerOnly();
 
-    float minutes = overrideMinutes ?? config.TrainRespawnMinutes;
-    var delaySeconds = minutes * 60f;
+    bool useFixedSchedule = !overrideMinutes.HasValue && config != null && config.FixedSchedule != null && config.FixedSchedule.Enabled;
 
-    _nextRespawnUtc = DateTime.UtcNow.AddSeconds(delaySeconds);
+    if (useFixedSchedule)
+    {
+        DateTime nextUtc;
+        if (!TryGetNextFixedScheduleUtc(out nextUtc))
+        {
+            PrintWarning("[Helltrain] FixedSchedule enabled, but no valid windows found. Fallback to TrainRespawnMinutes.");
+            useFixedSchedule = false;
+        }
+        else
+        {
+            _nextRespawnUtc = nextUtc;
+            SaveRespawnState();
+
+            var delaySeconds = Mathf.Max(1f, (float)(_nextRespawnUtc.Value - DateTime.UtcNow).TotalSeconds);
+            var minutes = Mathf.Max(1f, delaySeconds / 60f);
+
+            respawnTimer = timer.Once(delaySeconds, () =>
+            {
+                _nextRespawnUtc = null;
+                SaveRespawnState();
+                SpawnHellTrain();
+                StartRespawnTimer();
+            });
+
+            string minutesWord = GetMinutesWord((int)minutes);
+            string message = config.Messages.NextTrain
+                .Replace("{minutes}", minutes.ToString("F0"))
+                .Replace("{minutesWord}", minutesWord);
+
+            Server.Broadcast(message);
+            Puts($"⏳ FixedSchedule: следующий поезд через {minutes:F0} минут (UTC={_nextRespawnUtc.Value:O})");
+            return;
+        }
+    }
+
+    float minutesLegacy = overrideMinutes ?? config.TrainRespawnMinutes;
+    var delaySecondsLegacy = minutesLegacy * 60f;
+
+    _nextRespawnUtc = DateTime.UtcNow.AddSeconds(delaySecondsLegacy);
     SaveRespawnState();
 
-    respawnTimer = timer.Once(delaySeconds, () =>
+    respawnTimer = timer.Once(delaySecondsLegacy, () =>
     {
         _nextRespawnUtc = null;
         SaveRespawnState();
         SpawnHellTrain();
     });
 
-    // ✅ ИЗМЕНЕНО: АНОНС СЛЕДУЮЩЕГО ПОЕЗДА
-    string minutesWord = GetMinutesWord((int)minutes);
-    string message = config.Messages.NextTrain
-        .Replace("{minutes}", minutes.ToString("F0"))
-        .Replace("{minutesWord}", minutesWord);
+    string minutesWordLegacy = GetMinutesWord((int)minutesLegacy);
+    string messageLegacy = config.Messages.NextTrain
+        .Replace("{minutes}", minutesLegacy.ToString("F0"))
+        .Replace("{minutesWord}", minutesWordLegacy);
 
-    Server.Broadcast(message);
-    Puts($"⏳ Респавн через {minutes} минут");
+    Server.Broadcast(messageLegacy);
+    Puts($"⏳ Респавн через {minutesLegacy} минут");
 }
 
 #endregion
@@ -5588,7 +5807,8 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
         if (!HasPerm(player, PERM_ADMIN)) { SendReply(player, "⛔ Нет прав."); return; }
         ForceDestroyHellTrain();
         SendReply(player, "🧹 Helltrain остановлен и очищен.");
-        StartRespawnTimer(5f);
+        StartRespawnTimer();
+        SendReply(player, "🕒 Следующий запуск рассчитан по активному расписанию.");
         return;
     }
 	
@@ -5603,7 +5823,7 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
     }
 
     StartRespawnTimer();
-    SendReply(player, "✅ Respawn reset: расписание пересчитано по конфигу (TrainRespawnMinutes).");
+    SendReply(player, "✅ Respawn reset: следующий запуск пересчитан по активному расписанию.");
     return;
 }
 
@@ -7183,7 +7403,9 @@ _crateFaction[id] = factionUpper;
 // CORE Step 2: метка CrateTypeName из PopulatePlan (lootKey) для шага 3
 _crateTypeName[id] = lootKey;
 
-
+var spawnedHackCrate = ent as HackableLockedCrate;
+if (spawnedHackCrate != null)
+    EnsurePmcHackCrateTimer(spawnedHackCrate, "spawn");
 
 // NEW: presetKey = lootKey из PopulatePlan
 var sc = ent as StorageContainer;
