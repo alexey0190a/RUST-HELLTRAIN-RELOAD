@@ -458,6 +458,29 @@ private List<string> _activeHeavyAssignments = null;
 
 private readonly Dictionary<ulong, string> _crateTypeName = new Dictionary<ulong, string>(); // netId -> CrateTypeName
 
+private const string PMC_HACK_CRATE_LOOT_KEY = "CratePMCHACKS_C";
+private const float PMC_HACK_CRATE_HACK_SECONDS = 300f;
+
+private void EnsurePmcHackCrateTimer(HackableLockedCrate crate, string reason)
+{
+    if (crate == null || crate.IsDestroyed || crate.net == null) return;
+
+    ulong id = crate.net.ID.Value;
+
+    string lootKey;
+    if (!_crateTypeName.TryGetValue(id, out lootKey)) return;
+    if (!string.Equals(lootKey, PMC_HACK_CRATE_LOOT_KEY, StringComparison.OrdinalIgnoreCase)) return;
+
+    string faction;
+    if (_crateFaction.TryGetValue(id, out faction) && !string.Equals(faction, "PMC", StringComparison.OrdinalIgnoreCase))
+        return;
+
+    float target = Mathf.Max(0f, HackableLockedCrate.requiredHackSeconds - PMC_HACK_CRATE_HACK_SECONDS);
+    crate.hackSeconds = target;
+    crate.SendNetworkUpdate();
+
+    Puts($"[PMC HACK TIMER] crate={id} lootKey={lootKey} set={PMC_HACK_CRATE_HACK_SECONDS:F0}s reason={reason}");
+}
 
 private enum CrateState { Idle, CountingDown, Open }
 
@@ -1628,6 +1651,10 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
         return true;
 }
 
+    var crate = entity as HackableLockedCrate;
+    if (crate != null)
+        EnsurePmcHackCrateTimer(crate, "damage");
+
     // --- Friendly fire: Bradley projectile hitting SAM/Turret ---
     if (info?.Initiator != null)
     {
@@ -1650,6 +1677,11 @@ if (_spawnedCars != null && _spawnedCars.Count > 0)
     }
 
     return null;
+}
+
+private void OnCrateHack(HackableLockedCrate crate, BasePlayer player)
+{
+    EnsurePmcHackCrateTimer(crate, "start_hack");
 }
 
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
@@ -7191,7 +7223,9 @@ _crateFaction[id] = factionUpper;
 // CORE Step 2: метка CrateTypeName из PopulatePlan (lootKey) для шага 3
 _crateTypeName[id] = lootKey;
 
-
+var spawnedHackCrate = ent as HackableLockedCrate;
+if (spawnedHackCrate != null)
+    EnsurePmcHackCrateTimer(spawnedHackCrate, "spawn");
 
 // NEW: presetKey = lootKey из PopulatePlan
 var sc = ent as StorageContainer;
