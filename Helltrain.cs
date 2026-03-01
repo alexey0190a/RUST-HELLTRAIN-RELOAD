@@ -3779,9 +3779,9 @@ EventLog(
         positionIndex++;
     }
     
-    if (lastSpawnedCar != null && lastSpawnedCar != locoEnt && lastSpawnedCar.rearCoupling != null)
+    if (lastSpawnedCar != null && lastSpawnedCar != locoEnt)
     {
-        lastSpawnedCar.rearCoupling = null;
+        LockLastEventWagonRearCoupling();
        // Puts($"   🔒 Задняя сцепка отключена для последнего вагона");
     }
     
@@ -4294,6 +4294,27 @@ private void KillEntitySafe(BaseNetworkable e)
 
 
         #region HT.ENGINE.CONTROL
+
+        private void LockLastEventWagonRearCoupling()
+        {
+            if (_spawnedCars == null || _spawnedCars.Count == 0) return;
+
+            for (int i = _spawnedCars.Count - 1; i >= 0; i--)
+            {
+                var car = _spawnedCars[i] as TrainCar;
+                if (car == null || car.IsDestroyed) continue;
+                if (car is TrainEngine) continue;
+
+                if (car.rearCoupling != null)
+                    car.rearCoupling = null;
+
+                if (car.coupling != null && car.coupling.rearCoupling != null)
+                    car.coupling.rearCoupling = null;
+
+                return;
+            }
+        }
+
         private void StartEngine(TrainEngine engine)
         {
             if (!engine || engine.IsDestroyed) return;
@@ -4365,11 +4386,15 @@ private void KillEntitySafe(BaseNetworkable e)
                 
                 front.coupling.rearCoupling.TryCouple(rear.coupling.frontCoupling, true);
             }
+
+            LockLastEventWagonRearCoupling();
         }
 
         private void EnsureEngineRunning(TrainEngine engine)
         {
             if (engine == null || engine.IsDestroyed) return;
+
+            LockLastEventWagonRearCoupling();
             
             if (!engine.HasFlag(BaseEntity.Flags.On))
             {
