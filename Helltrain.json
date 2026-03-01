@@ -18,7 +18,7 @@
       "Tier": 0,
       "Вес (вероятность спавна)": 34,
       "Loco": "loco_bandit",
-      "MinWagons": 3,
+      "MinWagons": 4,
       "MaxWagons": 5,
       "WagonPools": {
         "A": {
@@ -28,7 +28,7 @@
           "wagonB_bandit": 1.0
         },
         "C": {
-          "wagonC_bandit": 1.0
+          "wagonC_bandit": 0.5
         }
       },
       "Limits": {
@@ -39,7 +39,7 @@
       "Tier": 1,
       "Вес (вероятность спавна)": 33,
       "Loco": "loco_coblab",
-      "MinWagons": 9,
+      "MinWagons": 10,
       "MaxWagons": 6,
       "WagonPools": {
         "A": {
@@ -49,7 +49,7 @@
           "wagonB_coblab": 1.0
         },
         "C": {
-          "wagonC_coblab": 1.0
+          "wagonC_coblab": 0.2
         }
       },
       "Limits": {
@@ -60,7 +60,7 @@
       "Tier": 2,
       "Вес (вероятность спавна)": 33,
       "Loco": "loco_pmc",
-      "MinWagons": 10,
+      "MinWagons": 11,
       "MaxWagons": 15,
       "WagonPools": {
         "A": {
@@ -70,7 +70,7 @@
           "wagonB_pmc": 1.0
         },
         "C": {
-          "wagonC_pmc": 0.3
+          "wagonC_pmc": 0.1
         }
       },
       "Limits": {
@@ -79,9 +79,9 @@
     }
   },
   "Speed": {
-    "PMC (Heavy) - максимальная скорость": 8.0,
-    "COBLAB (Medium) - максимальная скорость": 13.0,
-    "Bandit (Light) - максимальная скорость": 15.0
+    "PMC (Heavy) - максимальная скорость": 10.0,
+    "COBLAB (Medium) - максимальная скорость": 12.0,
+    "Bandit (Light) - максимальная скорость": 14.0
   },
   "Generator": {
     "NpcMinDistanceMeters": 1.0,
@@ -141,7 +141,7 @@
         "CrateTypeWeights": {
           "CratePMCMil_A": 1.0,
           "CratePMCElite_B": 1.0,
-          "CratePMCHACKS_C": 0.05
+          "CratePMCHACKS_C": 0.15
         },
         "KitPools": {},
         "LootKeys": {}
@@ -169,6 +169,32 @@
    "AutoRespawn": true,
   "AutoRespawn": true,
   "RespawnTime": 60.0,
+  "Фиксированное расписание": {
+    "Включено": true,
+    "Часовой пояс UTC": 3,
+    "Окна": [
+	{
+        "Начало": "8:00",
+        "Конец": "9:00"
+      },
+      {
+        "Начало": "12:00",
+        "Конец": "13:00"
+      },
+      {
+        "Начало": "16:00",
+        "Конец": "17:00"
+      },
+	  {
+        "Начало": "20:00",
+        "Конец": "21:00"
+      },
+	  {
+        "Начало": "23:00",
+        "Конец": "00:00"
+      }
+    ]
+  },
   "Разрешить спавн на поверхности": true,
   "Разрешить спавн в подземке": false,
   "Разрешить переходы между уровнями": false,
