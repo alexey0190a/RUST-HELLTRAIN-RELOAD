@@ -414,6 +414,9 @@ private Timer _pmcEscortTimer;
  private bool _explosionTimerArmedOnce = false;
  private Timer _pmcHackC4SpawnTimer;
  private Timer _pmcHackExplosionTimer;
+ private Timer _pmcHackAnnounce5MinTimer;
+ private Timer _pmcHackAnnounce2MinTimer;
+ private Timer _pmcHackAnnounce1MinTimer;
  private Timer _engineWatchdog;
  private bool _explodedOnce = false;
  // глушилка хуков и анти-дубль очистки по локомотиву
@@ -519,6 +522,24 @@ private void CancelPmcHackExplosionTimers()
         _pmcHackExplosionTimer = null;
     }
 
+    if (_pmcHackAnnounce5MinTimer != null)
+    {
+        _pmcHackAnnounce5MinTimer.Destroy();
+        _pmcHackAnnounce5MinTimer = null;
+    }
+
+    if (_pmcHackAnnounce2MinTimer != null)
+    {
+        _pmcHackAnnounce2MinTimer.Destroy();
+        _pmcHackAnnounce2MinTimer = null;
+    }
+
+    if (_pmcHackAnnounce1MinTimer != null)
+    {
+        _pmcHackAnnounce1MinTimer.Destroy();
+        _pmcHackAnnounce1MinTimer = null;
+    }
+
     _explosionTimerArmedOnce = false;
 }
 
@@ -534,10 +555,27 @@ private void ArmPmcHackExplosionFlow(HackableLockedCrate crate)
         SpawnC4OnTrain(PMC_HACK_C4_PER_WAGON, PMC_HACK_C4_FUSE_SECONDS);
     });
 
+    _pmcHackAnnounce5MinTimer = timer.Once(5f * 60f, () =>
+    {
+        Server.Broadcast("⚠️ Helltrain заминирован: до взрыва 5 минут!");
+    });
+
+    _pmcHackAnnounce2MinTimer = timer.Once(8f * 60f, () =>
+    {
+        Server.Broadcast("⚠️ Helltrain заминирован: до взрыва 2 минуты!");
+    });
+
+    _pmcHackAnnounce1MinTimer = timer.Once(9f * 60f, () =>
+    {
+        Server.Broadcast("⚠️ Helltrain заминирован: до взрыва 1 минута!");
+    });
+
     _pmcHackExplosionTimer = timer.Once(PMC_HACK_EVENT_END_DELAY_SECONDS, () =>
     {
         DestroyTrainAfterExplosion();
     });
+
+    Server.Broadcast("🚨 Helltrain заминирован! Взрыв через 10 минут!");
 
     Puts($"[PMC HACK FLOW] armed: C4 in {PMC_HACK_C4_SPAWN_DELAY_SECONDS:F0}s, event end in {PMC_HACK_EVENT_END_DELAY_SECONDS:F0}s");
 }
