@@ -1311,8 +1311,16 @@ private void EnsureRespawnScheduledFromStateOrDefault()
     if (activeHellTrain != null) return;
     if (_spawnedCars != null && _spawnedCars.Count > 0) return;
 
-    LoadRespawnState();
+	LoadRespawnState();
 	Puts($"[RESPAWN_INIT] after Load state nextUtc={(_nextRespawnUtc.HasValue ? _nextRespawnUtc.Value.ToString("O") : "null")}");
+
+    if (config != null && config.FixedSchedule != null && config.FixedSchedule.Enabled)
+    {
+        _nextRespawnUtc = null;
+        SaveRespawnState();
+        StartRespawnTimer();
+        return;
+    }
 
     // Variant B: if no state -> schedule by TrainRespawnMinutes
     if (!_nextRespawnUtc.HasValue)
