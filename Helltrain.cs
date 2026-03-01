@@ -8454,7 +8454,7 @@ private void WriteAutosave()
     {
         const int LAYERS = (1 << 0) | (1 << 8) | (1 << 10) | (1 << 17) | (1 << 26);
 
-        int hits = Physics.RaycastNonAlloc(player.eyes.HeadRay(), RaycastBuffer, 10f, LAYERS, QueryTriggerInteraction.Ignore);
+        int hits = Physics.RaycastNonAlloc(player.eyes.HeadRay(), RaycastBuffer, 13f, LAYERS, QueryTriggerInteraction.Ignore);
 
         for (int i = 0; i < hits; i++)
         {
