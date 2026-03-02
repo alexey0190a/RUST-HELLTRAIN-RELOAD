@@ -358,6 +358,23 @@ namespace Oxide.Plugins
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 var tab = _config.Tabs[i];
+
+                container.Add(new CuiElement
+                {
+                    Name = $"ServerInfo.Tab.Border.{i}",
+                    Parent = parent,
+                    Components =
+                    {
+                        new CuiImageComponent { Color = "1 1 1 0" },
+                        new CuiOutlineComponent
+                        {
+                            Color = "1 1 1 0",
+                            Distance = "1.25 -1.25"
+                        },
+                        new CuiRectTransformComponent { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax }
+                    }
+                });
+
                 container.Add(new CuiButton
                 {
                     Button =
