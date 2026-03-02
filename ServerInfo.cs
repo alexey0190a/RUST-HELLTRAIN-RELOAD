@@ -106,7 +106,7 @@ namespace Oxide.Plugins
         protected override void LoadConfig()
         {
             base.LoadConfig();
-            var loadedFromDisk = true;
+            var configLoadFailed = false;
             try
             {
                 _config = Config.ReadObject<ConfigData>();
@@ -114,19 +114,15 @@ namespace Oxide.Plugins
             }
             catch (Exception ex)
             {
-                loadedFromDisk = false;
+                configLoadFailed = true;
                 PrintWarning($"Config invalid ({ex.Message}), creating default config in memory");
                 LoadDefaultConfig();
             }
 
-            EnsureConfig();
-            if (loadedFromDisk)
+            var changed = EnsureConfig();
+            if (changed && !configLoadFailed)
             {
                 SaveConfig();
-            }
-            else
-            {
-                PrintWarning("Skipping SaveConfig to avoid overwriting existing config file");
             }
         }
 
@@ -142,42 +138,87 @@ namespace Oxide.Plugins
             cmd.AddConsoleCommand("serverinfo.editor", this, nameof(CmdEditor));
         }
 
-        private void EnsureConfig()
+        private bool EnsureConfig()
         {
-            if (_config == null) _config = new ConfigData();
-            if (_config.Ui == null) _config.Ui = new UiConfig();
-            if (_config.Ui.LeftPanelArea == null) _config.Ui.LeftPanelArea = new RectConfig { AnchorMin = "0.03 0.05", AnchorMax = "0.31 0.95" };
-            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
-            if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
-            if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
-            if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
+            var changed = false;
+            if (_config == null)
+            {
+                _config = new ConfigData();
+                changed = true;
+            }
+            if (_config.Ui == null)
+            {
+                _config.Ui = new UiConfig();
+                changed = true;
+            }
+            if (_config.Ui.LeftPanelArea == null)
+            {
+                _config.Ui.LeftPanelArea = new RectConfig { AnchorMin = "0.03 0.05", AnchorMax = "0.31 0.95" };
+                changed = true;
+            }
+            if (_config.Ui.ContentArea == null)
+            {
+                _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
+                changed = true;
+            }
+            if (_config.Ui.CloseButton == null)
+            {
+                _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
+                changed = true;
+            }
+            if (_config.Ui.SettingsButton == null)
+            {
+                _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
+                changed = true;
+            }
+            if (_config.Ui.EditorStep <= 0f)
+            {
+                _config.Ui.EditorStep = 0.005f;
+                changed = true;
+            }
 
             if (_config.Tabs == null || _config.Tabs.Count == 0)
             {
                 _config.Tabs = new ConfigData().Tabs;
+                changed = true;
             }
 
             var uniqTabs = new List<TabConfig>();
             var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < _config.Tabs.Count; i++)
+            var tabsWereNormalized = false;
+            for (var i = _config.Tabs.Count - 1; i >= 0; i--)
             {
                 var tab = _config.Tabs[i];
                 if (tab == null || string.IsNullOrEmpty(tab.Key))
                 {
+                    tabsWereNormalized = true;
                     continue;
                 }
 
                 if (!seenKeys.Add(tab.Key))
                 {
+                    tabsWereNormalized = true;
                     continue;
                 }
 
-                uniqTabs.Add(tab);
+                uniqTabs.Insert(0, tab);
             }
 
             // Важно: если есть пользовательские вкладки, не дополняем и не заменяем их дефолтами.
             // Дефолт нужен только когда вкладок нет вообще.
-            _config.Tabs = uniqTabs.Count > 0 ? uniqTabs : new ConfigData().Tabs;
+            if (uniqTabs.Count > 0)
+            {
+                if (tabsWereNormalized)
+                {
+                    _config.Tabs = uniqTabs;
+                    changed = true;
+                }
+            }
+            else if (_config.Tabs.Count > 0)
+            {
+                _config.Tabs = new ConfigData().Tabs;
+                changed = true;
+            }
 
             var defaultTabs = new ConfigData().Tabs;
 
@@ -200,6 +241,7 @@ namespace Oxide.Plugins
                         AnchorMin = fallbackRect.AnchorMin,
                         AnchorMax = fallbackRect.AnchorMax
                     };
+                    changed = true;
                     continue;
                 }
 
@@ -210,9 +252,16 @@ namespace Oxide.Plugins
                     AnchorMin = $"0.03 {minY.ToString("0.###", CultureInfo.InvariantCulture)}",
                     AnchorMax = $"0.31 {maxY.ToString("0.###", CultureInfo.InvariantCulture)}"
                 };
+                changed = true;
             }
 
-            if (string.IsNullOrEmpty(_config.DefaultTab)) _config.DefaultTab = "info";
+            if (string.IsNullOrEmpty(_config.DefaultTab))
+            {
+                _config.DefaultTab = "info";
+                changed = true;
+            }
+
+            return changed;
         }
 
         private void OnServerInitialized()
