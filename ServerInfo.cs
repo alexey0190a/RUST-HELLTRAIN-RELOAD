@@ -215,8 +215,6 @@ namespace Oxide.Plugins
             {
                 if (!_editorStateByPlayer.ContainsKey(player.userID))
                     _editorStateByPlayer[player.userID] = new EditorState();
-
-
                 OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
             }
