@@ -2687,6 +2687,7 @@ private void CheckTrainGrid()
     }
 
     UpdateTrainZoneMarker();
+    _trainLifecycle.LastGrid = GetGridPosition(activeHellTrain.transform.position);
 
     // при желании можно добавить тут свои проверки (например уход из грида/декора)
     // сейчас просто «пинг», чтобы не падала компиляция
@@ -4294,6 +4295,7 @@ _trainLifecycle = new TrainLifecycle(
 );
 
 string trainName = config.CompositionNames[_trainLifecycle.CompositionType];
+_trainLifecycle.LastGrid = GetGridPosition(trainEngine.transform.position);
 
 // ✅ ИЗМЕНЕНО: АНОНС СПАВНА ИЗ КОНФИГА
 string spawnMessage = config.Messages.TrainSpawned
