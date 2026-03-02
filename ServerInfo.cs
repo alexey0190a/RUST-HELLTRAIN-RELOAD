@@ -162,12 +162,42 @@ namespace Oxide.Plugins
                 _config.Tabs = uniqTabs;
 
             var defaultTabs = new ConfigData().Tabs;
-            if (_config.Tabs.Count < defaultTabs.Count)
-                _config.Tabs = defaultTabs;
+            for (var i = 0; i < defaultTabs.Count; i++)
+            {
+                var defaultTab = defaultTabs[i];
+                var exists = false;
+                for (var j = 0; j < _config.Tabs.Count; j++)
+                {
+                    if (!_config.Tabs[j].Key.Equals(defaultTab.Key, StringComparison.OrdinalIgnoreCase)) continue;
+                    exists = true;
+                    break;
+                }
+
+                if (!exists)
+                    _config.Tabs.Add(defaultTab);
+            }
 
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 if (_config.Tabs[i].ButtonRect != null) continue;
+
+                RectConfig fallbackRect = null;
+                for (var j = 0; j < defaultTabs.Count; j++)
+                {
+                    if (!defaultTabs[j].Key.Equals(_config.Tabs[i].Key, StringComparison.OrdinalIgnoreCase)) continue;
+                    fallbackRect = defaultTabs[j].ButtonRect;
+                    break;
+                }
+
+                if (fallbackRect != null)
+                {
+                    _config.Tabs[i].ButtonRect = new RectConfig
+                    {
+                        AnchorMin = fallbackRect.AnchorMin,
+                        AnchorMax = fallbackRect.AnchorMax
+                    };
+                    continue;
+                }
 
                 var minY = 0.76f - (0.22f * i);
                 var maxY = 0.95f - (0.22f * i);
