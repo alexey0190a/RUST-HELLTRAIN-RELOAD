@@ -4064,7 +4064,8 @@ namespace Oxide.Plugins
 
             private void Init(ElevatorData elevatorData, List<ulong> buttonsIDs)
             {
-                this.SetFlag(Elevator.ElevatorPowered, true);
+                FieldInfo elevatorPoweredField = typeof(Elevator).GetField("ElevatorPowered", BindingFlags.Public | BindingFlags.Static);
+                this.SetFlag(elevatorPoweredField?.GetValue(null) is BaseEntity.Flags poweredFlag ? poweredFlag : BaseEntity.Flags.Reserved8, true);
                 this.OnDeployed(null, null, null);
                 this.Floor = elevatorData.NumberOfFloors - 1;
                 this.UpdateChildEntities(true);
