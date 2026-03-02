@@ -9,7 +9,7 @@
     "LeftPanelFallbackUrl": "",
     "LeftPanelArea": {
       "AnchorMin": "0.03 0.05",
-      "AnchorMax": "0.31 0.95"
+      "AnchorMax": "0.31 0.93"
     },
     "ContentArea": {
       "AnchorMin": "0.31 0.04",
@@ -25,7 +25,7 @@
       "AnchorMin": "0.80 0.935",
       "AnchorMax": "0.945 0.985"
     },
-    "EditorStep": 0.01
+    "EditorStep": 0.002
   },
   "Tabs": [
     {
@@ -34,8 +34,8 @@
       "ImageKey": "serverinfo_tab_info",
       "FallbackUrl": "",
       "ButtonRect": {
-        "AnchorMin": "0.08 0.764",
-        "AnchorMax": "0.26 0.854"
+        "AnchorMin": "0.092 0.758",
+        "AnchorMax": "0.252 0.828"
       }
     },
     {
@@ -44,8 +44,8 @@
       "ImageKey": "serverinfo_tab_rules",
       "FallbackUrl": "",
       "ButtonRect": {
-        "AnchorMin": "0.103 0.639",
-        "AnchorMax": "0.233 0.728"
+        "AnchorMin": "0.115 0.63",
+        "AnchorMax": "0.225 0.704"
       }
     },
     {
@@ -54,8 +54,8 @@
       "ImageKey": "serverinfo_tab_commands",
       "FallbackUrl": "",
       "ButtonRect": {
-        "AnchorMin": "0.104 0.522",
-        "AnchorMax": "0.238 0.602"
+        "AnchorMin": "0.11 0.515",
+        "AnchorMax": "0.23 0.585"
       }
     },
     {
@@ -64,8 +64,8 @@
       "ImageKey": "serverinfo_tab_events",
       "FallbackUrl": "",
       "ButtonRect": {
-        "AnchorMin": "0.114 0.4",
-        "AnchorMax": "0.226 0.47"
+        "AnchorMin": "0.12 0.392",
+        "AnchorMax": "0.219 0.462"
       }
     },
     {
@@ -74,8 +74,8 @@
       "ImageKey": "serverinfo_tab_about",
       "FallbackUrl": "",
       "ButtonRect": {
-        "AnchorMin": "0.124 0.28",
-        "AnchorMax": "0.216 0.35"
+        "AnchorMin": "0.131 0.274",
+        "AnchorMax": "0.207 0.342"
       }
     },
     {
@@ -84,8 +84,8 @@
       "ImageKey": "serverinfo_tab_links",
       "FallbackUrl": "",
       "ButtonRect": {
-        "AnchorMin": "0.114 0.16",
-        "AnchorMax": "0.227 0.23"
+        "AnchorMin": "0.118 0.15",
+        "AnchorMax": "0.224 0.228"
       }
     }
   ],
