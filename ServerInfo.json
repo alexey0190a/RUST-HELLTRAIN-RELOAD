@@ -12,7 +12,7 @@
       "AnchorMax": "0.31 0.93"
     },
     "ContentArea": {
-      "AnchorMin": "0.31 0.04",
+      "AnchorMin": "0.31 0.06",
       "AnchorMax": "0.94 0.89"
     },
     "CloseImageKey": "serverinfo_close",

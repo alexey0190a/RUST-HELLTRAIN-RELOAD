@@ -420,10 +420,10 @@ namespace Oxide.Plugins
             }, UiOverlay, UiMain);
 
             AddImageElement(container, root, _config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl, _config.Ui.LeftPanelArea.AnchorMin, _config.Ui.LeftPanelArea.AnchorMax, "ServerInfo.LeftPanel");
-            AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
             var contentImageKey = ResolveContentImageKey(selected);
             var contentFallbackUrl = ResolveContentFallbackUrl(selected);
             AddImageElement(container, root, contentImageKey, contentFallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
+            AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
             AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
