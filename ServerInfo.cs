@@ -186,7 +186,7 @@ namespace Oxide.Plugins
             var uniqTabs = new List<TabConfig>();
             var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var tabsWereNormalized = false;
-            for (var i = 0; i < _config.Tabs.Count; i++)
+            for (var i = _config.Tabs.Count - 1; i >= 0; i--)
             {
                 var tab = _config.Tabs[i];
                 if (tab == null || string.IsNullOrEmpty(tab.Key))
@@ -201,7 +201,7 @@ namespace Oxide.Plugins
                     continue;
                 }
 
-                uniqTabs.Add(tab);
+                uniqTabs.Insert(0, tab);
             }
 
             // Важно: если есть пользовательские вкладки, не дополняем и не заменяем их дефолтами.
