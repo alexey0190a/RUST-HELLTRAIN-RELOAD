@@ -106,6 +106,7 @@ namespace Oxide.Plugins
         protected override void LoadConfig()
         {
             base.LoadConfig();
+            var configLoadFailed = false;
             try
             {
                 _config = Config.ReadObject<ConfigData>();
@@ -113,12 +114,13 @@ namespace Oxide.Plugins
             }
             catch (Exception ex)
             {
+                configLoadFailed = true;
                 PrintWarning($"Config invalid ({ex.Message}), creating default config in memory");
                 LoadDefaultConfig();
             }
 
             var changed = EnsureConfig();
-            if (changed)
+            if (changed && !configLoadFailed)
             {
                 SaveConfig();
             }
