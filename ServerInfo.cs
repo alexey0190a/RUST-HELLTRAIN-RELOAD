@@ -106,19 +106,28 @@ namespace Oxide.Plugins
         protected override void LoadConfig()
         {
             base.LoadConfig();
+            var loadedFromDisk = true;
             try
             {
                 _config = Config.ReadObject<ConfigData>();
                 if (_config == null) throw new Exception("Config is null");
             }
-            catch
+            catch (Exception ex)
             {
-                PrintWarning("Config invalid, creating default config");
+                loadedFromDisk = false;
+                PrintWarning($"Config invalid ({ex.Message}), creating default config in memory");
                 LoadDefaultConfig();
             }
 
             EnsureConfig();
-            SaveConfig();
+            if (loadedFromDisk)
+            {
+                SaveConfig();
+            }
+            else
+            {
+                PrintWarning("Skipping SaveConfig to avoid overwriting existing config file");
+            }
         }
 
         protected override void SaveConfig() => Config.WriteObject(_config, true);
@@ -153,21 +162,46 @@ namespace Oxide.Plugins
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 var tab = _config.Tabs[i];
-                if (tab == null || string.IsNullOrEmpty(tab.Key)) continue;
-                if (!seenKeys.Add(tab.Key)) continue;
+                if (tab == null || string.IsNullOrEmpty(tab.Key))
+                {
+                    continue;
+                }
+
+                if (!seenKeys.Add(tab.Key))
+                {
+                    continue;
+                }
+
                 uniqTabs.Add(tab);
             }
 
-            if (uniqTabs.Count > 0)
-                _config.Tabs = uniqTabs;
+            // Важно: если есть пользовательские вкладки, не дополняем и не заменяем их дефолтами.
+            // Дефолт нужен только когда вкладок нет вообще.
+            _config.Tabs = uniqTabs.Count > 0 ? uniqTabs : new ConfigData().Tabs;
 
             var defaultTabs = new ConfigData().Tabs;
-            if (_config.Tabs.Count < defaultTabs.Count)
-                _config.Tabs = defaultTabs;
 
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 if (_config.Tabs[i].ButtonRect != null) continue;
+
+                RectConfig fallbackRect = null;
+                for (var j = 0; j < defaultTabs.Count; j++)
+                {
+                    if (!defaultTabs[j].Key.Equals(_config.Tabs[i].Key, StringComparison.OrdinalIgnoreCase)) continue;
+                    fallbackRect = defaultTabs[j].ButtonRect;
+                    break;
+                }
+
+                if (fallbackRect != null)
+                {
+                    _config.Tabs[i].ButtonRect = new RectConfig
+                    {
+                        AnchorMin = fallbackRect.AnchorMin,
+                        AnchorMax = fallbackRect.AnchorMax
+                    };
+                    continue;
+                }
 
                 var minY = 0.76f - (0.22f * i);
                 var maxY = 0.95f - (0.22f * i);
@@ -358,16 +392,6 @@ namespace Oxide.Plugins
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 var tab = _config.Tabs[i];
-                container.Add(new CuiButton
-                {
-                    Button =
-                    {
-                        Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "1 1 1 0.08" : "1 1 1 0.03",
-                        Command = $"serverinfo.ui {tab.Key}"
-                    },
-                    RectTransform = { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax },
-                    Text = { Text = tab.Name, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
-                }, parent, $"ServerInfo.Tab.Button.{i}");
 
                 container.Add(new CuiElement
                 {
@@ -378,12 +402,24 @@ namespace Oxide.Plugins
                         new CuiImageComponent { Color = "1 1 1 0" },
                         new CuiOutlineComponent
                         {
-                            Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "0.3 0.8 1 0.95" : "1 1 1 0.45",
+                            Color = "1 1 1 0",
                             Distance = "1.25 -1.25"
                         },
                         new CuiRectTransformComponent { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax }
                     }
                 });
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "1 1 1 0",
+                        Command = $"serverinfo.ui {tab.Key}"
+                    },
+                    RectTransform = { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax },
+                    Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
+                }, parent, $"ServerInfo.Tab.Button.{i}");
+
             }
         }
 
