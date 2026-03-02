@@ -150,6 +150,10 @@ namespace Oxide.Plugins
             if (uniqTabs.Count > 0)
                 _config.Tabs = uniqTabs;
 
+            var defaultTabs = new ConfigData().Tabs;
+            if (_config.Tabs.Count < defaultTabs.Count)
+                _config.Tabs = defaultTabs;
+
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 if (_config.Tabs[i].ButtonRect != null) continue;
