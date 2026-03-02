@@ -368,6 +368,22 @@ namespace Oxide.Plugins
                     RectTransform = { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax },
                     Text = { Text = tab.Name, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
                 }, parent, $"ServerInfo.Tab.Button.{i}");
+
+                container.Add(new CuiElement
+                {
+                    Name = $"ServerInfo.Tab.Border.{i}",
+                    Parent = parent,
+                    Components =
+                    {
+                        new CuiImageComponent { Color = "1 1 1 0" },
+                        new CuiOutlineComponent
+                        {
+                            Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "0.3 0.8 1 0.95" : "1 1 1 0.45",
+                            Distance = "1.25 -1.25"
+                        },
+                        new CuiRectTransformComponent { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax }
+                    }
+                });
             }
         }
 
