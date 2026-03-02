@@ -2715,29 +2715,24 @@ private void UpdateTrainZoneMarker()
     string label;
     Color color;
 
+    string type = (_trainLifecycle?.CompositionType ?? string.Empty).ToUpperInvariant();
+    string baseLabel;
+    if (type == "BANDIT")
+        baseLabel = "Поезд : БАНДИТСКИЙ";
+    else if (type == "COBLAB")
+        baseLabel = "Поезд COBALT";
+    else
+        baseLabel = "Поезд ЧВК";
+
     if (isUnderground)
     {
-        label = _activeCompositionPreset ?? "UNKNOWN";
+        label = $"{baseLabel} (метро)";
         color = Color.black;
     }
     else
     {
-        string type = (_trainLifecycle?.CompositionType ?? string.Empty).ToUpperInvariant();
-        if (type == "BANDIT")
-        {
-            label = "Поезд : БАНДИТСКИЙ";
-            color = Color.green;
-        }
-        else if (type == "COBLAB")
-        {
-            label = "Поезд COBALT";
-            color = Color.yellow;
-        }
-        else
-        {
-            label = "Поезд ЧВК";
-            color = Color.red;
-        }
+        label = baseLabel;
+        color = type == "BANDIT" ? Color.green : (type == "COBLAB" ? Color.yellow : Color.red);
     }
 
     float markerRadius = Mathf.Clamp(((146f * TRAIN_ZONE_GRID_FRACTION) / Mathf.Max(1f, (float)ConVar.Server.worldsize)) * TRAIN_ZONE_MARKER_SCALE, 0.05f, 0.6f);
