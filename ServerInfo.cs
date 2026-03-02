@@ -49,7 +49,7 @@ namespace Oxide.Plugins
 
             public RectConfig ContentArea = new RectConfig
             {
-                AnchorMin = "0.05 0.05",
+                AnchorMin = "0.33 0.05",
                 AnchorMax = "0.95 0.95"
             };
 
@@ -127,7 +127,7 @@ namespace Oxide.Plugins
         {
             if (_config == null) _config = new ConfigData();
             if (_config.Ui == null) _config.Ui = new UiConfig();
-            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.05 0.05", AnchorMax = "0.95 0.95" };
+            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
             if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
             if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
             if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
