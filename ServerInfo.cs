@@ -362,11 +362,11 @@ namespace Oxide.Plugins
                 {
                     Button =
                     {
-                        Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "1 1 1 0.08" : "1 1 1 0.03",
+                        Color = "1 1 1 0",
                         Command = $"serverinfo.ui {tab.Key}"
                     },
                     RectTransform = { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax },
-                    Text = { Text = tab.Name, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                    Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
                 }, parent, $"ServerInfo.Tab.Button.{i}");
 
                 container.Add(new CuiElement
@@ -378,7 +378,7 @@ namespace Oxide.Plugins
                         new CuiImageComponent { Color = "1 1 1 0" },
                         new CuiOutlineComponent
                         {
-                            Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "0.3 0.8 1 0.95" : "1 1 1 0.45",
+                            Color = "1 1 1 0",
                             Distance = "1.25 -1.25"
                         },
                         new CuiRectTransformComponent { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax }
