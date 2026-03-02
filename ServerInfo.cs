@@ -27,10 +27,10 @@ namespace Oxide.Plugins
             public UiConfig Ui = new UiConfig();
             public List<TabConfig> Tabs = new List<TabConfig>
             {
-                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.74", AnchorMax = "0.31 0.90" } },
-                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.56", AnchorMax = "0.31 0.72" } },
-                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.38", AnchorMax = "0.31 0.54" } },
-                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.20", AnchorMax = "0.31 0.36" } }
+                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.76", AnchorMax = "0.31 0.95" } },
+                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.54", AnchorMax = "0.31 0.73" } },
+                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.32", AnchorMax = "0.31 0.51" } },
+                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.10", AnchorMax = "0.31 0.29" } }
             };
 
             public string DefaultTab = "info";
@@ -39,16 +39,16 @@ namespace Oxide.Plugins
         private class UiConfig
         {
             public string OverlayColor = "0 0 0 0.75";
-            public string MainAnchorMin = "0.08 0.04";
-            public string MainAnchorMax = "0.92 0.96";
+            public string MainAnchorMin = "0.075 0.075";
+            public string MainAnchorMax = "0.925 0.925";
 
             public string FrameImageKey = "serverinfo_frame";
             public string FrameFallbackUrl = "";
 
             public RectConfig ContentArea = new RectConfig
             {
-                AnchorMin = "0.33 0.10",
-                AnchorMax = "0.97 0.90"
+                AnchorMin = "0.33 0.05",
+                AnchorMax = "0.95 0.95"
             };
 
             public RectConfig CloseButton = new RectConfig
@@ -125,7 +125,7 @@ namespace Oxide.Plugins
         {
             if (_config == null) _config = new ConfigData();
             if (_config.Ui == null) _config.Ui = new UiConfig();
-            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.10", AnchorMax = "0.97 0.90" };
+            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
             if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
             if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
             if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
@@ -152,8 +152,8 @@ namespace Oxide.Plugins
             {
                 if (_config.Tabs[i].ButtonRect != null) continue;
 
-                var minY = 0.74f - (0.18f * i);
-                var maxY = 0.90f - (0.18f * i);
+                var minY = 0.76f - (0.22f * i);
+                var maxY = 0.95f - (0.22f * i);
                 _config.Tabs[i].ButtonRect = new RectConfig
                 {
                     AnchorMin = $"0.03 {minY.ToString("0.###", CultureInfo.InvariantCulture)}",
@@ -382,7 +382,7 @@ namespace Oxide.Plugins
             var panel = container.Add(new CuiPanel
             {
                 Image = { Color = "0 0 0 0.8" },
-                RectTransform = { AnchorMin = "0.01 0.01", AnchorMax = "0.46 0.30" }
+                RectTransform = { AnchorMin = "0.27 0.35", AnchorMax = "0.73 0.65" }
             }, parent, UiEditor);
 
             container.Add(new CuiLabel
