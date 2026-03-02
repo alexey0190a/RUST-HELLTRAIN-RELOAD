@@ -27,10 +27,12 @@ namespace Oxide.Plugins
             public UiConfig Ui = new UiConfig();
             public List<TabConfig> Tabs = new List<TabConfig>
             {
-                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.76", AnchorMax = "0.31 0.95" } },
-                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.54", AnchorMax = "0.31 0.73" } },
-                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.32", AnchorMax = "0.31 0.51" } },
-                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.10", AnchorMax = "0.31 0.29" } }
+                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.81", AnchorMax = "0.31 0.95" } },
+                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.66", AnchorMax = "0.31 0.80" } },
+                new TabConfig { Key = "commands", Name = "Команды", ImageKey = "serverinfo_tab_commands", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.51", AnchorMax = "0.31 0.65" } },
+                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.36", AnchorMax = "0.31 0.50" } },
+                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.21", AnchorMax = "0.31 0.35" } },
+                new TabConfig { Key = "links", Name = "Ссылки", ImageKey = "serverinfo_tab_links", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.06", AnchorMax = "0.31 0.20" } }
             };
 
             public string DefaultTab = "info";
