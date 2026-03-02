@@ -90,6 +90,8 @@ namespace Oxide.Plugins
             public string Name;
             public string ImageKey;
             public string FallbackUrl;
+            public string ContentImageKey;
+            public string ContentFallbackUrl;
             public RectConfig ButtonRect;
         }
 
@@ -106,7 +108,7 @@ namespace Oxide.Plugins
         protected override void LoadConfig()
         {
             base.LoadConfig();
-            var loadedFromDisk = true;
+            var configLoadFailed = false;
             try
             {
                 _config = Config.ReadObject<ConfigData>();
@@ -114,19 +116,15 @@ namespace Oxide.Plugins
             }
             catch (Exception ex)
             {
-                loadedFromDisk = false;
+                configLoadFailed = true;
                 PrintWarning($"Config invalid ({ex.Message}), creating default config in memory");
                 LoadDefaultConfig();
             }
 
-            EnsureConfig();
-            if (loadedFromDisk)
+            var changed = EnsureConfig();
+            if (changed && !configLoadFailed)
             {
                 SaveConfig();
-            }
-            else
-            {
-                PrintWarning("Skipping SaveConfig to avoid overwriting existing config file");
             }
         }
 
@@ -142,42 +140,87 @@ namespace Oxide.Plugins
             cmd.AddConsoleCommand("serverinfo.editor", this, nameof(CmdEditor));
         }
 
-        private void EnsureConfig()
+        private bool EnsureConfig()
         {
-            if (_config == null) _config = new ConfigData();
-            if (_config.Ui == null) _config.Ui = new UiConfig();
-            if (_config.Ui.LeftPanelArea == null) _config.Ui.LeftPanelArea = new RectConfig { AnchorMin = "0.03 0.05", AnchorMax = "0.31 0.95" };
-            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
-            if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
-            if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
-            if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
+            var changed = false;
+            if (_config == null)
+            {
+                _config = new ConfigData();
+                changed = true;
+            }
+            if (_config.Ui == null)
+            {
+                _config.Ui = new UiConfig();
+                changed = true;
+            }
+            if (_config.Ui.LeftPanelArea == null)
+            {
+                _config.Ui.LeftPanelArea = new RectConfig { AnchorMin = "0.03 0.05", AnchorMax = "0.31 0.95" };
+                changed = true;
+            }
+            if (_config.Ui.ContentArea == null)
+            {
+                _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
+                changed = true;
+            }
+            if (_config.Ui.CloseButton == null)
+            {
+                _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
+                changed = true;
+            }
+            if (_config.Ui.SettingsButton == null)
+            {
+                _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
+                changed = true;
+            }
+            if (_config.Ui.EditorStep <= 0f)
+            {
+                _config.Ui.EditorStep = 0.005f;
+                changed = true;
+            }
 
             if (_config.Tabs == null || _config.Tabs.Count == 0)
             {
                 _config.Tabs = new ConfigData().Tabs;
+                changed = true;
             }
 
             var uniqTabs = new List<TabConfig>();
             var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < _config.Tabs.Count; i++)
+            var tabsWereNormalized = false;
+            for (var i = _config.Tabs.Count - 1; i >= 0; i--)
             {
                 var tab = _config.Tabs[i];
                 if (tab == null || string.IsNullOrEmpty(tab.Key))
                 {
+                    tabsWereNormalized = true;
                     continue;
                 }
 
                 if (!seenKeys.Add(tab.Key))
                 {
+                    tabsWereNormalized = true;
                     continue;
                 }
 
-                uniqTabs.Add(tab);
+                uniqTabs.Insert(0, tab);
             }
 
             // Важно: если есть пользовательские вкладки, не дополняем и не заменяем их дефолтами.
             // Дефолт нужен только когда вкладок нет вообще.
-            _config.Tabs = uniqTabs.Count > 0 ? uniqTabs : new ConfigData().Tabs;
+            if (uniqTabs.Count > 0)
+            {
+                if (tabsWereNormalized)
+                {
+                    _config.Tabs = uniqTabs;
+                    changed = true;
+                }
+            }
+            else if (_config.Tabs.Count > 0)
+            {
+                _config.Tabs = new ConfigData().Tabs;
+                changed = true;
+            }
 
             var defaultTabs = new ConfigData().Tabs;
 
@@ -200,6 +243,7 @@ namespace Oxide.Plugins
                         AnchorMin = fallbackRect.AnchorMin,
                         AnchorMax = fallbackRect.AnchorMax
                     };
+                    changed = true;
                     continue;
                 }
 
@@ -210,9 +254,16 @@ namespace Oxide.Plugins
                     AnchorMin = $"0.03 {minY.ToString("0.###", CultureInfo.InvariantCulture)}",
                     AnchorMax = $"0.31 {maxY.ToString("0.###", CultureInfo.InvariantCulture)}"
                 };
+                changed = true;
             }
 
-            if (string.IsNullOrEmpty(_config.DefaultTab)) _config.DefaultTab = "info";
+            if (string.IsNullOrEmpty(_config.DefaultTab))
+            {
+                _config.DefaultTab = "info";
+                changed = true;
+            }
+
+            return changed;
         }
 
         private void OnServerInitialized()
@@ -370,7 +421,9 @@ namespace Oxide.Plugins
 
             AddImageElement(container, root, _config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl, _config.Ui.LeftPanelArea.AnchorMin, _config.Ui.LeftPanelArea.AnchorMax, "ServerInfo.LeftPanel");
             AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
-            AddImageElement(container, root, selected.ImageKey, selected.FallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
+            var contentImageKey = ResolveContentImageKey(selected);
+            var contentFallbackUrl = ResolveContentFallbackUrl(selected);
+            AddImageElement(container, root, contentImageKey, contentFallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
             AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
@@ -608,6 +661,30 @@ namespace Oxide.Plugins
             }
         }
 
+        private string ResolveContentImageKey(TabConfig tab)
+        {
+            if (tab == null) return null;
+
+            if (!string.IsNullOrEmpty(tab.ContentImageKey) && !string.IsNullOrEmpty(GetPng(tab.ContentImageKey))) return tab.ContentImageKey;
+            if (!string.IsNullOrEmpty(GetPng(tab.ImageKey))) return tab.ImageKey;
+
+            var prefixed = $"serverinfo_content_{tab.Key}";
+            if (!string.IsNullOrEmpty(GetPng(prefixed))) return prefixed;
+
+            var generic = $"serverinfo_{tab.Key}";
+            if (!string.IsNullOrEmpty(GetPng(generic))) return generic;
+
+            if (!string.IsNullOrEmpty(GetPng(tab.Key))) return tab.Key;
+
+            return !string.IsNullOrEmpty(tab.ContentImageKey) ? tab.ContentImageKey : tab.ImageKey;
+        }
+
+        private string ResolveContentFallbackUrl(TabConfig tab)
+        {
+            if (tab == null) return null;
+            return !string.IsNullOrEmpty(tab.ContentFallbackUrl) ? tab.ContentFallbackUrl : tab.FallbackUrl;
+        }
+
         private void EnsureImagesRegistered()
         {
             if (ImageLibrary == null) return;
@@ -618,6 +695,7 @@ namespace Oxide.Plugins
             foreach (var tab in _config.Tabs)
             {
                 TryRegister(tab.ImageKey, tab.FallbackUrl);
+                TryRegister(tab.ContentImageKey, tab.ContentFallbackUrl);
             }
         }
 
