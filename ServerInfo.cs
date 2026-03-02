@@ -1,33 +1,36 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust.Cui;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerInfo", "BLOODHELL", "1.0.0")]
+    [Info("ServerInfo", "BLOODHELL", "1.1.0")]
     [Description("PNG-style server info UI with tabs and admin layout editor.")]
     public class ServerInfo : RustPlugin
     {
         private const string PermAdmin = "serverinfo.admin";
         private const string UiMain = "ServerInfo.UI.Main";
         private const string UiOverlay = "ServerInfo.UI.Overlay";
+        private const string UiEditor = "ServerInfo.UI.Editor";
 
         [PluginReference] private Plugin ImageLibrary;
 
         private ConfigData _config;
         private readonly Dictionary<ulong, string> _activeTabByPlayer = new Dictionary<ulong, string>();
+        private readonly Dictionary<ulong, EditorState> _editorStateByPlayer = new Dictionary<ulong, EditorState>();
 
         private class ConfigData
         {
             public UiConfig Ui = new UiConfig();
             public List<TabConfig> Tabs = new List<TabConfig>
             {
-                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "" },
-                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "" },
-                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "" },
-                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "" }
+                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.74", AnchorMax = "0.31 0.90" } },
+                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.56", AnchorMax = "0.31 0.72" } },
+                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.38", AnchorMax = "0.31 0.54" } },
+                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.20", AnchorMax = "0.31 0.36" } }
             };
 
             public string DefaultTab = "info";
@@ -36,17 +39,11 @@ namespace Oxide.Plugins
         private class UiConfig
         {
             public string OverlayColor = "0 0 0 0.75";
-            public string MainAnchorMin = "0.2 0.12";
-            public string MainAnchorMax = "0.8 0.88";
+            public string MainAnchorMin = "0.125 0.08";
+            public string MainAnchorMax = "0.875 0.92";
 
             public string FrameImageKey = "serverinfo_frame";
             public string FrameFallbackUrl = "";
-
-            public RectConfig LeftTabsArea = new RectConfig
-            {
-                AnchorMin = "0.03 0.10",
-                AnchorMax = "0.31 0.90"
-            };
 
             public RectConfig ContentArea = new RectConfig
             {
@@ -56,15 +53,17 @@ namespace Oxide.Plugins
 
             public RectConfig CloseButton = new RectConfig
             {
-                AnchorMin = "0.94 0.92",
-                AnchorMax = "0.985 0.985"
+                AnchorMin = "0.955 0.935",
+                AnchorMax = "0.99 0.985"
             };
 
             public RectConfig SettingsButton = new RectConfig
             {
-                AnchorMin = "0.80 0.92",
-                AnchorMax = "0.935 0.985"
+                AnchorMin = "0.91 0.935",
+                AnchorMax = "0.95 0.985"
             };
+
+            public float EditorStep = 0.005f;
         }
 
         private class RectConfig
@@ -79,6 +78,12 @@ namespace Oxide.Plugins
             public string Name;
             public string ImageKey;
             public string FallbackUrl;
+            public RectConfig ButtonRect;
+        }
+
+        private class EditorState
+        {
+            public int TargetIndex;
         }
 
         protected override void LoadDefaultConfig()
@@ -120,9 +125,27 @@ namespace Oxide.Plugins
         {
             if (_config == null) _config = new ConfigData();
             if (_config.Ui == null) _config.Ui = new UiConfig();
+            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.10", AnchorMax = "0.97 0.90" };
+            if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
+            if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.91 0.935", AnchorMax = "0.95 0.985" };
+            if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
+
             if (_config.Tabs == null || _config.Tabs.Count == 0)
             {
                 _config.Tabs = new ConfigData().Tabs;
+            }
+
+            for (var i = 0; i < _config.Tabs.Count; i++)
+            {
+                if (_config.Tabs[i].ButtonRect != null) continue;
+
+                var minY = 0.74f - (0.18f * i);
+                var maxY = 0.90f - (0.18f * i);
+                _config.Tabs[i].ButtonRect = new RectConfig
+                {
+                    AnchorMin = $"0.03 {minY.ToString("0.###", CultureInfo.InvariantCulture)}",
+                    AnchorMax = $"0.31 {maxY.ToString("0.###", CultureInfo.InvariantCulture)}"
+                };
             }
 
             if (string.IsNullOrEmpty(_config.DefaultTab)) _config.DefaultTab = "info";
@@ -169,63 +192,91 @@ namespace Oxide.Plugins
             if (player == null) return;
             if (!HasAdmin(player))
             {
-                SendReply(player, "Нет прав: serverinfo.admin");
+                SendReply(player, "Нет прав: oxide.admin / serverinfo.admin");
                 return;
             }
 
-            if (arg.Args == null || arg.Args.Length < 5)
+            var action = arg.Args != null && arg.Args.Length > 0 ? arg.Args[0].ToLowerInvariant() : "open";
+
+            if (action == "open")
             {
-                SendReply(player, "Использование: serverinfo.editor <target> <anchorMinX> <anchorMinY> <anchorMaxX> <anchorMaxY>");
-                SendReply(player, "target: close | settings | lefttabs | content");
+                if (!_editorStateByPlayer.ContainsKey(player.userID))
+                    _editorStateByPlayer[player.userID] = new EditorState();
+
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
             }
 
-            var target = arg.Args[0].ToLowerInvariant();
-            var min = $"{arg.Args[1]} {arg.Args[2]}";
-            var max = $"{arg.Args[3]} {arg.Args[4]}";
-
-            if (!TryUpdateTargetRect(target, min, max))
+            if (action == "close")
             {
-                SendReply(player, $"Неизвестный target: {target}");
+                _editorStateByPlayer.Remove(player.userID);
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
             }
 
-            SaveConfig();
-            SendReply(player, $"Обновлено: {target} => {min} / {max}");
-            OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
-        }
-
-        private bool TryUpdateTargetRect(string target, string min, string max)
-        {
-            if (target == "close")
+            if (!_editorStateByPlayer.TryGetValue(player.userID, out var state))
             {
-                _config.Ui.CloseButton.AnchorMin = min;
-                _config.Ui.CloseButton.AnchorMax = max;
-                return true;
+                _editorStateByPlayer[player.userID] = new EditorState();
+                state = _editorStateByPlayer[player.userID];
             }
 
-            if (target == "settings")
+            if (action == "next")
             {
-                _config.Ui.SettingsButton.AnchorMin = min;
-                _config.Ui.SettingsButton.AnchorMax = max;
-                return true;
+                state.TargetIndex = (state.TargetIndex + 1) % GetEditableTargetCount();
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
+                return;
             }
 
-            if (target == "lefttabs")
+            if (action == "prev")
             {
-                _config.Ui.LeftTabsArea.AnchorMin = min;
-                _config.Ui.LeftTabsArea.AnchorMax = max;
-                return true;
+                state.TargetIndex = (state.TargetIndex - 1 + GetEditableTargetCount()) % GetEditableTargetCount();
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
+                return;
             }
 
-            if (target == "content")
+            if (action == "step" && arg.Args.Length >= 2)
             {
-                _config.Ui.ContentArea.AnchorMin = min;
-                _config.Ui.ContentArea.AnchorMax = max;
-                return true;
+                if (!TryParseFloat(arg.Args[1], out var step) || step <= 0f)
+                {
+                    SendReply(player, "Неверный шаг. Пример: serverinfo.editor step 0.005");
+                    return;
+                }
+
+                _config.Ui.EditorStep = step;
+                SaveConfig();
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
+                return;
             }
 
-            return false;
+            if (action == "nudge" && arg.Args.Length >= 3)
+            {
+                if (!TryParseFloat(arg.Args[1], out var dx) || !TryParseFloat(arg.Args[2], out var dy))
+                {
+                    SendReply(player, "Неверные значения nudge. Пример: serverinfo.editor nudge 1 -1");
+                    return;
+                }
+
+                MoveTarget(state.TargetIndex, dx * _config.Ui.EditorStep, dy * _config.Ui.EditorStep);
+                SaveConfig();
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
+                return;
+            }
+
+            if (action == "resize" && arg.Args.Length >= 3)
+            {
+                if (!TryParseFloat(arg.Args[1], out var dx) || !TryParseFloat(arg.Args[2], out var dy))
+                {
+                    SendReply(player, "Неверные значения resize. Пример: serverinfo.editor resize 1 -1");
+                    return;
+                }
+
+                ResizeTarget(state.TargetIndex, dx * _config.Ui.EditorStep, dy * _config.Ui.EditorStep);
+                SaveConfig();
+                OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
+                return;
+            }
+
+            SendReply(player, "Команды редактора: open | close | next | prev | step <value> | nudge <x> <y> | resize <x> <y>");
         }
 
         private void OpenUi(BasePlayer player, string tabKey)
@@ -239,7 +290,7 @@ namespace Oxide.Plugins
 
             var container = new CuiElementContainer();
 
-            // Layer rule: PNG backgrounds are added first.
+            // Hard rule: images/backgrounds are always added before any buttons.
             container.Add(new CuiPanel
             {
                 Image = { Color = _config.Ui.OverlayColor },
@@ -255,51 +306,37 @@ namespace Oxide.Plugins
             }, UiOverlay, UiMain);
 
             AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
-
             AddImageElement(container, root, selected.ImageKey, selected.FallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
 
             AddTabButtons(container, root, selected.Key);
             AddCloseButton(container, root);
 
             if (HasAdmin(player))
+            {
                 AddSettingsButton(container, root);
+
+                if (_editorStateByPlayer.ContainsKey(player.userID))
+                    AddEditorUi(container, root, player.userID);
+            }
 
             CuiHelper.AddUi(player, container);
         }
 
         private void AddTabButtons(CuiElementContainer container, string parent, string selectedKey)
         {
-            var area = _config.Ui.LeftTabsArea;
-            var count = Mathf.Max(1, _config.Tabs.Count);
-            var step = 1f / count;
-
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 var tab = _config.Tabs[i];
-                var minY = 1f - ((i + 1) * step);
-                var maxY = 1f - (i * step);
-
-                var buttonParent = container.Add(new CuiPanel
-                {
-                    Image = { Color = "1 1 1 0" },
-                    RectTransform =
-                    {
-                        AnchorMin = $"{area.AnchorMin.Split(' ')[0]} {Mathf.Lerp(ParseY(area.AnchorMin), ParseY(area.AnchorMax), minY)}",
-                        AnchorMax = $"{area.AnchorMax.Split(' ')[0]} {Mathf.Lerp(ParseY(area.AnchorMin), ParseY(area.AnchorMax), maxY)}"
-                    }
-                }, parent, $"ServerInfo.Tab.Area.{tab.Key}");
-
                 container.Add(new CuiButton
                 {
                     Button =
                     {
-                        Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "1 1 1 0.06" : "1 1 1 0.01",
-                        Command = $"serverinfo.ui {tab.Key}",
-                        Close = string.Empty
+                        Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "1 1 1 0.08" : "1 1 1 0.03",
+                        Command = $"serverinfo.ui {tab.Key}"
                     },
-                    RectTransform = { AnchorMin = "0 0", AnchorMax = "1 1" },
+                    RectTransform = { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax },
                     Text = { Text = tab.Name, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
-                }, buttonParent, $"ServerInfo.Tab.Button.{tab.Key}");
+                }, parent, $"ServerInfo.Tab.Button.{i}");
             }
         }
 
@@ -307,9 +344,9 @@ namespace Oxide.Plugins
         {
             container.Add(new CuiButton
             {
-                Button = { Color = "1 1 1 0", Command = "serverinfo.close" },
+                Button = { Color = "0.6 0.1 0.1 0.75", Command = "serverinfo.close" },
                 RectTransform = { AnchorMin = _config.Ui.CloseButton.AnchorMin, AnchorMax = _config.Ui.CloseButton.AnchorMax },
-                Text = { Text = string.Empty }
+                Text = { Text = "X", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, parent, "ServerInfo.Close");
         }
 
@@ -317,10 +354,121 @@ namespace Oxide.Plugins
         {
             container.Add(new CuiButton
             {
-                Button = { Color = "0.2 0.5 0.8 0.35", Command = "serverinfo.editor help" },
+                Button = { Color = "0.2 0.5 0.8 0.75", Command = "serverinfo.editor open" },
                 RectTransform = { AnchorMin = _config.Ui.SettingsButton.AnchorMin, AnchorMax = _config.Ui.SettingsButton.AnchorMax },
-                Text = { Text = "Настройки", FontSize = 12, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Text = { Text = "⚙", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, parent, "ServerInfo.Settings");
+        }
+
+        private void AddEditorUi(CuiElementContainer container, string parent, ulong userId)
+        {
+            var state = _editorStateByPlayer[userId];
+            var targetName = GetTargetName(state.TargetIndex);
+            var targetRect = GetTargetRect(state.TargetIndex);
+
+            var panel = container.Add(new CuiPanel
+            {
+                Image = { Color = "0 0 0 0.8" },
+                RectTransform = { AnchorMin = "0.01 0.01", AnchorMax = "0.35 0.23" }
+            }, parent, UiEditor);
+
+            container.Add(new CuiLabel
+            {
+                RectTransform = { AnchorMin = "0.03 0.72", AnchorMax = "0.97 0.97" },
+                Text =
+                {
+                    Text = $"EDITOR | target: {targetName} | step: {_config.Ui.EditorStep.ToString("0.###", CultureInfo.InvariantCulture)}\nmin: {targetRect.AnchorMin} max: {targetRect.AnchorMax}",
+                    FontSize = 12,
+                    Align = TextAnchor.UpperLeft,
+                    Color = "1 1 1 1"
+                }
+            }, panel);
+
+            AddEditorButton(container, panel, "Prev", "0.03 0.42", "0.20 0.68", "serverinfo.editor prev");
+            AddEditorButton(container, panel, "Next", "0.22 0.42", "0.39 0.68", "serverinfo.editor next");
+            AddEditorButton(container, panel, "Step+", "0.41 0.42", "0.58 0.68", $"serverinfo.editor step {(_config.Ui.EditorStep + 0.001f).ToString("0.###", CultureInfo.InvariantCulture)}");
+            AddEditorButton(container, panel, "Step-", "0.60 0.42", "0.77 0.68", $"serverinfo.editor step {Mathf.Max(0.001f, _config.Ui.EditorStep - 0.001f).ToString("0.###", CultureInfo.InvariantCulture)}");
+            AddEditorButton(container, panel, "Exit", "0.79 0.42", "0.97 0.68", "serverinfo.editor close");
+
+            AddEditorButton(container, panel, "←", "0.03 0.06", "0.11 0.32", "serverinfo.editor nudge -1 0");
+            AddEditorButton(container, panel, "→", "0.13 0.06", "0.21 0.32", "serverinfo.editor nudge 1 0");
+            AddEditorButton(container, panel, "↑", "0.23 0.06", "0.31 0.32", "serverinfo.editor nudge 0 1");
+            AddEditorButton(container, panel, "↓", "0.33 0.06", "0.41 0.32", "serverinfo.editor nudge 0 -1");
+
+            AddEditorButton(container, panel, "W+", "0.50 0.06", "0.58 0.32", "serverinfo.editor resize 1 0");
+            AddEditorButton(container, panel, "W-", "0.60 0.06", "0.68 0.32", "serverinfo.editor resize -1 0");
+            AddEditorButton(container, panel, "H+", "0.70 0.06", "0.78 0.32", "serverinfo.editor resize 0 1");
+            AddEditorButton(container, panel, "H-", "0.80 0.06", "0.88 0.32", "serverinfo.editor resize 0 -1");
+        }
+
+        private void AddEditorButton(CuiElementContainer container, string parent, string text, string min, string max, string command)
+        {
+            container.Add(new CuiButton
+            {
+                Button = { Color = "0.25 0.25 0.25 0.95", Command = command },
+                RectTransform = { AnchorMin = min, AnchorMax = max },
+                Text = { Text = text, FontSize = 12, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, parent);
+        }
+
+        private string GetTargetName(int index)
+        {
+            if (index == 0) return "close";
+            var tabIndex = index - 1;
+            if (tabIndex >= 0 && tabIndex < _config.Tabs.Count) return $"tab:{_config.Tabs[tabIndex].Key}";
+            return "close";
+        }
+
+        private int GetEditableTargetCount() => _config.Tabs.Count + 1;
+
+        private RectConfig GetTargetRect(int index)
+        {
+            if (index == 0) return _config.Ui.CloseButton;
+            var tabIndex = index - 1;
+            if (tabIndex >= 0 && tabIndex < _config.Tabs.Count) return _config.Tabs[tabIndex].ButtonRect;
+            return _config.Ui.CloseButton;
+        }
+
+        private void MoveTarget(int index, float x, float y)
+        {
+            var rect = GetTargetRect(index);
+            var min = ParseVec2(rect.AnchorMin);
+            var max = ParseVec2(rect.AnchorMax);
+            min += new Vector2(x, y);
+            max += new Vector2(x, y);
+            rect.AnchorMin = VecToAnchor(min);
+            rect.AnchorMax = VecToAnchor(max);
+        }
+
+        private void ResizeTarget(int index, float x, float y)
+        {
+            var rect = GetTargetRect(index);
+            var min = ParseVec2(rect.AnchorMin);
+            var max = ParseVec2(rect.AnchorMax);
+            max += new Vector2(x, y);
+            if (max.x <= min.x + 0.001f) max.x = min.x + 0.001f;
+            if (max.y <= min.y + 0.001f) max.y = min.y + 0.001f;
+            rect.AnchorMax = VecToAnchor(max);
+        }
+
+        private Vector2 ParseVec2(string anchor)
+        {
+            if (string.IsNullOrEmpty(anchor)) return Vector2.zero;
+            var split = anchor.Split(' ');
+            if (split.Length != 2) return Vector2.zero;
+            if (!TryParseFloat(split[0], out var x)) x = 0f;
+            if (!TryParseFloat(split[1], out var y)) y = 0f;
+            return new Vector2(x, y);
+        }
+
+        private string VecToAnchor(Vector2 value)
+        {
+            return $"{value.x.ToString("0.###", CultureInfo.InvariantCulture)} {value.y.ToString("0.###", CultureInfo.InvariantCulture)}";
+        }
+
+        private bool TryParseFloat(string value, out float parsed)
+        {
+            return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
         }
 
         private void AddImageElement(CuiElementContainer container, string parent, string imageKey, string fallbackUrl, string anchorMin, string anchorMax, string name)
@@ -409,21 +557,14 @@ namespace Oxide.Plugins
         private bool HasAdmin(BasePlayer player)
         {
             if (player == null) return false;
-            return permission.UserHasPermission(player.UserIDString, PermAdmin);
+            return player.IsAdmin || permission.UserHasPermission(player.UserIDString, PermAdmin);
         }
 
         private void DestroyUi(BasePlayer player)
         {
+            CuiHelper.DestroyUi(player, UiEditor);
             CuiHelper.DestroyUi(player, UiMain);
             CuiHelper.DestroyUi(player, UiOverlay);
-        }
-
-        private static float ParseY(string anchor)
-        {
-            if (string.IsNullOrEmpty(anchor)) return 0f;
-            var split = anchor.Split(' ');
-            if (split.Length != 2) return 0f;
-            return float.TryParse(split[1], out var y) ? y : 0f;
         }
     }
 }
