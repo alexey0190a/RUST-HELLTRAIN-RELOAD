@@ -369,21 +369,6 @@ namespace Oxide.Plugins
                     Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
                 }, parent, $"ServerInfo.Tab.Button.{i}");
 
-                container.Add(new CuiElement
-                {
-                    Name = $"ServerInfo.Tab.Border.{i}",
-                    Parent = parent,
-                    Components =
-                    {
-                        new CuiImageComponent { Color = "1 1 1 0" },
-                        new CuiOutlineComponent
-                        {
-                            Color = "1 1 1 0",
-                            Distance = "1.25 -1.25"
-                        },
-                        new CuiRectTransformComponent { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax }
-                    }
-                });
             }
         }
 
