@@ -4976,7 +4976,7 @@ private string GetGridPosition(Vector3 position)
     int z = Mathf.FloorToInt((position.z + TerrainMeta.Size.z / 2) / gridSize);
     
     char letter = (char)('A' + Mathf.Clamp(x, 0, 25));
-    int number = Mathf.Clamp(z, 0, 25);
+    int number = 26 - Mathf.Clamp(z, 0, 25);
     
     return $"{letter}{number}";
 }
