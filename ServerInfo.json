@@ -1,0 +1,93 @@
+{
+  "Ui": {
+    "OverlayColor": "0 0 0 0.75",
+    "MainAnchorMin": "0.05 0.05",
+    "MainAnchorMax": "0.95 0.95",
+    "FrameImageKey": "serverinfo_frame",
+    "FrameFallbackUrl": "",
+    "LeftPanelImageKey": "serverinfo_leftpanel",
+    "LeftPanelFallbackUrl": "",
+    "LeftPanelArea": {
+      "AnchorMin": "0.03 0.05",
+      "AnchorMax": "0.31 0.95"
+    },
+    "ContentArea": {
+      "AnchorMin": "0.31 0.04",
+      "AnchorMax": "0.94 0.89"
+    },
+    "CloseImageKey": "serverinfo_close",
+    "CloseFallbackUrl": "",
+    "CloseButton": {
+      "AnchorMin": "0.915 0.805",
+      "AnchorMax": "1 1.005"
+    },
+    "SettingsButton": {
+      "AnchorMin": "0.80 0.935",
+      "AnchorMax": "0.945 0.985"
+    },
+    "EditorStep": 0.01
+  },
+  "Tabs": [
+    {
+      "Key": "info",
+      "Name": "Информация",
+      "ImageKey": "serverinfo_tab_info",
+      "FallbackUrl": "",
+      "ButtonRect": {
+        "AnchorMin": "0.08 0.764",
+        "AnchorMax": "0.26 0.854"
+      }
+    },
+    {
+      "Key": "rules",
+      "Name": "Правила",
+      "ImageKey": "serverinfo_tab_rules",
+      "FallbackUrl": "",
+      "ButtonRect": {
+        "AnchorMin": "0.103 0.639",
+        "AnchorMax": "0.233 0.728"
+      }
+    },
+    {
+      "Key": "commands",
+      "Name": "Команды",
+      "ImageKey": "serverinfo_tab_commands",
+      "FallbackUrl": "",
+      "ButtonRect": {
+        "AnchorMin": "0.104 0.522",
+        "AnchorMax": "0.238 0.602"
+      }
+    },
+    {
+      "Key": "events",
+      "Name": "Ивенты",
+      "ImageKey": "serverinfo_tab_events",
+      "FallbackUrl": "",
+      "ButtonRect": {
+        "AnchorMin": "0.114 0.4",
+        "AnchorMax": "0.226 0.47"
+      }
+    },
+    {
+      "Key": "about",
+      "Name": "О нас",
+      "ImageKey": "serverinfo_tab_about",
+      "FallbackUrl": "",
+      "ButtonRect": {
+        "AnchorMin": "0.124 0.28",
+        "AnchorMax": "0.216 0.35"
+      }
+    },
+    {
+      "Key": "links",
+      "Name": "Ссылки",
+      "ImageKey": "serverinfo_tab_links",
+      "FallbackUrl": "",
+      "ButtonRect": {
+        "AnchorMin": "0.114 0.16",
+        "AnchorMax": "0.227 0.23"
+      }
+    }
+  ],
+  "DefaultTab": "info"
+}

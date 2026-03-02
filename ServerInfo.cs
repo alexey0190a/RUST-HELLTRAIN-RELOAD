@@ -27,10 +27,12 @@ namespace Oxide.Plugins
             public UiConfig Ui = new UiConfig();
             public List<TabConfig> Tabs = new List<TabConfig>
             {
-                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.76", AnchorMax = "0.31 0.95" } },
-                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.54", AnchorMax = "0.31 0.73" } },
-                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.32", AnchorMax = "0.31 0.51" } },
-                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.10", AnchorMax = "0.31 0.29" } }
+                new TabConfig { Key = "info", Name = "Информация", ImageKey = "serverinfo_tab_info", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.81", AnchorMax = "0.31 0.95" } },
+                new TabConfig { Key = "rules", Name = "Правила", ImageKey = "serverinfo_tab_rules", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.66", AnchorMax = "0.31 0.80" } },
+                new TabConfig { Key = "commands", Name = "Команды", ImageKey = "serverinfo_tab_commands", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.51", AnchorMax = "0.31 0.65" } },
+                new TabConfig { Key = "events", Name = "Ивенты", ImageKey = "serverinfo_tab_events", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.36", AnchorMax = "0.31 0.50" } },
+                new TabConfig { Key = "about", Name = "О нас", ImageKey = "serverinfo_tab_about", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.21", AnchorMax = "0.31 0.35" } },
+                new TabConfig { Key = "links", Name = "Ссылки", ImageKey = "serverinfo_tab_links", FallbackUrl = "", ButtonRect = new RectConfig { AnchorMin = "0.03 0.06", AnchorMax = "0.31 0.20" } }
             };
 
             public string DefaultTab = "info";
@@ -45,12 +47,22 @@ namespace Oxide.Plugins
             public string FrameImageKey = "serverinfo_frame";
             public string FrameFallbackUrl = "";
 
+            public string LeftPanelImageKey = "serverinfo_leftpanel";
+            public string LeftPanelFallbackUrl = "";
+            public RectConfig LeftPanelArea = new RectConfig
+            {
+                AnchorMin = "0.03 0.05",
+                AnchorMax = "0.31 0.95"
+            };
+
             public RectConfig ContentArea = new RectConfig
             {
-                AnchorMin = "0.05 0.05",
+                AnchorMin = "0.33 0.05",
                 AnchorMax = "0.95 0.95"
             };
 
+            public string CloseImageKey = "serverinfo_close";
+            public string CloseFallbackUrl = "";
             public RectConfig CloseButton = new RectConfig
             {
                 AnchorMin = "0.955 0.935",
@@ -125,7 +137,8 @@ namespace Oxide.Plugins
         {
             if (_config == null) _config = new ConfigData();
             if (_config.Ui == null) _config.Ui = new UiConfig();
-            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.05 0.05", AnchorMax = "0.95 0.95" };
+            if (_config.Ui.LeftPanelArea == null) _config.Ui.LeftPanelArea = new RectConfig { AnchorMin = "0.03 0.05", AnchorMax = "0.31 0.95" };
+            if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
             if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
             if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
             if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
@@ -147,6 +160,10 @@ namespace Oxide.Plugins
 
             if (uniqTabs.Count > 0)
                 _config.Tabs = uniqTabs;
+
+            var defaultTabs = new ConfigData().Tabs;
+            if (_config.Tabs.Count < defaultTabs.Count)
+                _config.Tabs = defaultTabs;
 
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
@@ -317,8 +334,10 @@ namespace Oxide.Plugins
                 CursorEnabled = true
             }, UiOverlay, UiMain);
 
+            AddImageElement(container, root, _config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl, _config.Ui.LeftPanelArea.AnchorMin, _config.Ui.LeftPanelArea.AnchorMax, "ServerInfo.LeftPanel");
             AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
             AddImageElement(container, root, selected.ImageKey, selected.FallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
+            AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
             AddCloseButton(container, root);
@@ -349,6 +368,22 @@ namespace Oxide.Plugins
                     RectTransform = { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax },
                     Text = { Text = tab.Name, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
                 }, parent, $"ServerInfo.Tab.Button.{i}");
+
+                container.Add(new CuiElement
+                {
+                    Name = $"ServerInfo.Tab.Border.{i}",
+                    Parent = parent,
+                    Components =
+                    {
+                        new CuiImageComponent { Color = "1 1 1 0" },
+                        new CuiOutlineComponent
+                        {
+                            Color = tab.Key.Equals(selectedKey, StringComparison.OrdinalIgnoreCase) ? "0.3 0.8 1 0.95" : "1 1 1 0.45",
+                            Distance = "1.25 -1.25"
+                        },
+                        new CuiRectTransformComponent { AnchorMin = tab.ButtonRect.AnchorMin, AnchorMax = tab.ButtonRect.AnchorMax }
+                    }
+                });
             }
         }
 
@@ -356,9 +391,9 @@ namespace Oxide.Plugins
         {
             container.Add(new CuiButton
             {
-                Button = { Color = "0.6 0.1 0.1 0.75", Command = "serverinfo.close" },
+                Button = { Color = "1 1 1 0", Command = "serverinfo.close" },
                 RectTransform = { AnchorMin = _config.Ui.CloseButton.AnchorMin, AnchorMax = _config.Ui.CloseButton.AnchorMax },
-                Text = { Text = "X", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
             }, parent, "ServerInfo.Close");
         }
 
@@ -541,7 +576,9 @@ namespace Oxide.Plugins
         {
             if (ImageLibrary == null) return;
 
+            TryRegister(_config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl);
             TryRegister(_config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl);
+            TryRegister(_config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl);
             foreach (var tab in _config.Tabs)
             {
                 TryRegister(tab.ImageKey, tab.FallbackUrl);

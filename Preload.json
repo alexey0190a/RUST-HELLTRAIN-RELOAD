@@ -1,0 +1,11 @@
+{
+  "Version": "1.1.0",
+  "AutoPreloadOnServerInitialized": true,
+  "AutoScanDataDirectory": true,
+  "DataSubfolder": "",
+  "BatchDelaySeconds": 0.1,
+  "LogProgress": true,
+  "IncludeConnectedPlayersInventories": false,
+  "ItemShortnames": [],
+  "ImageUrls": {}
+}
