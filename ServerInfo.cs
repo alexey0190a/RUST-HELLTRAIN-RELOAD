@@ -39,8 +39,8 @@ namespace Oxide.Plugins
         private class UiConfig
         {
             public string OverlayColor = "0 0 0 0.75";
-            public string MainAnchorMin = "0.125 0.08";
-            public string MainAnchorMax = "0.875 0.92";
+            public string MainAnchorMin = "0.08 0.04";
+            public string MainAnchorMax = "0.92 0.96";
 
             public string FrameImageKey = "serverinfo_frame";
             public string FrameFallbackUrl = "";
@@ -59,8 +59,8 @@ namespace Oxide.Plugins
 
             public RectConfig SettingsButton = new RectConfig
             {
-                AnchorMin = "0.91 0.935",
-                AnchorMax = "0.95 0.985"
+                AnchorMin = "0.80 0.935",
+                AnchorMax = "0.945 0.985"
             };
 
             public float EditorStep = 0.005f;
@@ -127,13 +127,26 @@ namespace Oxide.Plugins
             if (_config.Ui == null) _config.Ui = new UiConfig();
             if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.10", AnchorMax = "0.97 0.90" };
             if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
-            if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.91 0.935", AnchorMax = "0.95 0.985" };
+            if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
             if (_config.Ui.EditorStep <= 0f) _config.Ui.EditorStep = 0.005f;
 
             if (_config.Tabs == null || _config.Tabs.Count == 0)
             {
                 _config.Tabs = new ConfigData().Tabs;
             }
+
+            var uniqTabs = new List<TabConfig>();
+            var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < _config.Tabs.Count; i++)
+            {
+                var tab = _config.Tabs[i];
+                if (tab == null || string.IsNullOrEmpty(tab.Key)) continue;
+                if (!seenKeys.Add(tab.Key)) continue;
+                uniqTabs.Add(tab);
+            }
+
+            if (uniqTabs.Count > 0)
+                _config.Tabs = uniqTabs;
 
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
@@ -356,7 +369,7 @@ namespace Oxide.Plugins
             {
                 Button = { Color = "0.2 0.5 0.8 0.75", Command = "serverinfo.editor open" },
                 RectTransform = { AnchorMin = _config.Ui.SettingsButton.AnchorMin, AnchorMax = _config.Ui.SettingsButton.AnchorMax },
-                Text = { Text = "⚙", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Text = { Text = "Настройки", FontSize = 13, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, parent, "ServerInfo.Settings");
         }
 
@@ -369,7 +382,7 @@ namespace Oxide.Plugins
             var panel = container.Add(new CuiPanel
             {
                 Image = { Color = "0 0 0 0.8" },
-                RectTransform = { AnchorMin = "0.01 0.01", AnchorMax = "0.35 0.23" }
+                RectTransform = { AnchorMin = "0.01 0.01", AnchorMax = "0.46 0.30" }
             }, parent, UiEditor);
 
             container.Add(new CuiLabel
@@ -377,28 +390,28 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = "0.03 0.72", AnchorMax = "0.97 0.97" },
                 Text =
                 {
-                    Text = $"EDITOR | target: {targetName} | step: {_config.Ui.EditorStep.ToString("0.###", CultureInfo.InvariantCulture)}\nmin: {targetRect.AnchorMin} max: {targetRect.AnchorMax}",
-                    FontSize = 12,
+                    Text = $"РЕДАКТОР | цель: {targetName} | шаг: {_config.Ui.EditorStep.ToString("0.###", CultureInfo.InvariantCulture)}\nмин: {targetRect.AnchorMin} макс: {targetRect.AnchorMax}",
+                    FontSize = 13,
                     Align = TextAnchor.UpperLeft,
                     Color = "1 1 1 1"
                 }
             }, panel);
 
-            AddEditorButton(container, panel, "Prev", "0.03 0.42", "0.20 0.68", "serverinfo.editor prev");
-            AddEditorButton(container, panel, "Next", "0.22 0.42", "0.39 0.68", "serverinfo.editor next");
-            AddEditorButton(container, panel, "Step+", "0.41 0.42", "0.58 0.68", $"serverinfo.editor step {(_config.Ui.EditorStep + 0.001f).ToString("0.###", CultureInfo.InvariantCulture)}");
-            AddEditorButton(container, panel, "Step-", "0.60 0.42", "0.77 0.68", $"serverinfo.editor step {Mathf.Max(0.001f, _config.Ui.EditorStep - 0.001f).ToString("0.###", CultureInfo.InvariantCulture)}");
-            AddEditorButton(container, panel, "Exit", "0.79 0.42", "0.97 0.68", "serverinfo.editor close");
+            AddEditorButton(container, panel, "Назад", "0.03 0.46", "0.22 0.70", "serverinfo.editor prev");
+            AddEditorButton(container, panel, "Дальше", "0.24 0.46", "0.43 0.70", "serverinfo.editor next");
+            AddEditorButton(container, panel, "Шаг +", "0.45 0.46", "0.64 0.70", $"serverinfo.editor step {(_config.Ui.EditorStep + 0.001f).ToString("0.###", CultureInfo.InvariantCulture)}");
+            AddEditorButton(container, panel, "Шаг -", "0.66 0.46", "0.85 0.70", $"serverinfo.editor step {Mathf.Max(0.001f, _config.Ui.EditorStep - 0.001f).ToString("0.###", CultureInfo.InvariantCulture)}");
+            AddEditorButton(container, panel, "Выход", "0.03 0.18", "0.22 0.42", "serverinfo.editor close");
 
-            AddEditorButton(container, panel, "←", "0.03 0.06", "0.11 0.32", "serverinfo.editor nudge -1 0");
-            AddEditorButton(container, panel, "→", "0.13 0.06", "0.21 0.32", "serverinfo.editor nudge 1 0");
-            AddEditorButton(container, panel, "↑", "0.23 0.06", "0.31 0.32", "serverinfo.editor nudge 0 1");
-            AddEditorButton(container, panel, "↓", "0.33 0.06", "0.41 0.32", "serverinfo.editor nudge 0 -1");
+            AddEditorButton(container, panel, "Лево", "0.24 0.18", "0.39 0.42", "serverinfo.editor nudge -1 0");
+            AddEditorButton(container, panel, "Право", "0.41 0.18", "0.56 0.42", "serverinfo.editor nudge 1 0");
+            AddEditorButton(container, panel, "Вверх", "0.58 0.18", "0.73 0.42", "serverinfo.editor nudge 0 1");
+            AddEditorButton(container, panel, "Вниз", "0.75 0.18", "0.90 0.42", "serverinfo.editor nudge 0 -1");
 
-            AddEditorButton(container, panel, "W+", "0.50 0.06", "0.58 0.32", "serverinfo.editor resize 1 0");
-            AddEditorButton(container, panel, "W-", "0.60 0.06", "0.68 0.32", "serverinfo.editor resize -1 0");
-            AddEditorButton(container, panel, "H+", "0.70 0.06", "0.78 0.32", "serverinfo.editor resize 0 1");
-            AddEditorButton(container, panel, "H-", "0.80 0.06", "0.88 0.32", "serverinfo.editor resize 0 -1");
+            AddEditorButton(container, panel, "Шир +", "0.24 0.02", "0.39 0.16", "serverinfo.editor resize 1 0");
+            AddEditorButton(container, panel, "Шир -", "0.41 0.02", "0.56 0.16", "serverinfo.editor resize -1 0");
+            AddEditorButton(container, panel, "Выс +", "0.58 0.02", "0.73 0.16", "serverinfo.editor resize 0 1");
+            AddEditorButton(container, panel, "Выс -", "0.75 0.02", "0.90 0.16", "serverinfo.editor resize 0 -1");
         }
 
         private void AddEditorButton(CuiElementContainer container, string parent, string text, string min, string max, string command)
@@ -407,7 +420,7 @@ namespace Oxide.Plugins
             {
                 Button = { Color = "0.25 0.25 0.25 0.95", Command = command },
                 RectTransform = { AnchorMin = min, AnchorMax = max },
-                Text = { Text = text, FontSize = 12, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Text = { Text = text, FontSize = 13, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, parent);
         }
 
