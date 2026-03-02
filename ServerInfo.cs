@@ -153,29 +153,24 @@ namespace Oxide.Plugins
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
                 var tab = _config.Tabs[i];
-                if (tab == null || string.IsNullOrEmpty(tab.Key)) continue;
-                if (!seenKeys.Add(tab.Key)) continue;
+                if (tab == null || string.IsNullOrEmpty(tab.Key))
+                {
+                    continue;
+                }
+
+                if (!seenKeys.Add(tab.Key))
+                {
+                    continue;
+                }
+
                 uniqTabs.Add(tab);
             }
 
-            if (uniqTabs.Count > 0)
-                _config.Tabs = uniqTabs;
+            // Важно: если есть пользовательские вкладки, не дополняем и не заменяем их дефолтами.
+            // Дефолт нужен только когда вкладок нет вообще.
+            _config.Tabs = uniqTabs.Count > 0 ? uniqTabs : new ConfigData().Tabs;
 
             var defaultTabs = new ConfigData().Tabs;
-            for (var i = 0; i < defaultTabs.Count; i++)
-            {
-                var defaultTab = defaultTabs[i];
-                var exists = false;
-                for (var j = 0; j < _config.Tabs.Count; j++)
-                {
-                    if (!_config.Tabs[j].Key.Equals(defaultTab.Key, StringComparison.OrdinalIgnoreCase)) continue;
-                    exists = true;
-                    break;
-                }
-
-                if (!exists)
-                    _config.Tabs.Add(defaultTab);
-            }
 
             for (var i = 0; i < _config.Tabs.Count; i++)
             {
