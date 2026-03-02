@@ -216,7 +216,6 @@ namespace Oxide.Plugins
                 if (!_editorStateByPlayer.ContainsKey(player.userID))
                     _editorStateByPlayer[player.userID] = new EditorState();
 
-                SendEditorDebug(player, _editorStateByPlayer[player.userID].TargetIndex, "editor_open");
 
                 OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
@@ -238,7 +237,6 @@ namespace Oxide.Plugins
             if (action == "next")
             {
                 state.TargetIndex = (state.TargetIndex + 1) % GetEditableTargetCount();
-                SendEditorDebug(player, state.TargetIndex, "select_next");
                 OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
             }
@@ -246,7 +244,6 @@ namespace Oxide.Plugins
             if (action == "prev")
             {
                 state.TargetIndex = (state.TargetIndex - 1 + GetEditableTargetCount()) % GetEditableTargetCount();
-                SendEditorDebug(player, state.TargetIndex, "select_prev");
                 OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
             }
@@ -274,7 +271,6 @@ namespace Oxide.Plugins
                 }
 
                 MoveTarget(state.TargetIndex, dx * _config.Ui.EditorStep, dy * _config.Ui.EditorStep);
-                SendEditorDebug(player, state.TargetIndex, $"nudge dx={dx * _config.Ui.EditorStep:0.###} dy={dy * _config.Ui.EditorStep:0.###}");
                 SaveConfig();
                 OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
@@ -289,7 +285,6 @@ namespace Oxide.Plugins
                 }
 
                 ResizeTarget(state.TargetIndex, dx * _config.Ui.EditorStep, dy * _config.Ui.EditorStep);
-                SendEditorDebug(player, state.TargetIndex, $"resize dx={dx * _config.Ui.EditorStep:0.###} dy={dy * _config.Ui.EditorStep:0.###}");
                 SaveConfig();
                 OpenUi(player, _activeTabByPlayer.TryGetValue(player.userID, out var tab) ? tab : null);
                 return;
@@ -468,15 +463,6 @@ namespace Oxide.Plugins
             if (max.x <= min.x + 0.001f) max.x = min.x + 0.001f;
             if (max.y <= min.y + 0.001f) max.y = min.y + 0.001f;
             rect.AnchorMax = VecToAnchor(max);
-        }
-
-        private void SendEditorDebug(BasePlayer player, int index, string action)
-        {
-            var targetName = GetTargetName(index);
-            var targetRect = GetTargetRect(index);
-            var debugMessage = $"[ServerInfo Debug] {action} | target={targetName} | min={targetRect.AnchorMin} | max={targetRect.AnchorMax}";
-            SendReply(player, debugMessage);
-            Puts($"{player.displayName} ({player.UserIDString}): {debugMessage}");
         }
 
         private Vector2 ParseVec2(string anchor)
