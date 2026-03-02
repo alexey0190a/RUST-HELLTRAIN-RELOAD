@@ -407,6 +407,7 @@ private PatrolHelicopter _pmcEscortHeli;
 private bool _pmcEscortSpawned = false;
 private Timer _pmcEscortTimer;
 private MapMarkerGenericRadius _trainZoneMarker;
+private VendingMachineMapMarker _trainNameMarker;
 private const float TRAIN_ZONE_GRID_FRACTION = 0.666f;
 private const float TRAIN_ZONE_MARKER_SCALE = 10f;
 private string _activeCompositionPreset = null;
@@ -2755,6 +2756,21 @@ private void UpdateTrainZoneMarker()
     _trainZoneMarker.color2 = color;
     _trainZoneMarker.radius = markerRadius;
     _trainZoneMarker.SendUpdate();
+    _trainZoneMarker.SendNetworkUpdate();
+
+    if (_trainNameMarker == null || _trainNameMarker.IsDestroyed)
+    {
+        _trainNameMarker = GameManager.server.CreateEntity("assets/prefabs/deployable/vendingmachine/vending_mapmarker.prefab", activeHellTrain.transform.position) as VendingMachineMapMarker;
+        if (_trainNameMarker != null)
+            _trainNameMarker.Spawn();
+    }
+
+    if (_trainNameMarker != null && !_trainNameMarker.IsDestroyed)
+    {
+        _trainNameMarker.transform.position = activeHellTrain.transform.position;
+        _trainNameMarker.markerShopName = label;
+        _trainNameMarker.SendNetworkUpdate();
+    }
 
     if (!string.IsNullOrEmpty(label))
         Puts($"[TRAIN MARKER] {label}");
@@ -2765,6 +2781,10 @@ private void DestroyTrainZoneMarker()
     if (_trainZoneMarker != null && !_trainZoneMarker.IsDestroyed)
         _trainZoneMarker.Kill();
     _trainZoneMarker = null;
+
+    if (_trainNameMarker != null && !_trainNameMarker.IsDestroyed)
+        _trainNameMarker.Kill();
+    _trainNameMarker = null;
 }
 
 
