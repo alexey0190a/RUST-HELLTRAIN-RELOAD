@@ -2044,7 +2044,7 @@ private void KillEventTrainCars(string reason, bool force = false)
 
     StopEngineWatchdog();
     StopGridCheckTimer();
-    CancelLifecycleTimer();
+    CancelEventLifetimeTimers();
 
     try
     {
@@ -2632,9 +2632,38 @@ private void StopGridCheckTimer()
 
 
 
-private void StartLifecycleTimer()
+private void StartEventLifetimeTimer()
 {
-    CancelLifecycleTimer();
+    CancelEventLifetimeTimers();
+
+    if (!_lastSpawnWasManual && config != null && config.FixedSchedule != null && config.FixedSchedule.Enabled && _pendingFixedScheduleCleanupUtc.HasValue)
+    {
+        var cleanupDelay = Mathf.Max(1f, (float)(_pendingFixedScheduleCleanupUtc.Value - DateTime.UtcNow).TotalSeconds);
+        _fixedScheduleCleanupExtended = false;
+        _fixedScheduleCleanupTimer = timer.Once(cleanupDelay, () =>
+        {
+            if (!_fixedScheduleCleanupExtended && _explosionTimerArmedOnce)
+            {
+                _fixedScheduleCleanupExtended = true;
+                _fixedScheduleCleanupTimer = timer.Once(5f * 60f, () =>
+                {
+                    _pendingFixedScheduleCleanupUtc = null;
+                    ForceDestroyHellTrain();
+                    StartRespawnTimer();
+                });
+
+                Puts("[Helltrain] FixedSchedule cleanup: hackcrate активен, добавлено +5 минут.");
+                return;
+            }
+
+            _pendingFixedScheduleCleanupUtc = null;
+            ForceDestroyHellTrain();
+            StartRespawnTimer();
+        });
+
+        Puts($"⏰ FixedSchedule cleanup таймер запущен на {cleanupDelay / 60f:F1} мин.");
+        return;
+    }
 
     float lifeMin = config.TrainLifetimeMinutes; // обычно 60
     _lifecycleTimer = timer.Once(lifeMin * 60f, () =>
@@ -2655,6 +2684,21 @@ private void CancelLifecycleTimer()
         _lifecycleTimer = null;
         Puts("Lifecycle timer canceled");
     }
+}
+
+private void CancelFixedScheduleCleanupTimer()
+{
+    if (_fixedScheduleCleanupTimer != null)
+    {
+        _fixedScheduleCleanupTimer.Destroy();
+        _fixedScheduleCleanupTimer = null;
+    }
+}
+
+private void CancelEventLifetimeTimers()
+{
+    CancelLifecycleTimer();
+    CancelFixedScheduleCleanupTimer();
 }
 
 
@@ -2960,9 +3004,10 @@ private bool TryParseHhMm(string raw, out TimeSpan tod)
     return true;
 }
 
-private bool TryGetNextFixedScheduleUtc(out DateTime nextUtc)
+private bool TryGetNextFixedScheduleWindowUtc(out DateTime nextStartUtc, out DateTime nextCleanupUtc)
 {
-    nextUtc = default(DateTime);
+    nextStartUtc = default(DateTime);
+    nextCleanupUtc = default(DateTime);
 
     var fs = config?.FixedSchedule;
     if (fs == null || !fs.Enabled || fs.Windows == null || fs.Windows.Count == 0)
@@ -2975,7 +3020,8 @@ private bool TryGetNextFixedScheduleUtc(out DateTime nextUtc)
     var offset = TimeSpan.FromHours(offsetHours);
     var nowTz = DateTime.UtcNow + offset;
 
-    DateTime? best = null;
+    DateTime? bestStart = null;
+    DateTime? bestCleanup = null;
 
     for (int i = 0; i < fs.Windows.Count; i++)
     {
@@ -2985,17 +3031,28 @@ private bool TryGetNextFixedScheduleUtc(out DateTime nextUtc)
         TimeSpan startTod;
         if (!TryParseHhMm(w.Start, out startTod)) continue;
 
-        var candidate = nowTz.Date + startTod;
-        if (candidate <= nowTz) candidate = candidate.AddDays(1);
+        TimeSpan endTod;
+        if (!TryParseHhMm(w.End, out endTod)) continue;
 
-        if (!best.HasValue || candidate < best.Value)
-            best = candidate;
+        var candidateStart = nowTz.Date + startTod;
+        if (candidateStart <= nowTz) candidateStart = candidateStart.AddDays(1);
+
+        var candidateCleanup = candidateStart.Date + endTod;
+        if (candidateCleanup <= candidateStart)
+            candidateCleanup = candidateCleanup.AddDays(1);
+
+        if (!bestStart.HasValue || candidateStart < bestStart.Value)
+        {
+            bestStart = candidateStart;
+            bestCleanup = candidateCleanup;
+        }
     }
 
-    if (!best.HasValue)
+    if (!bestStart.HasValue || !bestCleanup.HasValue)
         return false;
 
-    nextUtc = best.Value - offset;
+    nextStartUtc = bestStart.Value - offset;
+    nextCleanupUtc = bestCleanup.Value - offset;
     return true;
 }
 
@@ -3016,7 +3073,8 @@ private void StartRespawnTimer(float? overrideMinutes = null)
     if (useFixedSchedule)
     {
         DateTime nextUtc;
-        if (!TryGetNextFixedScheduleUtc(out nextUtc))
+        DateTime cleanupUtc;
+        if (!TryGetNextFixedScheduleWindowUtc(out nextUtc, out cleanupUtc))
         {
             PrintWarning("[Helltrain] FixedSchedule enabled, but no valid windows found. Fallback to TrainRespawnMinutes.");
             useFixedSchedule = false;
@@ -3033,7 +3091,23 @@ private void StartRespawnTimer(float? overrideMinutes = null)
             {
                 _nextRespawnUtc = null;
                 SaveRespawnState();
-                SpawnHellTrain();
+
+                bool eventActive = _isBuildingTrain ||
+                                   (activeHellTrain != null && !activeHellTrain.IsDestroyed) ||
+                                   (_spawnedCars != null && _spawnedCars.Count > 0) ||
+                                   (_spawnedTrainEntities != null && _spawnedTrainEntities.Count > 0);
+
+                if (!eventActive)
+                {
+                    _lastSpawnWasManual = false;
+                    _pendingFixedScheduleCleanupUtc = cleanupUtc;
+                    SpawnHellTrain();
+                }
+                else
+                {
+                    Puts("[Helltrain] FixedSchedule: слот пропущен (ивент уже активен).");
+                }
+
                 StartRespawnTimer();
             });
 
@@ -3500,6 +3574,10 @@ private readonly List<AutoTurret> _spawnedTurrets = new List<AutoTurret>();
 private readonly List<SamSite> _spawnedSamSites = new List<SamSite>();
 private readonly List<ScientistNPC> _spawnedNPCs = new List<ScientistNPC>();
 private Timer _lifecycleTimer = null;
+private Timer _fixedScheduleCleanupTimer = null;
+private bool _lastSpawnWasManual = false;
+private DateTime? _pendingFixedScheduleCleanupUtc = null;
+private bool _fixedScheduleCleanupExtended = false;
  // Окно реального урона и кэш исходной защиты
  private bool _explosionDamageArmed = false;
  private readonly Dictionary<uint, ProtectionProperties> _savedProtection = new Dictionary<uint, ProtectionProperties>();
@@ -4308,7 +4386,7 @@ StopGridCheckTimer();
 _gridCheckTimer = timer.Repeat(1f, 0, CheckTrainGrid);
 UpdateTrainZoneMarker();
 
-StartLifecycleTimer();
+StartEventLifetimeTimer();
 StartEngineWatchdog();
 
 Puts($"✅ Hell Train готов! Вагонов: {wagons.Count - wagonStartIndex}");
@@ -5009,7 +5087,7 @@ private void CmdWipeAllCars(BasePlayer player, string cmd, string[] args)
     _suppressHooks = true;
     StopEngineWatchdog();
     StopGridCheckTimer();
-    CancelLifecycleTimer();
+    CancelEventLifetimeTimers();
 
     int killed = 0;
     try
@@ -5053,7 +5131,7 @@ private void CcmdWipeAllCars(ConsoleSystem.Arg arg)
     _suppressHooks = true;
     StopEngineWatchdog();
     StopGridCheckTimer();
-    CancelLifecycleTimer();
+    CancelEventLifetimeTimers();
 
     int killed = 0;
     try
@@ -5982,6 +6060,8 @@ private void CmdHelltrain(BasePlayer player, string command, string[] args)
     if (sub == "stop")
     {
         if (!HasPerm(player, PERM_ADMIN)) { SendReply(player, "⛔ Нет прав."); return; }
+        _lastSpawnWasManual = false;
+        _pendingFixedScheduleCleanupUtc = null;
         ForceDestroyHellTrain();
         SendReply(player, "🧹 Helltrain остановлен и очищен.");
         StartRespawnTimer();
@@ -6146,6 +6226,8 @@ CancelPmcHackExplosionTimers();
 _activeFactionKey = faction.ToUpperInvariant();
 _activeCompositionPreset = compositionName;
 _activeLayoutName = NormalizeLayoutName(layoutName); // алиасы wagona/wagonb/wagonc -> wagonA/B/C
+_lastSpawnWasManual = true;
+_pendingFixedScheduleCleanupUtc = null;
 
 _alarmTriggered = false;
 _alarmArmed = false;
@@ -6249,7 +6331,7 @@ private void CmdHtCleanup(BasePlayer player, string command, string[] args)
     _suppressHooks = true;
     StopEngineWatchdog();
     StopGridCheckTimer();
-    CancelLifecycleTimer();
+    CancelEventLifetimeTimers();
 
     try
     {
