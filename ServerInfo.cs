@@ -419,7 +419,8 @@ namespace Oxide.Plugins
 
             AddImageElement(container, root, _config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl, _config.Ui.LeftPanelArea.AnchorMin, _config.Ui.LeftPanelArea.AnchorMax, "ServerInfo.LeftPanel");
             AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
-            AddImageElement(container, root, selected.ImageKey, selected.FallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
+            var contentImageKey = ResolveContentImageKey(selected);
+            AddImageElement(container, root, contentImageKey, selected.FallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
             AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
@@ -655,6 +656,23 @@ namespace Oxide.Plugins
             {
                 return null;
             }
+        }
+
+        private string ResolveContentImageKey(TabConfig tab)
+        {
+            if (tab == null) return null;
+
+            if (!string.IsNullOrEmpty(GetPng(tab.ImageKey))) return tab.ImageKey;
+
+            var prefixed = $"serverinfo_content_{tab.Key}";
+            if (!string.IsNullOrEmpty(GetPng(prefixed))) return prefixed;
+
+            var generic = $"serverinfo_{tab.Key}";
+            if (!string.IsNullOrEmpty(GetPng(generic))) return generic;
+
+            if (!string.IsNullOrEmpty(GetPng(tab.Key))) return tab.Key;
+
+            return tab.ImageKey;
         }
 
         private void EnsureImagesRegistered()
