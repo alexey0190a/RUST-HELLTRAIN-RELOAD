@@ -36,7 +36,9 @@
       "ButtonRect": {
         "AnchorMin": "0.092 0.758",
         "AnchorMax": "0.252 0.828"
-      }
+      },
+      "ContentImageKey": "serverinfo_content_info",
+      "ContentFallbackUrl": ""
     },
     {
       "Key": "rules",
@@ -46,7 +48,9 @@
       "ButtonRect": {
         "AnchorMin": "0.115 0.63",
         "AnchorMax": "0.225 0.704"
-      }
+      },
+      "ContentImageKey": "serverinfo_content_rules",
+      "ContentFallbackUrl": ""
     },
     {
       "Key": "commands",
@@ -56,7 +60,9 @@
       "ButtonRect": {
         "AnchorMin": "0.11 0.515",
         "AnchorMax": "0.23 0.585"
-      }
+      },
+      "ContentImageKey": "serverinfo_content_commands",
+      "ContentFallbackUrl": ""
     },
     {
       "Key": "events",
@@ -66,7 +72,9 @@
       "ButtonRect": {
         "AnchorMin": "0.12 0.392",
         "AnchorMax": "0.219 0.462"
-      }
+      },
+      "ContentImageKey": "serverinfo_content_events",
+      "ContentFallbackUrl": ""
     },
     {
       "Key": "about",
@@ -76,7 +84,9 @@
       "ButtonRect": {
         "AnchorMin": "0.131 0.274",
         "AnchorMax": "0.207 0.342"
-      }
+      },
+      "ContentImageKey": "serverinfo_content_about",
+      "ContentFallbackUrl": ""
     },
     {
       "Key": "links",
@@ -86,7 +96,9 @@
       "ButtonRect": {
         "AnchorMin": "0.118 0.15",
         "AnchorMax": "0.224 0.228"
-      }
+      },
+      "ContentImageKey": "serverinfo_content_links",
+      "ContentFallbackUrl": ""
     }
   ],
   "DefaultTab": "info"
