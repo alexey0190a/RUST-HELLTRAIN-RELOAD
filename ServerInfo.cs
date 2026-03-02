@@ -47,12 +47,22 @@ namespace Oxide.Plugins
             public string FrameImageKey = "serverinfo_frame";
             public string FrameFallbackUrl = "";
 
+            public string LeftPanelImageKey = "serverinfo_leftpanel";
+            public string LeftPanelFallbackUrl = "";
+            public RectConfig LeftPanelArea = new RectConfig
+            {
+                AnchorMin = "0.03 0.05",
+                AnchorMax = "0.31 0.95"
+            };
+
             public RectConfig ContentArea = new RectConfig
             {
                 AnchorMin = "0.33 0.05",
                 AnchorMax = "0.95 0.95"
             };
 
+            public string CloseImageKey = "serverinfo_close";
+            public string CloseFallbackUrl = "";
             public RectConfig CloseButton = new RectConfig
             {
                 AnchorMin = "0.955 0.935",
@@ -127,6 +137,7 @@ namespace Oxide.Plugins
         {
             if (_config == null) _config = new ConfigData();
             if (_config.Ui == null) _config.Ui = new UiConfig();
+            if (_config.Ui.LeftPanelArea == null) _config.Ui.LeftPanelArea = new RectConfig { AnchorMin = "0.03 0.05", AnchorMax = "0.31 0.95" };
             if (_config.Ui.ContentArea == null) _config.Ui.ContentArea = new RectConfig { AnchorMin = "0.33 0.05", AnchorMax = "0.95 0.95" };
             if (_config.Ui.CloseButton == null) _config.Ui.CloseButton = new RectConfig { AnchorMin = "0.955 0.935", AnchorMax = "0.99 0.985" };
             if (_config.Ui.SettingsButton == null) _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
@@ -323,8 +334,10 @@ namespace Oxide.Plugins
                 CursorEnabled = true
             }, UiOverlay, UiMain);
 
+            AddImageElement(container, root, _config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl, _config.Ui.LeftPanelArea.AnchorMin, _config.Ui.LeftPanelArea.AnchorMax, "ServerInfo.LeftPanel");
             AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
             AddImageElement(container, root, selected.ImageKey, selected.FallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
+            AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
             AddCloseButton(container, root);
@@ -362,9 +375,9 @@ namespace Oxide.Plugins
         {
             container.Add(new CuiButton
             {
-                Button = { Color = "0.6 0.1 0.1 0.75", Command = "serverinfo.close" },
+                Button = { Color = "1 1 1 0", Command = "serverinfo.close" },
                 RectTransform = { AnchorMin = _config.Ui.CloseButton.AnchorMin, AnchorMax = _config.Ui.CloseButton.AnchorMax },
-                Text = { Text = "X", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
             }, parent, "ServerInfo.Close");
         }
 
@@ -547,7 +560,9 @@ namespace Oxide.Plugins
         {
             if (ImageLibrary == null) return;
 
+            TryRegister(_config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl);
             TryRegister(_config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl);
+            TryRegister(_config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl);
             foreach (var tab in _config.Tabs)
             {
                 TryRegister(tab.ImageKey, tab.FallbackUrl);
