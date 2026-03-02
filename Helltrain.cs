@@ -4967,15 +4967,35 @@ private TrainEngine GetNearestEngine(BasePlayer player, float maxDistance = 50f)
 // ✅ ВЫНЕСЕН КАК ОТДЕЛЬНЫЙ МЕТОД!
 private string GetGridPosition(Vector3 position)
 {
-    float gridSize = TerrainMeta.Size.x / 26f;
-    
-    int x = Mathf.FloorToInt((position.x + TerrainMeta.Size.x / 2) / gridSize);
-    int z = Mathf.FloorToInt((position.z + TerrainMeta.Size.z / 2) / gridSize);
-    
-    char letter = (char)('A' + Mathf.Clamp(x, 0, 25));
-    int number = 26 - Mathf.Clamp(z, 0, 25);
-    
-    return $"{letter}{number}";
+    float worldSize = Mathf.Max(1f, (float)ConVar.Server.worldsize);
+    const float gridCell = 146.3f;
+
+    int gridCount = Mathf.Max(1, Mathf.CeilToInt(worldSize / gridCell));
+
+    int x = Mathf.FloorToInt((position.x + worldSize * 0.5f) / gridCell);
+    int z = Mathf.FloorToInt((worldSize * 0.5f - position.z) / gridCell);
+
+    x = Mathf.Clamp(x, 0, gridCount - 1);
+    z = Mathf.Clamp(z, 0, gridCount - 1);
+
+    string column = GetGridColumnName(x);
+    return $"{column}{z}";
+}
+
+private string GetGridColumnName(int index)
+{
+    index = Mathf.Max(0, index);
+    string result = string.Empty;
+
+    do
+    {
+        int rem = index % 26;
+        result = (char)('A' + rem) + result;
+        index = (index / 26) - 1;
+    }
+    while (index >= 0);
+
+    return result;
 }
 #endregion
 
