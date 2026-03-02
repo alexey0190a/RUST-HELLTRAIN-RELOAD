@@ -286,8 +286,20 @@ try
     // ВАЖНО: строим коридор строго в пределах длины spline, иначе GetPosition(sd) начинает "врать"
 // и мы не попадаем в реальные позиции вагонов.
 float len = track.GetLength();
-float startDist = Mathf.Clamp(originDist - back, 0f, len);
-float endDist   = Mathf.Clamp(originDist + fwdLen, 0f, len);
+bool backward = string.Equals(config.PreSpawnClearDirection, "backward", StringComparison.OrdinalIgnoreCase);
+
+float startDist, endDist;
+if (!backward)
+{
+    startDist = Mathf.Clamp(originDist - back, 0f, len);
+    endDist   = Mathf.Clamp(originDist + fwdLen, 0f, len);
+}
+else
+{
+    // "позади локомотива": основной охват уходит в минус относительно originDist
+    startDist = Mathf.Clamp(originDist - fwdLen, 0f, len);
+    endDist   = Mathf.Clamp(originDist + back, 0f, len);
+}
 
 for (float sd = startDist; sd <= endDist; sd += step)
 {
@@ -334,7 +346,7 @@ for (float sd = startDist; sd <= endDist; sd += step)
         car.Kill();
     }
 
-    Puts($"[Helltrain] PreSpawnClear(B): considered={considered} killed={killed} back={back:0.0} fwd={fwdLen:0.0} step={step:0.0} halfW={halfWidth:0.0} killR={killRadius:0.0} start={startDist:0.0} end={endDist:0.0} len={len:0.0} samples={samples.Count} reason={reason}");
+    Puts($"[Helltrain] PreSpawnClear(B): considered={considered} killed={killed} back={back:0.0} fwd={fwdLen:0.0} step={step:0.0} halfW={halfWidth:0.0} killR={killRadius:0.0} start={startDist:0.0} end={endDist:0.0} len={len:0.0} samples={samples.Count} dir={config.PreSpawnClearDirection} reason={reason}");
 }
 finally
 {
@@ -2382,7 +2394,7 @@ public FixedScheduleSettings FixedSchedule { get; set; } = new FixedScheduleSett
     public bool AllowTransition { get; set; } = false;
 
     [JsonProperty("Минимальная длина трека для спавна (метры)")]
-    public float MinTrackLength { get; set; } = 500f;
+    public float MinTrackLength { get; set; } = 200f;
 	
     [JsonProperty("Safe Spawn: использовать пул если есть")]
     public bool UseSafeSpawnPool { get; set; } = true;
@@ -2560,6 +2572,9 @@ public float PreSpawnClearStepMeters { get; set; } = 12f;
 // Смещение точки отсчёта по spline вперёд, чтобы считать именно "от носа"
 [JsonProperty("PreSpawnClearNoseOffsetMeters")]
 public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
+
+[JsonProperty("PreSpawnClearDirection")]
+public string PreSpawnClearDirection { get; set; } = "forward";
 }
 
 
