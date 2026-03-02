@@ -407,7 +407,7 @@ private PatrolHelicopter _pmcEscortHeli;
 private bool _pmcEscortSpawned = false;
 private Timer _pmcEscortTimer;
 private MapMarkerGenericRadius _trainZoneMarker;
-private const float TRAIN_ZONE_MARKER_RADIUS = 120f;
+private const float TRAIN_ZONE_GRID_FRACTION = 0.666f;
 private string _activeCompositionPreset = null;
 
 
@@ -2738,19 +2738,21 @@ private void UpdateTrainZoneMarker()
         }
     }
 
+    float markerRadius = Mathf.Clamp((146f * TRAIN_ZONE_GRID_FRACTION) / Mathf.Max(1f, (float)ConVar.Server.worldsize), 0.005f, 0.2f);
+
     if (_trainZoneMarker == null || _trainZoneMarker.IsDestroyed)
     {
         _trainZoneMarker = GameManager.server.CreateEntity("assets/prefabs/tools/map/genericradiusmarker.prefab", activeHellTrain.transform.position) as MapMarkerGenericRadius;
         if (_trainZoneMarker == null) return;
         _trainZoneMarker.alpha = 0.65f;
-        _trainZoneMarker.radius = TRAIN_ZONE_MARKER_RADIUS;
+        _trainZoneMarker.radius = markerRadius;
         _trainZoneMarker.Spawn();
     }
 
     _trainZoneMarker.transform.position = activeHellTrain.transform.position;
     _trainZoneMarker.color1 = color;
     _trainZoneMarker.color2 = color;
-    _trainZoneMarker.radius = TRAIN_ZONE_MARKER_RADIUS;
+    _trainZoneMarker.radius = markerRadius;
     _trainZoneMarker.SendUpdate();
 
     if (!string.IsNullOrEmpty(label))
