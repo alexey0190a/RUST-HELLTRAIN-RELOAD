@@ -3773,6 +3773,8 @@ private IEnumerator BuildTrainWithPreSpawnClear(
     TrainTrackSpline targetTrack,
     float targetDist)
 {
+    Puts($"[Helltrain] PreSpawnClear: ENTER comp={compositionKey} track={(targetTrack != null ? targetTrack.name : "null")} dist={targetDist:0.0}");
+
     // 1) Чистим путь
     PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"composition={compositionKey}");
 
@@ -3781,11 +3783,12 @@ private IEnumerator BuildTrainWithPreSpawnClear(
     yield return new WaitForFixedUpdate();
 
     // 3) Только теперь запускаем реальную сборку
-    yield return BuildTrainWithSpline(buildToken, compositionName, comp, wagons, targetTrack, targetDist);
+    yield return BuildTrainWithSpline(buildToken, compositionKey, compositionName, comp, wagons, targetTrack, targetDist);
 }
 
         private IEnumerator BuildTrainWithSpline(
     ulong buildToken,
+    string compositionKey,
     string compositionName,
     ConfigData.TrainComposition comp,
     List<string> wagons,
@@ -3868,6 +3871,7 @@ int wagonStartIndex = firstIsLoco ? 1 : 0;
     
     List<SpawnPosition> spawnPositions = new List<SpawnPosition>();
     
+    float locoDist = splineDist;
     TrainTrackSpline currentTrack = track;
     Vector3 currentPosition = currentTrack.GetPosition(splineDist);
     Vector3 currentForward = currentTrack.GetTangentCubicHermiteWorld(splineDist);
@@ -3899,6 +3903,8 @@ if (locoLayout != null && locoLayout.cars != null && locoLayout.cars.Count > 0)
     locoPrefab = GetWagonPrefabByVariant(locoLayout.cars[0].variant);
     Puts($"🚂 Используем локомотив из лэйаута: {locoLayoutName}");
 }
+
+    Puts($"[Helltrain] SpawnOrigin: comp={compositionKey} track={(track != null ? track.name : "null")} dist={locoDist:0.0} pos={spawnPositions[0].Position} rot={spawnPositions[0].Rotation.eulerAngles}");
 
     TrainCar locoEnt = GameManager.server.CreateEntity(
         locoPrefab, 
