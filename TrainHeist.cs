@@ -408,6 +408,7 @@ private bool _pmcEscortSpawned = false;
 private Timer _pmcEscortTimer;
 private MapMarkerGenericRadius _trainZoneMarker;
 private const float TRAIN_ZONE_GRID_FRACTION = 0.666f;
+private const float TRAIN_ZONE_MARKER_SCALE = 10f;
 private string _activeCompositionPreset = null;
 
 
@@ -2738,7 +2739,7 @@ private void UpdateTrainZoneMarker()
         }
     }
 
-    float markerRadius = Mathf.Clamp((146f * TRAIN_ZONE_GRID_FRACTION) / Mathf.Max(1f, (float)ConVar.Server.worldsize), 0.005f, 0.2f);
+    float markerRadius = Mathf.Clamp(((146f * TRAIN_ZONE_GRID_FRACTION) / Mathf.Max(1f, (float)ConVar.Server.worldsize)) * TRAIN_ZONE_MARKER_SCALE, 0.05f, 0.6f);
 
     if (_trainZoneMarker == null || _trainZoneMarker.IsDestroyed)
     {
@@ -4287,7 +4288,7 @@ string spawnMessage = config.Messages.TrainSpawned
 Server.Broadcast(spawnMessage);
 
 StopGridCheckTimer();
-_gridCheckTimer = timer.Repeat(10f, 0, CheckTrainGrid);
+_gridCheckTimer = timer.Repeat(1f, 0, CheckTrainGrid);
 UpdateTrainZoneMarker();
 
 StartLifecycleTimer();
