@@ -106,19 +106,28 @@ namespace Oxide.Plugins
         protected override void LoadConfig()
         {
             base.LoadConfig();
+            var loadedFromDisk = true;
             try
             {
                 _config = Config.ReadObject<ConfigData>();
                 if (_config == null) throw new Exception("Config is null");
             }
-            catch
+            catch (Exception ex)
             {
-                PrintWarning("Config invalid, creating default config");
+                loadedFromDisk = false;
+                PrintWarning($"Config invalid ({ex.Message}), creating default config in memory");
                 LoadDefaultConfig();
             }
 
             EnsureConfig();
-            SaveConfig();
+            if (loadedFromDisk)
+            {
+                SaveConfig();
+            }
+            else
+            {
+                PrintWarning("Skipping SaveConfig to avoid overwriting existing config file");
+            }
         }
 
         protected override void SaveConfig() => Config.WriteObject(_config, true);
