@@ -67,6 +67,8 @@ namespace Oxide.Plugins
             public float DefaultSpawnAltitude = 60f;
             public bool ExposeApi = true;
             public bool DebugProjectilesEnabled = false;
+            public bool DisableVanillaPatrolHeli = true;
+            public bool KeepConvoyHeli = true;
         }
 
         public class AutopilotSelectionCfg
@@ -113,7 +115,9 @@ namespace Oxide.Plugins
                     WaterRingRadiusMax = 480f,
                     DefaultSpawnAltitude = 60f,
                     ExposeApi = true,
-                    DebugProjectilesEnabled = false
+                    DebugProjectilesEnabled = false,
+                    DisableVanillaPatrolHeli = true,
+                    KeepConvoyHeli = true
                 },
                 Messages = new MessagesCfg(),
                 Autopilot = new AutopilotCfg
@@ -231,6 +235,8 @@ namespace Oxide.Plugins
             public BaseEntity Entity;
         }
 
+        private class HeliTiersOwnedMarker : FacepunchBehaviour {}
+
         #endregion
 
         #region Hooks
@@ -281,6 +287,9 @@ namespace Oxide.Plugins
             // интересуемся только патрульником
             var shortName = (entity.ShortPrefabName ?? string.Empty).ToLower();
             if (!shortName.Contains("patrolhelicopter")) return;
+
+            var be = entity as BaseEntity;
+            if (be == null || !IsOurHeli(be)) return;
 
             var attacker = info.InitiatorPlayer;
             if (attacker == null) return;
@@ -375,6 +384,20 @@ namespace Oxide.Plugins
             if (ent == null) return;
 
             string s = ent.ShortPrefabName ?? string.Empty;
+
+            if (s == "patrolhelicopter" && config.General.DisableVanillaPatrolHeli)
+            {
+                if (!IsOurHeli(ent))
+                {
+                    if (!(config.General.KeepConvoyHeli && IsConvoyHeli(ent)))
+                    {
+                        if (config.Autopilot != null && config.Autopilot.Debug)
+                            Puts("[HeliTiers] Kill non-tier patrol helicopter netid=" + (ent.net?.ID.Value ?? 0UL));
+                        ent.Kill();
+                        return;
+                    }
+                }
+            }
 
             // --- контроль снарядов/огня по тиру ---
             bool candidate = IsBlockedProjectile(s);
@@ -708,9 +731,8 @@ rep = timer.Every(0.1f, () => {
                 var tier = PickAutopilotTier();
                 if (tier == null) break;
 
-                var pos = GetSpawnPosition();
-                var created = SpawnHeliAt(pos, tier);
-                if (created == null) break;
+                var ok = API_HeliTiers_Start(tier.Id);
+                if (!ok) break;
 
                 RememberAutopilotPick(tier.Id);
                 if (config.Autopilot.Debug)
@@ -833,6 +855,21 @@ rep = timer.Every(0.1f, () => {
             }
         }
 
+        private bool IsOurHeli(BaseEntity ent)
+        {
+            if (ent == null || ent.IsDestroyed) return false;
+            if (ent.GetComponent<HeliTiersOwnedMarker>() != null) return true;
+            var netId = ent.net?.ID.Value ?? 0UL;
+            if (netId == 0UL) return false;
+            return active.ContainsKey(netId);
+        }
+
+        private bool IsConvoyHeli(BaseEntity ent)
+        {
+            if (ent == null || ent.IsDestroyed) return false;
+            return ent.gameObject.GetComponent("EventHeli") != null;
+        }
+
         private Vector3 GetSpawnPosition()
         {
             var size = TerrainMeta.Size.x;
@@ -867,6 +904,8 @@ rep = timer.Every(0.1f, () => {
                     PrintWarning($"CreateEntity returned null for prefab: {prefab} at {position}");
                     return null;
                 }
+
+                ent.gameObject.AddComponent<HeliTiersOwnedMarker>();
 
                 ent.Spawn();
 

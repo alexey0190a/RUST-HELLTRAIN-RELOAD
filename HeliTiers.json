@@ -9,7 +9,9 @@
     "WaterRingRadiusMax": 480.0,
     "DefaultSpawnAltitude": 60.0,
     "ExposeApi": true,
-    "DebugProjectilesEnabled": false
+    "DebugProjectilesEnabled": false,
+    "DisableVanillaPatrolHeli": true,
+    "KeepConvoyHeli": true
   },
   "Messages": {
     "Spawn": "{prefix} Поднимается в небо.",
