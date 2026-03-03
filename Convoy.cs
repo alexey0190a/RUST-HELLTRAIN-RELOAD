@@ -5973,8 +5973,23 @@ static void UpdateLootTable(ItemContainer itemContainer, LootTableConfig lootTab
             internal static ScientistNPC SpawnScientistNpc(NpcConfig npcConfig, Vector3 position, float healthFraction, bool isStationary, bool isPassive)
             {
                 JObject baseNpcConfigObj = GetBaseNpcConfig(npcConfig, healthFraction, isStationary, isPassive);
-                ScientistNPC scientistNPC = (ScientistNPC)ins.NpcSpawn.Call("SpawnNpc", position, baseNpcConfigObj, isPassive);
-                eventNpcs.Add(scientistNPC);
+
+                var spawnPosition = position;
+                NavMeshHit navMeshHit;
+
+                if (PositionDefiner.GetNavmeshInPoint(spawnPosition, 6f, out navMeshHit) ||
+                    PositionDefiner.GetNavmeshInPoint(spawnPosition, 15f, out navMeshHit) ||
+                    PositionDefiner.GetNavmeshInPoint(spawnPosition, 35f, out navMeshHit) ||
+                    PositionDefiner.GetNavmeshInPoint(PositionDefiner.GetGroundPositionInPoint(spawnPosition), 35f, out navMeshHit))
+                {
+                    spawnPosition = navMeshHit.position;
+                }
+
+                ScientistNPC scientistNPC = (ScientistNPC)ins.NpcSpawn.Call("SpawnNpc", spawnPosition, baseNpcConfigObj, isPassive);
+
+                if (scientistNPC != null)
+                    eventNpcs.Add(scientistNPC);
+
                 return scientistNPC;
             }
 
