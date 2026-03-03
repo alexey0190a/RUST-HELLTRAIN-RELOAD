@@ -476,7 +476,7 @@ namespace Oxide.Plugins
             AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
-            AddEventsPagerButtons(container, root, selected.Key);
+            AddEventsPagerButtons(container, root, selected.Key, _editorStateByPlayer.ContainsKey(player.userID));
             AddCloseButton(container, root);
 
             if (HasAdmin(player))
@@ -536,23 +536,28 @@ namespace Oxide.Plugins
             }, parent, "ServerInfo.Close");
         }
 
-        private void AddEventsPagerButtons(CuiElementContainer container, string parent, string selectedKey)
+        private void AddEventsPagerButtons(CuiElementContainer container, string parent, string selectedKey, bool editorMode)
         {
             if (!selectedKey.Equals("events", StringComparison.OrdinalIgnoreCase)) return;
-            if (GetEventsMaxPage() <= 1) return;
+            if (!editorMode && GetEventsMaxPage() <= 1) return;
+
+            var buttonColor = editorMode ? "0.2 0.8 1 0.35" : "1 1 1 0";
+            var textColor = editorMode ? "1 1 1 0.95" : "1 1 1 0";
+            var prevText = editorMode ? "<" : "";
+            var nextText = editorMode ? ">" : "";
 
             container.Add(new CuiButton
             {
-                Button = { Color = "1 1 1 0", Command = "serverinfo.events.page prev" },
+                Button = { Color = buttonColor, Command = "serverinfo.events.page prev" },
                 RectTransform = { AnchorMin = _config.Ui.EventsPrevButton.AnchorMin, AnchorMax = _config.Ui.EventsPrevButton.AnchorMax },
-                Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
+                Text = { Text = prevText, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = textColor }
             }, parent, "ServerInfo.Events.Prev");
 
             container.Add(new CuiButton
             {
-                Button = { Color = "1 1 1 0", Command = "serverinfo.events.page next" },
+                Button = { Color = buttonColor, Command = "serverinfo.events.page next" },
                 RectTransform = { AnchorMin = _config.Ui.EventsNextButton.AnchorMin, AnchorMax = _config.Ui.EventsNextButton.AnchorMax },
-                Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
+                Text = { Text = nextText, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = textColor }
             }, parent, "ServerInfo.Events.Next");
         }
 
