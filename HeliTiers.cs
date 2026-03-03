@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Oxide.Core;
 using Oxide.Core.Libraries;
+using Oxide.Core.Plugins;
 using UnityEngine;
 
 namespace Oxide.Plugins
@@ -12,6 +13,8 @@ namespace Oxide.Plugins
     [Description("Tiered patrol helicopter spawns with per-tier settings, cooldowns, announcements, rocket/napalm control, killer announce (cached), and crash-at-death-point binding.")]
     public class HeliTiers : RustPlugin
     {
+        [PluginReference] private Plugin Loottable;
+
         #region Config
 
         private ConfigData config;
@@ -31,6 +34,7 @@ namespace Oxide.Plugins
             public float CruiseAltitude;
             public int RocketsPerVolley;
             public float RocketIntervalSeconds;
+            public string LootPreset;
 
             // текст на тир
             public string SpawnMsg;
@@ -218,6 +222,7 @@ namespace Oxide.Plugins
         private readonly Dictionary<ulong, Vector3> forcedCrashPos = new Dictionary<ulong, Vector3>();
         private readonly Dictionary<ulong, int> crashSpawnCount = new Dictionary<ulong, int>();
         private readonly Dictionary<ulong, double> antiRedirectUntil = new Dictionary<ulong, double>();
+        private readonly Dictionary<ulong, string> crashTierByHeli = new Dictionary<ulong, string>();
 
         // кэш последнего игрока, кто наносил урон (чтобы не было "неизвестный")
         private readonly Dictionary<ulong, string> lastAttacker = new Dictionary<ulong, string>();
@@ -271,6 +276,7 @@ namespace Oxide.Plugins
             active.Clear();
             forcedCrashPos.Clear();
             crashSpawnCount.Clear();
+            crashTierByHeli.Clear();
             lastAttacker.Clear();
             autopilotTimer?.Destroy();
             autopilotTimer = null;
@@ -329,6 +335,7 @@ namespace Oxide.Plugins
                 // запоминаем точку смерти
                 forcedCrashPos[netId] = entity.transform.position;
                 crashSpawnCount[netId] = 0;
+                crashTierByHeli[netId] = ah.TierId;
 
                 antiRedirectUntil[netId] = CurrentTime() + 10.0f;// имя убийцы: прямой инициатор → кэш → "неизвестный"
                 string killerName = (info?.InitiatorPlayer != null)
@@ -350,7 +357,7 @@ namespace Oxide.Plugins
 
                 // чистка вспомогательных структур
                 lastAttacker.Remove(netId);
-                timer.Once(120f, () => { forcedCrashPos.Remove(netId); crashSpawnCount.Remove(netId); });
+                timer.Once(120f, () => { forcedCrashPos.Remove(netId); crashSpawnCount.Remove(netId); crashTierByHeli.Remove(netId); });
             }
         }
 
@@ -373,6 +380,7 @@ namespace Oxide.Plugins
 
             forcedCrashPos.Remove(netId);
             crashSpawnCount.Remove(netId);
+            crashTierByHeli.Remove(netId);
             lastAttacker.Remove(netId);
             CancelAutopilotTtl(netId);
         }
@@ -510,6 +518,9 @@ rep = timer.Every(0.1f, () => {
 }
 
                     if (s == "heli_crate") { ent.SendNetworkUpdateImmediate(); } else { timer.Once(0.5f, () => { if (ent != null && !ent.IsDestroyed) ent.SendNetworkUpdate(); }); }
+
+                    if (s == "heli_crate")
+                        TryAssignLootPreset(bestId, ent as LootContainer);
 
                     crashSpawnCount[bestId] = crashSpawnCount.TryGetValue(bestId, out var c) ? c + 1 : 1;
                     if (config.General.DebugProjectilesEnabled)
@@ -868,6 +879,28 @@ rep = timer.Every(0.1f, () => {
         {
             if (ent == null || ent.IsDestroyed) return false;
             return ent.gameObject.GetComponent("EventHeli") != null;
+        }
+
+        private void TryAssignLootPreset(ulong heliNetId, LootContainer crate)
+        {
+            if (crate == null || crate.inventory == null || Loottable == null) return;
+
+            string tierId;
+            if (!crashTierByHeli.TryGetValue(heliNetId, out tierId) || string.IsNullOrEmpty(tierId)) return;
+
+            var tier = GetTier(tierId);
+            if (tier == null || string.IsNullOrEmpty(tier.LootPreset)) return;
+
+            try
+            {
+                var ok = Loottable.Call("AssignPreset", this, tier.LootPreset, crate.inventory);
+                if (config.Autopilot != null && config.Autopilot.Debug)
+                    Puts($"[HeliTiers] Loottable AssignPreset tier={tierId} preset={tier.LootPreset} => {ok}");
+            }
+            catch (Exception e)
+            {
+                PrintWarning($"Loottable AssignPreset failed for tier={tierId}: {e.Message}");
+            }
         }
 
         private Vector3 GetSpawnPosition()
