@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Oxide.Core;
 using Oxide.Core.Libraries;
+using Oxide.Core.Plugins;
 using UnityEngine;
 
 namespace Oxide.Plugins
@@ -11,6 +13,8 @@ namespace Oxide.Plugins
     [Description("Tiered patrol helicopter spawns with per-tier settings, cooldowns, announcements, rocket/napalm control, killer announce (cached), and crash-at-death-point binding.")]
     public class HeliTiers : RustPlugin
     {
+        [PluginReference] private Plugin Loottable;
+
         #region Config
 
         private ConfigData config;
@@ -30,6 +34,7 @@ namespace Oxide.Plugins
             public float CruiseAltitude;
             public int RocketsPerVolley;
             public float RocketIntervalSeconds;
+            public string LootPreset;
 
             // текст на тир
             public string SpawnMsg;
@@ -66,6 +71,29 @@ namespace Oxide.Plugins
             public float DefaultSpawnAltitude = 60f;
             public bool ExposeApi = true;
             public bool DebugProjectilesEnabled = false;
+            public bool DisableVanillaPatrolHeli = true;
+            public bool KeepConvoyHeli = true;
+        }
+
+        public class AutopilotSelectionCfg
+        {
+            public string Mode = "weighted";
+            public Dictionary<string, int> Weights = new Dictionary<string, int>();
+            public int NoRepeatLast = 1;
+        }
+
+        public class AutopilotCfg
+        {
+            public bool Enabled = true;
+            public int CheckPeriodSeconds = 60;
+            public int ActiveLimit = 1;
+            public int CooldownMinutesOnDeath = 60;
+            public int TTLMinutes = 30;
+            public bool RandomTier = true;
+            public string FallbackTier = "normal";
+            public List<string> AllowedTiers = new List<string>();
+            public bool Debug = false;
+            public AutopilotSelectionCfg Selection = new AutopilotSelectionCfg();
         }
 
         public class ConfigData
@@ -73,6 +101,7 @@ namespace Oxide.Plugins
             public GeneralCfg General = new GeneralCfg();
             public MessagesCfg Messages = new MessagesCfg();
             public List<Tier> Tiers = new List<Tier>();
+            public AutopilotCfg Autopilot = new AutopilotCfg();
         }
 
         protected override void LoadDefaultConfig()
@@ -90,9 +119,32 @@ namespace Oxide.Plugins
                     WaterRingRadiusMax = 480f,
                     DefaultSpawnAltitude = 60f,
                     ExposeApi = true,
-                    DebugProjectilesEnabled = false
+                    DebugProjectilesEnabled = false,
+                    DisableVanillaPatrolHeli = true,
+                    KeepConvoyHeli = true
                 },
                 Messages = new MessagesCfg(),
+                Autopilot = new AutopilotCfg
+                {
+                    Enabled = true,
+                    CheckPeriodSeconds = 60,
+                    ActiveLimit = 1,
+                    CooldownMinutesOnDeath = 60,
+                    TTLMinutes = 30,
+                    RandomTier = true,
+                    FallbackTier = "normal",
+                    AllowedTiers = new List<string>(),
+                    Debug = false,
+                    Selection = new AutopilotSelectionCfg
+                    {
+                        Mode = "weighted",
+                        Weights = new Dictionary<string, int>
+                        {
+                            {"easy", 1}, {"normal", 3}, {"strong", 3}, {"hardcore", 2}
+                        },
+                        NoRepeatLast = 1
+                    }
+                },
                 Tiers = new List<Tier>
                 {
                     new Tier{
@@ -148,6 +200,10 @@ namespace Oxide.Plugins
                 config = Config.ReadObject<ConfigData>();
                 if (config == null) throw new Exception("null config");
                 if (config.Tiers == null || config.Tiers.Count == 0) LoadDefaultConfig();
+                if (config.Autopilot == null) config.Autopilot = new AutopilotCfg();
+                if (config.Autopilot.AllowedTiers == null) config.Autopilot.AllowedTiers = new List<string>();
+                if (config.Autopilot.Selection == null) config.Autopilot.Selection = new AutopilotSelectionCfg();
+                if (config.Autopilot.Selection.Weights == null) config.Autopilot.Selection.Weights = new Dictionary<string, int>();
             }
             catch (Exception e)
             {
@@ -166,11 +222,16 @@ namespace Oxide.Plugins
         private readonly Dictionary<ulong, Vector3> forcedCrashPos = new Dictionary<ulong, Vector3>();
         private readonly Dictionary<ulong, int> crashSpawnCount = new Dictionary<ulong, int>();
         private readonly Dictionary<ulong, double> antiRedirectUntil = new Dictionary<ulong, double>();
+        private readonly Dictionary<ulong, string> crashTierByHeli = new Dictionary<ulong, string>();
 
         // кэш последнего игрока, кто наносил урон (чтобы не было "неизвестный")
         private readonly Dictionary<ulong, string> lastAttacker = new Dictionary<ulong, string>();
+        private readonly Dictionary<ulong, Timer> autopilotTtlTimers = new Dictionary<ulong, Timer>();
+        private readonly Queue<string> autopilotLastPicked = new Queue<string>();
+        private Timer autopilotTimer;
 
         private double lastDeathTime;
+        private double autopilotLastDeathTime;
 
         private class ActiveHeli
         {
@@ -178,6 +239,8 @@ namespace Oxide.Plugins
             public string TierId;
             public BaseEntity Entity;
         }
+
+        private class HeliTiersOwnedMarker : FacepunchBehaviour {}
 
         #endregion
 
@@ -197,6 +260,7 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             CleanupOrphaned();
+            StartAutopilot();
         }
 
         private void Unload()
@@ -212,7 +276,13 @@ namespace Oxide.Plugins
             active.Clear();
             forcedCrashPos.Clear();
             crashSpawnCount.Clear();
+            crashTierByHeli.Clear();
             lastAttacker.Clear();
+            autopilotTimer?.Destroy();
+            autopilotTimer = null;
+            foreach (var kv in autopilotTtlTimers)
+                kv.Value?.Destroy();
+            autopilotTtlTimers.Clear();
         }
 
         // кэшируем последнего атакующего игрока
@@ -223,6 +293,9 @@ namespace Oxide.Plugins
             // интересуемся только патрульником
             var shortName = (entity.ShortPrefabName ?? string.Empty).ToLower();
             if (!shortName.Contains("patrolhelicopter")) return;
+
+            var be = entity as BaseEntity;
+            if (be == null || !IsOurHeli(be)) return;
 
             var attacker = info.InitiatorPlayer;
             if (attacker == null) return;
@@ -262,6 +335,7 @@ namespace Oxide.Plugins
                 // запоминаем точку смерти
                 forcedCrashPos[netId] = entity.transform.position;
                 crashSpawnCount[netId] = 0;
+                crashTierByHeli[netId] = ah.TierId;
 
                 antiRedirectUntil[netId] = CurrentTime() + 10.0f;// имя убийцы: прямой инициатор → кэш → "неизвестный"
                 string killerName = (info?.InitiatorPlayer != null)
@@ -279,10 +353,11 @@ namespace Oxide.Plugins
 
                 active.Remove(netId);
                 lastDeathTime = CurrentTime();
+                autopilotLastDeathTime = CurrentTime();
 
                 // чистка вспомогательных структур
                 lastAttacker.Remove(netId);
-                timer.Once(120f, () => { forcedCrashPos.Remove(netId); crashSpawnCount.Remove(netId); });
+                timer.Once(120f, () => { forcedCrashPos.Remove(netId); crashSpawnCount.Remove(netId); crashTierByHeli.Remove(netId); });
             }
         }
 
@@ -305,7 +380,9 @@ namespace Oxide.Plugins
 
             forcedCrashPos.Remove(netId);
             crashSpawnCount.Remove(netId);
+            crashTierByHeli.Remove(netId);
             lastAttacker.Remove(netId);
+            CancelAutopilotTtl(netId);
         }
 
         // фильтр ракет/напалма + перенос краш-объектов в точку смерти
@@ -315,6 +392,20 @@ namespace Oxide.Plugins
             if (ent == null) return;
 
             string s = ent.ShortPrefabName ?? string.Empty;
+
+            if (s == "patrolhelicopter" && config.General.DisableVanillaPatrolHeli)
+            {
+                if (!IsOurHeli(ent))
+                {
+                    if (!(config.General.KeepConvoyHeli && IsConvoyHeli(ent)))
+                    {
+                        if (config.Autopilot != null && config.Autopilot.Debug)
+                            Puts("[HeliTiers] Kill non-tier patrol helicopter netid=" + (ent.net?.ID.Value ?? 0UL));
+                        ent.Kill();
+                        return;
+                    }
+                }
+            }
 
             // --- контроль снарядов/огня по тиру ---
             bool candidate = IsBlockedProjectile(s);
@@ -427,6 +518,9 @@ rep = timer.Every(0.1f, () => {
 }
 
                     if (s == "heli_crate") { ent.SendNetworkUpdateImmediate(); } else { timer.Once(0.5f, () => { if (ent != null && !ent.IsDestroyed) ent.SendNetworkUpdate(); }); }
+
+                    if (s == "heli_crate")
+                        TryAssignLootPreset(bestId, ent as LootContainer);
 
                     crashSpawnCount[bestId] = crashSpawnCount.TryGetValue(bestId, out var c) ? c + 1 : 1;
                     if (config.General.DebugProjectilesEnabled)
@@ -619,6 +713,196 @@ rep = timer.Every(0.1f, () => {
             // future
         }
 
+        private void StartAutopilot()
+        {
+            autopilotTimer?.Destroy();
+            autopilotTimer = null;
+
+            if (config.Autopilot == null || !config.Autopilot.Enabled) return;
+
+            autopilotTimer = timer.Every(Mathf.Max(5, config.Autopilot.CheckPeriodSeconds), EvaluateAutopilot);
+            if (config.Autopilot.Debug)
+            {
+                Puts("[HeliTiers] Autopilot ON. ActiveLimit=" + config.Autopilot.ActiveLimit
+                    + ", TTL=" + config.Autopilot.TTLMinutes + "m, CD=" + config.Autopilot.CooldownMinutesOnDeath
+                    + "m, Check=" + config.Autopilot.CheckPeriodSeconds + "s");
+            }
+        }
+
+        private void EvaluateAutopilot()
+        {
+            if (config.Autopilot == null || !config.Autopilot.Enabled) return;
+
+            if (active.Count >= config.Autopilot.ActiveLimit) return;
+            if (!AutopilotCooldownReady()) return;
+
+            int need = config.Autopilot.ActiveLimit - active.Count;
+            for (int i = 0; i < need; i++)
+            {
+                var tier = PickAutopilotTier();
+                if (tier == null) break;
+
+                var ok = API_HeliTiers_Start(tier.Id);
+                if (!ok) break;
+
+                RememberAutopilotPick(tier.Id);
+                if (config.Autopilot.Debug)
+                    Puts("[HeliTiers] Autopilot spawned tier=" + tier.Id);
+            }
+        }
+
+        private bool AutopilotCooldownReady()
+        {
+            if (autopilotLastDeathTime <= 0) return true;
+            var since = CurrentTime() - autopilotLastDeathTime;
+            return since >= config.Autopilot.CooldownMinutesOnDeath * 60f;
+        }
+
+        private void RememberAutopilotPick(string tierId)
+        {
+            if (config.Autopilot.Selection == null || config.Autopilot.Selection.NoRepeatLast <= 0) return;
+            autopilotLastPicked.Enqueue(tierId);
+            while (autopilotLastPicked.Count > config.Autopilot.Selection.NoRepeatLast)
+                autopilotLastPicked.Dequeue();
+        }
+
+        private Tier PickAutopilotTier()
+        {
+            List<string> pool;
+            if (config.Autopilot.AllowedTiers != null && config.Autopilot.AllowedTiers.Count > 0)
+                pool = config.Autopilot.AllowedTiers;
+            else
+                pool = config.Tiers.Select(t => t.Id).ToList();
+
+            if (pool == null || pool.Count == 0)
+                return GetTier(config.Autopilot.FallbackTier);
+
+            var filtered = new List<string>();
+            foreach (var id in pool)
+            {
+                if (config.Autopilot.Selection == null || config.Autopilot.Selection.NoRepeatLast <= 0 || !autopilotLastPicked.Contains(id))
+                    filtered.Add(id);
+            }
+            if (filtered.Count == 0) filtered = pool;
+
+            if (!config.Autopilot.RandomTier)
+                return GetTier(filtered[0]) ?? GetTier(config.Autopilot.FallbackTier);
+
+            string mode = config.Autopilot.Selection != null ? (config.Autopilot.Selection.Mode ?? "weighted") : "weighted";
+            var weights = (config.Autopilot.Selection != null && config.Autopilot.Selection.Weights != null)
+                ? config.Autopilot.Selection.Weights
+                : new Dictionary<string, int>();
+
+            if (mode == "weighted" && weights.Count > 0)
+            {
+                var items = new List<Tuple<string, int>>();
+                int total = 0;
+                foreach (var id in filtered)
+                {
+                    int w;
+                    if (!weights.TryGetValue(id, out w)) w = 1;
+                    if (w < 0) w = 0;
+                    total += w;
+                    items.Add(new Tuple<string, int>(id, w));
+                }
+
+                if (total > 0)
+                {
+                    int r = UnityEngine.Random.Range(0, total);
+                    int acc = 0;
+                    foreach (var it in items)
+                    {
+                        acc += it.Item2;
+                        if (r < acc)
+                            return GetTier(it.Item1) ?? GetTier(config.Autopilot.FallbackTier);
+                    }
+                    return GetTier(items[items.Count - 1].Item1) ?? GetTier(config.Autopilot.FallbackTier);
+                }
+            }
+
+            int idx = UnityEngine.Random.Range(0, filtered.Count);
+            return GetTier(filtered[idx]) ?? GetTier(config.Autopilot.FallbackTier);
+        }
+
+        private void ScheduleAutopilotTtl(BaseEntity ent, ulong netId)
+        {
+            if (config.Autopilot == null || !config.Autopilot.Enabled) return;
+            if (config.Autopilot.TTLMinutes <= 0) return;
+
+            CancelAutopilotTtl(netId);
+
+            var ttl = Mathf.Max(60, config.Autopilot.TTLMinutes * 60);
+            autopilotTtlTimers[netId] = timer.Once(ttl, () =>
+            {
+                autopilotTtlTimers.Remove(netId);
+                if (ent == null || ent.IsDestroyed) return;
+
+                try
+                {
+                    var ai = ent.GetComponent<PatrolHelicopterAI>();
+                    if (ai != null)
+                    {
+                        if (config.Autopilot.Debug) Puts("[HeliTiers] TTL retire heli netid=" + netId);
+                        ai.Retire();
+                        return;
+                    }
+                }
+                catch (Exception e)
+                {
+                    PrintWarning("Autopilot Retire() failed: " + e.Message);
+                }
+
+                ent.Kill();
+            });
+        }
+
+        private void CancelAutopilotTtl(ulong netId)
+        {
+            Timer t;
+            if (autopilotTtlTimers.TryGetValue(netId, out t))
+            {
+                t?.Destroy();
+                autopilotTtlTimers.Remove(netId);
+            }
+        }
+
+        private bool IsOurHeli(BaseEntity ent)
+        {
+            if (ent == null || ent.IsDestroyed) return false;
+            if (ent.GetComponent<HeliTiersOwnedMarker>() != null) return true;
+            var netId = ent.net?.ID.Value ?? 0UL;
+            if (netId == 0UL) return false;
+            return active.ContainsKey(netId);
+        }
+
+        private bool IsConvoyHeli(BaseEntity ent)
+        {
+            if (ent == null || ent.IsDestroyed) return false;
+            return ent.gameObject.GetComponent("EventHeli") != null;
+        }
+
+        private void TryAssignLootPreset(ulong heliNetId, LootContainer crate)
+        {
+            if (crate == null || crate.inventory == null || Loottable == null) return;
+
+            string tierId;
+            if (!crashTierByHeli.TryGetValue(heliNetId, out tierId) || string.IsNullOrEmpty(tierId)) return;
+
+            var tier = GetTier(tierId);
+            if (tier == null || string.IsNullOrEmpty(tier.LootPreset)) return;
+
+            try
+            {
+                var ok = Loottable.Call("AssignPreset", this, tier.LootPreset, crate.inventory);
+                if (config.Autopilot != null && config.Autopilot.Debug)
+                    Puts($"[HeliTiers] Loottable AssignPreset tier={tierId} preset={tier.LootPreset} => {ok}");
+            }
+            catch (Exception e)
+            {
+                PrintWarning($"Loottable AssignPreset failed for tier={tierId}: {e.Message}");
+            }
+        }
+
         private Vector3 GetSpawnPosition()
         {
             var size = TerrainMeta.Size.x;
@@ -653,6 +937,8 @@ rep = timer.Every(0.1f, () => {
                     PrintWarning($"CreateEntity returned null for prefab: {prefab} at {position}");
                     return null;
                 }
+
+                ent.gameObject.AddComponent<HeliTiersOwnedMarker>();
 
                 ent.Spawn();
 
@@ -698,6 +984,7 @@ rep = timer.Every(0.1f, () => {
                     TierId = tier.Id,
                     Entity = ent
                 };
+                ScheduleAutopilotTtl(ent, netId);
 
                 // announce
                 Announce(tier, TierLine(config.Messages.Spawn, tier, tier.SpawnMsg));
