@@ -1496,6 +1496,8 @@ namespace Oxide.Plugins
         {
             private static Coroutine _autoEventCoroutine;
             private static Coroutine _delayedEventStartCoroutine;
+            private static Coroutine _fixedScheduleStopCoroutine;
+            private static DateTime? _activeFixedScheduleWindowEndUtc;
 
             public static bool IsEventActive()
             {
@@ -1510,10 +1512,13 @@ namespace Oxide.Plugins
                 if (_autoEventCoroutine != null)
                     ServerMgr.Instance.StopCoroutine(_autoEventCoroutine);
 
-                _autoEventCoroutine = ServerMgr.Instance.StartCoroutine(AutoEventCoroutine());
+                if (_ins._config.MainConfig.FixedSchedule.Enabled)
+                    _autoEventCoroutine = ServerMgr.Instance.StartCoroutine(FixedScheduleAutoEventCoroutine());
+                else
+                    _autoEventCoroutine = ServerMgr.Instance.StartCoroutine(AutoEventCoroutine());
             }
 
-            public static void DelayStartEvent(bool isAutoActivated = false, BasePlayer activator = null, string presetName = null)
+            public static void DelayStartEvent(bool isAutoActivated = false, BasePlayer activator = null, string presetName = null, bool usePreStartTime = true)
             {
                 if (IsEventActive() || _delayedEventStartCoroutine != null)
                 {
@@ -1532,7 +1537,7 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                _delayedEventStartCoroutine = ServerMgr.Instance.StartCoroutine(DelayedStartEventCoroutine(eventConfig));
+                _delayedEventStartCoroutine = ServerMgr.Instance.StartCoroutine(DelayedStartEventCoroutine(eventConfig, usePreStartTime));
 
                 if (!isAutoActivated)
                     NotifyManager.PrintInfoMessage(activator, "SuccessfullyLaunched");
@@ -1545,12 +1550,28 @@ namespace Oxide.Plugins
                 DelayStartEvent(true);
             }
 
-            private static IEnumerator DelayedStartEventCoroutine(EventConfig eventConfig)
+            private static IEnumerator FixedScheduleAutoEventCoroutine()
             {
-                if (_ins._config.MainConfig.PreStartTime > 0)
+                DateTime startUtc;
+                DateTime endUtc;
+                if (!TryGetNextFixedScheduleWindowUtc(DateTime.UtcNow, out startUtc, out endUtc))
+                    yield break;
+
+                double waitSeconds = (startUtc - DateTime.UtcNow).TotalSeconds;
+                if (waitSeconds > 0)
+                    yield return CoroutineEx.waitForSeconds((float)waitSeconds);
+
+                _activeFixedScheduleWindowEndUtc = endUtc;
+                DelayStartEvent(true, null, null, false);
+            }
+
+            private static IEnumerator DelayedStartEventCoroutine(EventConfig eventConfig, bool usePreStartTime)
+            {
+                if (usePreStartTime && _ins._config.MainConfig.PreStartTime > 0)
                     NotifyManager.SendMessageToAll("PreStart", _ins._config.Prefix, _ins._config.MainConfig.PreStartTime);
 
-                yield return CoroutineEx.waitForSeconds(_ins._config.MainConfig.PreStartTime);
+                if (usePreStartTime && _ins._config.MainConfig.PreStartTime > 0)
+                    yield return CoroutineEx.waitForSeconds(_ins._config.MainConfig.PreStartTime);
 
                 StartEvent(eventConfig);
             }
@@ -1562,6 +1583,14 @@ namespace Oxide.Plugins
                 GameObject gameObject = new GameObject();
                 _ins._eventController = gameObject.AddComponent<EventController>();
                 _ins._eventController.Init(eventConfig);
+
+                if (_activeFixedScheduleWindowEndUtc != null)
+                {
+                    if (_fixedScheduleStopCoroutine != null)
+                        ServerMgr.Instance.StopCoroutine(_fixedScheduleStopCoroutine);
+
+                    _fixedScheduleStopCoroutine = ServerMgr.Instance.StartCoroutine(FixedScheduleStopEventCoroutine(_activeFixedScheduleWindowEndUtc.Value));
+                }
 
                 if (_ins._config.MainConfig.EnableStartStopLogs)
                     NotifyManager.PrintLogMessage("EventStart_Log", eventConfig.PresetName);
@@ -1599,6 +1628,99 @@ namespace Oxide.Plugins
                     ServerMgr.Instance.StopCoroutine(_delayedEventStartCoroutine);
                     _delayedEventStartCoroutine = null;
                 }
+
+                if (_fixedScheduleStopCoroutine != null)
+                {
+                    ServerMgr.Instance.StopCoroutine(_fixedScheduleStopCoroutine);
+                    _fixedScheduleStopCoroutine = null;
+                }
+
+                _activeFixedScheduleWindowEndUtc = null;
+            }
+
+            public static int GetRemainFixedScheduleWindowSeconds()
+            {
+                if (_activeFixedScheduleWindowEndUtc == null)
+                    return -1;
+
+                return Math.Max(0, (int)Math.Ceiling((_activeFixedScheduleWindowEndUtc.Value - DateTime.UtcNow).TotalSeconds));
+            }
+
+            private static IEnumerator FixedScheduleStopEventCoroutine(DateTime endUtc)
+            {
+                double remainSeconds = (endUtc - DateTime.UtcNow).TotalSeconds;
+                if (remainSeconds > 0)
+                    yield return CoroutineEx.waitForSeconds((float)remainSeconds);
+
+                if (IsEventActive())
+                    StopEvent();
+            }
+
+            private static bool TryGetNextFixedScheduleWindowUtc(DateTime nowUtc, out DateTime startUtc, out DateTime endUtc)
+            {
+                startUtc = default;
+                endUtc = default;
+
+                FixedScheduleConfig fixedScheduleConfig = _ins._config.MainConfig.FixedSchedule;
+                if (fixedScheduleConfig == null || fixedScheduleConfig.Windows == null || fixedScheduleConfig.Windows.Count == 0)
+                    return false;
+
+                TimeSpan offset = TimeSpan.FromHours(fixedScheduleConfig.UtcOffsetHours);
+                DateTime localNow = nowUtc + offset;
+                bool isFound = false;
+
+                foreach (FixedScheduleWindowConfig window in fixedScheduleConfig.Windows)
+                {
+                    TimeSpan startTime;
+                    TimeSpan endTime;
+                    if (!TryParseHhMm(window.Start, out startTime) || !TryParseHhMm(window.End, out endTime))
+                        continue;
+
+                    for (int dayOffset = 0; dayOffset <= 1; dayOffset++)
+                    {
+                        DateTime startLocal = localNow.Date.AddDays(dayOffset).Add(startTime);
+                        DateTime endLocal = localNow.Date.AddDays(dayOffset).Add(endTime);
+                        if (endLocal <= startLocal)
+                            endLocal = endLocal.AddDays(1);
+
+                        DateTime candidateStartUtc = startLocal - offset;
+                        if (candidateStartUtc <= nowUtc)
+                            continue;
+
+                        DateTime candidateEndUtc = endLocal - offset;
+
+                        if (!isFound || candidateStartUtc < startUtc)
+                        {
+                            startUtc = candidateStartUtc;
+                            endUtc = candidateEndUtc;
+                            isFound = true;
+                        }
+                    }
+                }
+
+                return isFound;
+            }
+
+            private static bool TryParseHhMm(string value, out TimeSpan timeSpan)
+            {
+                timeSpan = default;
+                if (string.IsNullOrEmpty(value))
+                    return false;
+
+                string[] parts = value.Split(':');
+                if (parts.Length != 2)
+                    return false;
+
+                int hours;
+                int minutes;
+                if (!int.TryParse(parts[0], out hours) || !int.TryParse(parts[1], out minutes))
+                    return false;
+
+                if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+                    return false;
+
+                timeSpan = new TimeSpan(hours, minutes, 0);
+                return true;
             }
 
             private static EventConfig DefineEventConfig(string eventPresetName)
@@ -2179,6 +2301,10 @@ namespace Oxide.Plugins
             {
                 _spawnCoroutine = null;
                 _eventTime = EventConfig.EventTime;
+                int remainFixedScheduleWindowSeconds = EventLauncher.GetRemainFixedScheduleWindowSeconds();
+                if (remainFixedScheduleWindowSeconds >= 0)
+                    _eventTime = Math.Min(_eventTime, remainFixedScheduleWindowSeconds);
+
                 EventMapMarker.CreateMarker();
                 _eventCoroutine = ServerMgr.Instance.StartCoroutine(EventCoroutine());
                 PathManager.OnSpawnFinish();
@@ -2240,6 +2366,9 @@ namespace Oxide.Plugins
                     _isEventLooted = true;
                     SwitchMoving(false);
                     _eventTime = _ins._config.MainConfig.EndAfterLootTime;
+                    int remainFixedScheduleWindowSeconds = EventLauncher.GetRemainFixedScheduleWindowSeconds();
+                    if (remainFixedScheduleWindowSeconds >= 0)
+                        _eventTime = Math.Min(_eventTime, remainFixedScheduleWindowSeconds);
 
                     NotifyManager.SendMessageToAll("Looted", _ins._config.Prefix, EventConfig.DisplayName);
                 }
@@ -7261,6 +7390,12 @@ namespace Oxide.Plugins
                 
             }
 
+            PluginConfig defaultConfigForValues = PluginConfig.DefaultConfig();
+            if (_config.MainConfig.FixedSchedule == null)
+                _config.MainConfig.FixedSchedule = defaultConfigForValues.MainConfig.FixedSchedule;
+            else if (_config.MainConfig.FixedSchedule.Windows == null)
+                _config.MainConfig.FixedSchedule.Windows = defaultConfigForValues.MainConfig.FixedSchedule.Windows;
+
             UpdateConfigValues();
             SaveConfig();
         }
@@ -7386,6 +7521,30 @@ namespace Oxide.Plugins
 
             [JsonProperty(En ? "Time to destroy the сonvoy after opening all the crates [sec]" : "Время до уничтожения конвоя после открытия всех ящиков [sec]")]
             public int EndAfterLootTime { get; set; }
+
+            [JsonProperty(En ? "Fixed event schedule settings" : "Настройки фиксированного расписания ивента")]
+            public FixedScheduleConfig FixedSchedule { get; set; }
+        }
+
+        private class FixedScheduleConfig
+        {
+            [JsonProperty(En ? "Enable fixed schedule [true/false]" : "Включить фиксированное расписание [true/false]")]
+            public bool Enabled { get; set; }
+
+            [JsonProperty(En ? "UTC offset in hours" : "Сдвиг UTC в часах")]
+            public int UtcOffsetHours { get; set; }
+
+            [JsonProperty(En ? "Event windows" : "Окна запуска ивента")]
+            public List<FixedScheduleWindowConfig> Windows { get; set; }
+        }
+
+        private class FixedScheduleWindowConfig
+        {
+            [JsonProperty(En ? "Window start (HH:mm)" : "Начало окна (HH:mm)")]
+            public string Start { get; set; }
+
+            [JsonProperty(En ? "Window end (HH:mm)" : "Конец окна (HH:mm)")]
+            public string End { get; set; }
         }
 
         private class BehaviorConfig
@@ -8441,6 +8600,19 @@ namespace Oxide.Plugins
                         IsTurretDropWeapon = false,
                         KillEventAfterLoot = true,
                         EndAfterLootTime = 300,
+                        FixedSchedule = new FixedScheduleConfig
+                        {
+                            Enabled = false,
+                            UtcOffsetHours = 3,
+                            Windows = new List<FixedScheduleWindowConfig>
+                            {
+                                new FixedScheduleWindowConfig { Start = "03:00", End = "04:00" },
+                                new FixedScheduleWindowConfig { Start = "09:00", End = "10:00" },
+                                new FixedScheduleWindowConfig { Start = "15:00", End = "16:00" },
+                                new FixedScheduleWindowConfig { Start = "18:00", End = "19:00" },
+                                new FixedScheduleWindowConfig { Start = "21:00", End = "22:00" }
+                            }
+                        }
                     },
                     BehaviorConfig = new BehaviorConfig
                     {
