@@ -9,7 +9,9 @@
     "WaterRingRadiusMax": 480.0,
     "DefaultSpawnAltitude": 60.0,
     "ExposeApi": true,
-    "DebugProjectilesEnabled": false
+    "DebugProjectilesEnabled": false,
+    "DisableVanillaPatrolHeli": true,
+    "KeepConvoyHeli": true
   },
   "Messages": {
     "Spawn": "{prefix} Поднимается в небо.",
@@ -24,6 +26,27 @@
     "Stopped": "{prefix} Снят с карты.",
     "NoPermission": "Недостаточно прав.",
     "ListActiveHeader": "Активные вертолёты: {count}"
+  },
+  "Autopilot": {
+    "Enabled": true,
+    "CheckPeriodSeconds": 60,
+    "ActiveLimit": 1,
+    "CooldownMinutesOnDeath": 60,
+    "TTLMinutes": 30,
+    "RandomTier": true,
+    "FallbackTier": "normal",
+    "AllowedTiers": [],
+    "Debug": false,
+    "Selection": {
+      "Mode": "weighted",
+      "Weights": {
+        "easy": 1,
+        "normal": 3,
+        "strong": 3,
+        "hardcore": 2
+      },
+      "NoRepeatLast": 1
+    }
   },
   "Tiers": [
     {
@@ -46,6 +69,7 @@
       "EngageRange": 150.0,
       "RocketsPerVolley": 0,
       "RocketIntervalSeconds": 5000.0,
+      "LootPreset": "",
       "SpawnMsg": "<color=#ffff00>[АНОНС]</color>\n{prefix} Поднялся… для сопляков, разминка для слабых.",
       "EngageMsg": "<color=#ffff00>[АНОНС]</color>\n{prefix} Он что-то пытается сделать… как же это мило.",
       "DownMsg": "<color=#ffff00>[АНОНС]</color>\n<color=#ff0000>Герой <color=#ffff00>{player}</color></color> {prefix} Ребёнка обидел. Не стыдно, а?",
@@ -72,6 +96,7 @@
       "EngageRange": 200.0,
       "RocketsPerVolley": 0,
       "RocketIntervalSeconds": 4000.0,
+      "LootPreset": "",
       "SpawnMsg": "<color=#ffff00>[АНОНС]</color>\n{prefix} На горизонте среднячок — рыбка покрупнее детсада.",
       "EngageMsg": "<color=#ffff00>[АНОНС]</color>\n{prefix} Я даже не почувствовал… и это всё?",
       "DownMsg": "<color=#ffff00>[АНОНС]</color>\n<color=#ff0000>Герой <color=#ffff00>{player}</color></color> {prefix} Ну вот, уже что-то. Молодец.",
@@ -98,6 +123,7 @@
       "EngageRange": 270.0,
       "RocketsPerVolley": 2,
       "RocketIntervalSeconds": 5.0,
+      "LootPreset": "",
       "SpawnMsg": "<color=#ffff00>[АНОНС]</color>\n{prefix} Солидный парень. Готовьтесь к месиву, в одиночку лучше не лезь.",
       "EngageMsg": "<color=#ffff00>[АНОНС]</color>\n{prefix} Оу-оу, полегче мистер! Не так глубоко…",
       "DownMsg": "<color=#ffff00>[АНОНС]</color>\n<color=#ff0000>Герой <color=#ffff00>{player}</color></color> {prefix} Достойный соперник. Молодец, ты справился.",
@@ -124,6 +150,7 @@
       "EngageRange": 300.0,
       "RocketsPerVolley": 5,
       "RocketIntervalSeconds": 4.0,
+      "LootPreset": "",
       "SpawnMsg": "<color=#ffff00>[АНОНС]</color>\n<color=#ff0000>{prefix} АХАХАХА! НАСТАЛО ВРЕМЯ РАЗВОРОШИТЬ ГНЕЗДО!\nГОТОВЬТЕ ЖОПЫ, Я ВЕСТНИК АПОКАЛИПСИСА — Я ВАША СМЕРТЬ!</color>",
       "EngageMsg": "<color=#ffff00>[АНОНС]</color>\n<color=#ff0000>{prefix} ПОДОХНИТЕ, ТВАРИ! Я ВЫШЕЛ ЗА ВАШИМИ ДУШАМИ!\nВЫ БЫ БЕЖАЛИ, ГЛУПЦЫ, НО БЕЖАТЬ НЕКУДА!</color>",
       "DownMsg": "<color=#ffff00>[АНОНС]</color>\n<color=#ff0000>Герой <color=#ffff00>{player}</color></color><color=#ff0000>{prefix} НЕВЕРОЯТНО! ОН ОДОЛЕЛ МАШИНУ СМЕРТИ. \nПОЧЁТ И УВАЖЕНИЕ ЭТОМУ ПАРНЮ.</color>",
