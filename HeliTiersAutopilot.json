@@ -1,0 +1,10 @@
+
+{
+  "CheckPeriodSeconds": 60,
+  "ActiveLimit": 1,
+  "CooldownMinutesOnDeath": 60,
+  "TTLMinutes": 30,
+  "RandomTier": true,
+  "FallbackTier": "normal",
+  "HeliTiersConfigFileName": "HeliTiers.json"
+}

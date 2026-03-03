@@ -1,0 +1,867 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using Oxide.Core;
+using Oxide.Core.Libraries;
+using UnityEngine;
+
+namespace Oxide.Plugins
+{
+    [Info("HeliTiers", "HELLBLOOD", "0.2.3")]
+    [Description("Tiered patrol helicopter spawns with per-tier settings, cooldowns, announcements, rocket/napalm control, killer announce (cached), and crash-at-death-point binding.")]
+    public class HeliTiers : RustPlugin
+    {
+        #region Config
+
+        private ConfigData config;
+
+        public class Tier
+        {
+            public string Id;
+            public string Title;
+            public string Prefix;
+            public int Health;
+            public int Crates;
+            public bool NapalmEnabled;
+
+            // зарезервировано (как в твоём файле)
+            public float BulletDamage;
+            public float CruiseSpeed;
+            public float CruiseAltitude;
+            public int RocketsPerVolley;
+            public float RocketIntervalSeconds;
+
+            // текст на тир
+            public string SpawnMsg;
+            public string EngageMsg;
+            public string DownMsg;      // поддерживает {count} {player} {prefix}
+            public string FinishedMsg;
+        }
+
+        public class MessagesCfg
+        {
+            public string Spawn = "{prefix} Поднимается в небо.";
+            public string Engage = "{prefix} Захват цели.";
+            public string Down = "{prefix} Сбит. Ящики: {count}.";
+            public string Finished = "{prefix} Ушёл живым. Позор охотникам!";
+
+            public string CooldownActive = "Подождите {minutes} мин. до следующего вызова.";
+            public string LimitReached = "Достигнут лимит активных вертолётов ({limit}).";
+            public string TierNotFound = "Тир \"{tier}\" не найден.";
+            public string Spawned = "";
+            public string Stopped = "{prefix} Снят с карты.";
+            public string NoPermission = "Недостаточно прав.";
+            public string ListActiveHeader = "Активные вертолёты: {count}";
+        }
+
+        public class GeneralCfg
+        {
+            public bool Announce = true;
+            public int GlobalCooldownSeconds = 5400;
+            public int ActiveHeliLimit = 2;
+            public bool CleanOnUnload = true;
+            public string SpawnMode = "WaterRing";
+            public float WaterRingRadiusMin = 350f;
+            public float WaterRingRadiusMax = 480f;
+            public float DefaultSpawnAltitude = 60f;
+            public bool ExposeApi = true;
+            public bool DebugProjectilesEnabled = false;
+        }
+
+        public class ConfigData
+        {
+            public GeneralCfg General = new GeneralCfg();
+            public MessagesCfg Messages = new MessagesCfg();
+            public List<Tier> Tiers = new List<Tier>();
+        }
+
+        protected override void LoadDefaultConfig()
+        {
+            config = new ConfigData
+            {
+                General = new GeneralCfg
+                {
+                    Announce = true,
+                    GlobalCooldownSeconds = 5400,
+                    ActiveHeliLimit = 2,
+                    CleanOnUnload = true,
+                    SpawnMode = "WaterRing",
+                    WaterRingRadiusMin = 350f,
+                    WaterRingRadiusMax = 480f,
+                    DefaultSpawnAltitude = 60f,
+                    ExposeApi = true,
+                    DebugProjectilesEnabled = false
+                },
+                Messages = new MessagesCfg(),
+                Tiers = new List<Tier>
+                {
+                    new Tier{
+                        Id="easy", Title="EASY", Prefix="[Вертолет EASY]",
+                        Health=7000, Crates=1, NapalmEnabled=false,
+                        BulletDamage=8, CruiseSpeed=22, CruiseAltitude=28,
+                        RocketsPerVolley=1, RocketIntervalSeconds=5.0f,
+                        SpawnMsg="{prefix} Взлетает. Разминка началась.",
+                        EngageMsg="{prefix} Цель отмечена. Пощекочим нервы.",
+                        DownMsg="{prefix} Сбит. Заберите {count} ящ.",
+                        FinishedMsg="{prefix} Ушёл живым. Эх..."
+                    },
+                    new Tier{
+                        Id="normal", Title="NORMAL", Prefix="[Вертолет NORMAL]",
+                        Health=10000, Crates=2, NapalmEnabled=false,
+                        BulletDamage=12, CruiseSpeed=25, CruiseAltitude=30,
+                        RocketsPerVolley=2, RocketIntervalSeconds=4.0f,
+                        SpawnMsg="{prefix} В небе. Начинаем охоту.",
+                        EngageMsg="{prefix} Цель в прицеле.",
+                        DownMsg="{prefix} Рухнул. Ящиков: {count}.",
+                        FinishedMsg="{prefix} Свалил. Слабовато."
+                    },
+                    new Tier{
+                        Id="strong", Title="STRONG", Prefix="[Вертолет STRONG]",
+                        Health=13000, Crates=3, NapalmEnabled=true,
+                        BulletDamage=16, CruiseSpeed=28, CruiseAltitude=32,
+                        RocketsPerVolley=3, RocketIntervalSeconds=3.5f,
+                        SpawnMsg="{prefix} Рёв винтов. Готовьтесь к аду!",
+                        EngageMsg="{prefix} Прижал добычу!",
+                        DownMsg="{prefix} Упал. Разгребайте {count}.",
+                        FinishedMsg="{prefix} Улетел. Сегодня вам повезло…"
+                    },
+                    new Tier{
+                        Id="hardcore", Title="HARDCORE", Prefix="[Вертолет HARDCORE]",
+                        Health=20000, Crates=5, NapalmEnabled=true,
+                        BulletDamage=20, CruiseSpeed=30, CruiseAltitude=34,
+                        RocketsPerVolley=3, RocketIntervalSeconds=4.0f,
+                        SpawnMsg="{prefix} БЕРСЕРК В НЕБЕ!",
+                        EngageMsg="{prefix} В ОГОНЬ!",
+                        DownMsg="{prefix} РАЗНЕСЕН! {count} ЯЩИКОВ В АГОНИИ!",
+                        FinishedMsg="{prefix} УШЁЛ ЖИВЫМ — ПОЗОР ОХОТНИКАМ!"
+                    },
+                }
+            };
+            SaveConfig();
+        }
+
+        private void SaveConfig() => Config.WriteObject(config, true);
+        private void LoadConfigValues()
+        {
+            try
+            {
+                config = Config.ReadObject<ConfigData>();
+                if (config == null) throw new Exception("null config");
+                if (config.Tiers == null || config.Tiers.Count == 0) LoadDefaultConfig();
+            }
+            catch (Exception e)
+            {
+                PrintError($"Error reading config, loading defaults: {e.Message}");
+                LoadDefaultConfig();
+            }
+        }
+
+        #endregion
+
+        #region State
+
+        private readonly Dictionary<ulong, ActiveHeli> active = new Dictionary<ulong, ActiveHeli>();
+
+        // crash bind
+        private readonly Dictionary<ulong, Vector3> forcedCrashPos = new Dictionary<ulong, Vector3>();
+        private readonly Dictionary<ulong, int> crashSpawnCount = new Dictionary<ulong, int>();
+        private readonly Dictionary<ulong, double> antiRedirectUntil = new Dictionary<ulong, double>();
+
+        // кэш последнего игрока, кто наносил урон (чтобы не было "неизвестный")
+        private readonly Dictionary<ulong, string> lastAttacker = new Dictionary<ulong, string>();
+
+        private double lastDeathTime;
+
+        private class ActiveHeli
+        {
+            public ulong NetId;
+            public string TierId;
+            public BaseEntity Entity;
+        }
+
+        #endregion
+
+        #region Hooks
+
+        private void Init()
+        {
+            LoadConfigValues();
+            permission.RegisterPermission("helitiers.admin", this);
+            foreach (var t in config.Tiers)
+                permission.RegisterPermission($"helitiers.spawn.{t.Id}", this);
+
+            // Ensure vanilla does not force helicopter to crash at monuments
+            ForceMonumentCrashOff();
+        }
+
+        private void OnServerInitialized()
+        {
+            CleanupOrphaned();
+        }
+
+        private void Unload()
+        {
+            if (config.General.CleanOnUnload)
+            {
+                foreach (var kv in active)
+                {
+                    var ent = kv.Value.Entity;
+                    if (ent != null && !ent.IsDestroyed) ent.Kill();
+                }
+            }
+            active.Clear();
+            forcedCrashPos.Clear();
+            crashSpawnCount.Clear();
+            lastAttacker.Clear();
+        }
+
+        // кэшируем последнего атакующего игрока
+        private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
+        {
+            if (entity == null || info == null) return;
+
+            // интересуемся только патрульником
+            var shortName = (entity.ShortPrefabName ?? string.Empty).ToLower();
+            if (!shortName.Contains("patrolhelicopter")) return;
+
+            var attacker = info.InitiatorPlayer;
+            if (attacker == null) return;
+
+            ulong id = entity.net?.ID.Value ?? 0UL;
+            if (id == 0UL) return;
+
+            lastAttacker[id] = attacker.displayName;
+            // Пред-привязка точки падения при летальном уроне (до физического "дотягивания" до монумента)
+            try
+            {
+                var bce = entity as BaseCombatEntity;
+                float hp = bce != null ? bce.Health() : 0f;
+                float incoming = info?.damageTypes != null ? info.damageTypes.Total() : 0f;
+                if (hp - incoming <= 0.1f)
+                {
+                    forcedCrashPos[id] = entity.transform.position;
+                    crashSpawnCount[id] = 0;
+                    antiRedirectUntil[id] = CurrentTime() + 12.0f; // слегка дольше держим
+                }
+            } catch {}
+    
+        }
+
+        // смерть в бою → анонс с именем убийцы (с кэшем) + анти-флуд + crash bind
+        private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
+        {
+            if (entity == null) return;
+            var netId = entity.net?.ID.Value ?? 0UL;
+            if (netId == 0UL) return;
+
+            ActiveHeli ah;
+            if (active.TryGetValue(netId, out ah))
+            {
+                var tier = GetTier(ah.TierId);
+
+                // запоминаем точку смерти
+                forcedCrashPos[netId] = entity.transform.position;
+                crashSpawnCount[netId] = 0;
+
+                antiRedirectUntil[netId] = CurrentTime() + 10.0f;// имя убийцы: прямой инициатор → кэш → "неизвестный"
+                string killerName = (info?.InitiatorPlayer != null)
+                    ? info.InitiatorPlayer.displayName
+                    : (lastAttacker.TryGetValue(netId, out var cached) ? cached : "неизвестный");
+
+                var tpl = string.IsNullOrEmpty(tier.DownMsg) ? config.Messages.Down : tier.DownMsg;
+                var down = tpl
+                    .Replace("{player}", EscapeRichText(killerName))
+                    .Replace("{count}", tier?.Crates.ToString() ?? "0")
+                    .Replace("{prefix}", tier.Prefix);
+
+                // анти-флуд: задержка, чтобы не совпасть с дождём debris/napalm
+                timer.Once(0.5f, () => Server.Broadcast(down));
+
+                active.Remove(netId);
+                lastDeathTime = CurrentTime();
+
+                // чистка вспомогательных структур
+                lastAttacker.Remove(netId);
+                timer.Once(120f, () => { forcedCrashPos.Remove(netId); crashSpawnCount.Remove(netId); });
+            }
+        }
+
+        // улетел/киломанулся → Finished (без КД)
+        private void OnEntityKill(BaseNetworkable networkable)
+        {
+            var be = networkable as BaseEntity;
+            if (be == null) return;
+
+            var netId = be.net?.ID.Value ?? 0UL;
+            if (netId == 0UL) return;
+
+            ActiveHeli ah;
+            if (active.TryGetValue(netId, out ah))
+            {
+                var tier = GetTier(ah.TierId);
+                Announce(tier, TierLine(config.Messages.Finished, tier, tier.FinishedMsg));
+                active.Remove(netId);
+            }
+
+            forcedCrashPos.Remove(netId);
+            crashSpawnCount.Remove(netId);
+            lastAttacker.Remove(netId);
+        }
+
+        // фильтр ракет/напалма + перенос краш-объектов в точку смерти
+        private void OnEntitySpawned(BaseNetworkable networkable)
+        {
+            var ent = networkable as BaseEntity;
+            if (ent == null) return;
+
+            string s = ent.ShortPrefabName ?? string.Empty;
+
+            // --- контроль снарядов/огня по тиру ---
+            bool candidate = IsBlockedProjectile(s);
+            if (candidate || config.General.DebugProjectilesEnabled)
+            {
+                BaseEntity creator = null;
+                try { creator = ent.creatorEntity; } catch {}
+                ulong creatorId = creator?.net?.ID.Value ?? 0UL;
+
+                ActiveHeli ah = null;
+                Tier tier = null;
+                bool belongsToOurHeli = false;
+
+                if (creatorId != 0UL && active.TryGetValue(creatorId, out ah))
+                {
+                    tier = GetTier(ah.TierId);
+                    belongsToOurHeli = tier != null;
+                }
+                else
+                {
+                    float best = 99999f;
+                    ActiveHeli bestHeli = null;
+                    foreach (var kv in active)
+                    {
+                        var hEnt = kv.Value.Entity;
+                        if (hEnt == null || hEnt.IsDestroyed) continue;
+                        float dist = Vector3.Distance(hEnt.transform.position, ent.transform.position);
+                        if (dist < best)
+                        {
+                            best = dist;
+                            bestHeli = kv.Value;
+                        }
+                    }
+                    if (bestHeli != null && best <= 80f)
+                    {
+                        ah = bestHeli;
+                        tier = GetTier(ah.TierId);
+                        belongsToOurHeli = tier != null;
+                    }
+                }
+
+                if (candidate && belongsToOurHeli && tier != null)
+                {
+                    if (!tier.NapalmEnabled)
+                    {
+                        if (config.General.DebugProjectilesEnabled)
+                            Puts($"[HeliTiers] BLOCK {s} near {tier.Id}");
+                        ent.Kill();
+                        return;
+                    }
+                }
+            }
+
+            // --- crash bind: ящики/обломки/напалм к точке смерти ---
+            bool isCrashSpawn =
+                s == "heli_crate" ||
+                s.Contains("gibs") || s.Contains("debris") ||
+                s == "fireball_small" || s == "napalm" || s == "rocket_heli_napalm";
+
+            if (isCrashSpawn)
+            {
+                ulong bestId = 0UL;
+                float bestDist = 99999f;
+                Vector3 bestPos = Vector3.zero;
+
+                foreach (var kv in forcedCrashPos)
+                {
+                    float d = Vector3.Distance(kv.Value, ent.transform.position);
+                    if (d < bestDist)
+                    {
+                        bestDist = d;
+                        bestPos = kv.Value;
+                        bestId = kv.Key;
+                    }
+                }
+
+                if (bestId != 0UL && bestDist <= 80f)
+                {
+                    // ent.limitNetworking disabled for crash spawns
+
+                    Vector3 drop = bestPos + new Vector3(UnityEngine.Random.Range(-3f, 3f), 0f, UnityEngine.Random.Range(-3f, 3f));
+                    try
+                    {
+                        float ground = TerrainMeta.HeightMap != null ? TerrainMeta.HeightMap.GetHeight(drop) : drop.y;
+                        if (drop.y < ground + 0.2f) drop.y = ground + 0.2f;
+                    } catch {}
+ent.transform.position = drop;
+
+// Anti-redirect: keep crash spawns at death point for a short window
+double until = 0;
+antiRedirectUntil.TryGetValue(bestId, out until);
+bool crateNow = (s == "heli_crate");
+if (until > 0 && CurrentTime() <= until)
+{
+    int ticks = 0;
+    var anchor = drop;
+    Timer rep = null;
+rep = timer.Every(0.1f, () => {
+        if (ent == null || ent.IsDestroyed) { if (rep != null) rep.Destroy(); return; }
+
+        ticks++;
+        ent.transform.position = anchor;
+        if (ticks >= 60) // ~6 seconds of enforcement
+        {
+            // final network update
+            if (crateNow) { ent.SendNetworkUpdateImmediate(); } else { timer.Once(0.5f, () => { if (ent != null && !ent.IsDestroyed) ent.SendNetworkUpdate(); }); }
+            rep.Destroy();
+        }
+    });
+}
+
+                    if (s == "heli_crate") { ent.SendNetworkUpdateImmediate(); } else { timer.Once(0.5f, () => { if (ent != null && !ent.IsDestroyed) ent.SendNetworkUpdate(); }); }
+
+                    crashSpawnCount[bestId] = crashSpawnCount.TryGetValue(bestId, out var c) ? c + 1 : 1;
+                    if (config.General.DebugProjectilesEnabled)
+                        Puts($"[HeliTiers] Crash bind: moved {s} to death point ({crashSpawnCount[bestId]})");
+                }
+            }
+        }
+
+        #endregion
+
+        #region Commands
+
+        [ChatCommand("helitiers.list")]
+        private void CmdList(BasePlayer player, string command, string[] args)
+        {
+            if (!HasAnyPerm(player))
+            {
+                Reply(player, config.Messages.NoPermission);
+                return;
+            }
+
+            Reply(player, config.Messages.ListActiveHeader.Replace("{count}", active.Count.ToString()));
+            foreach (var kv in active)
+            {
+                var t = GetTier(kv.Value.TierId);
+                Reply(player, $"- {kv.Value.TierId} ({t?.Title ?? "?"}) id={kv.Key}");
+            }
+        }
+
+        [ChatCommand("helitiers.stop")]
+        private void CmdStop(BasePlayer player, string command, string[] args)
+        {
+            if (!permission.UserHasPermission(player.UserIDString, "helitiers.admin"))
+            {
+                Reply(player, config.Messages.NoPermission);
+                return;
+            }
+
+            string tierFilter = args.Length > 0 ? args[0].ToLower() : "all";
+            int removed = 0;
+            var toKill = new List<ActiveHeli>();
+            foreach (var a in active.Values)
+            {
+                if (tierFilter == "all" || a.TierId == tierFilter)
+                    toKill.Add(a);
+            }
+            foreach (var a in toKill)
+            {
+                if (a.Entity != null && !a.Entity.IsDestroyed) a.Entity.Kill();
+                active.Remove(a.NetId);
+                removed++;
+            }
+            Reply(player, $"Снято: {removed}");
+        }
+
+        [ChatCommand("helitiers.inspect")]
+        private void CmdInspect(BasePlayer player, string command, string[] args)
+        {
+            if (!HasAnyPerm(player))
+            {
+                Reply(player, config.Messages.NoPermission);
+                return;
+            }
+            if (active.Count == 0)
+            {
+                Reply(player, "Активных вертолётов нет.");
+                return;
+            }
+            foreach (var kv in active)
+            {
+                var a = kv.Value;
+                var ent = a.Entity;
+                if (ent == null || ent.IsDestroyed)
+                {
+                    Reply(player, $"- id={kv.Key} ({a.TierId}): entity missing");
+                    continue;
+                }
+                var bce = ent as BaseCombatEntity;
+                var hp = bce != null ? $"{bce.Health():0}" : "n/a";
+                var ai = ent.GetComponent<PatrolHelicopterAI>();
+                int crates = -1;
+                if (!(TryGetIntField(ai, "maxCratesToSpawn", out crates) ||
+                      TryGetIntField(ai, "numCratesToSpawn", out crates) ||
+                      TryGetIntField(ai, "cratesToSpawn", out crates) ||
+                      TryGetIntField(ent, "maxCratesToSpawn", out crates) ||
+                      TryGetIntField(ent, "numCratesToSpawn", out crates)))
+                {
+                    crates = -1;
+                }
+                string cratesStr = crates >= 0 ? crates.ToString() : "?";
+                bool hasAi = ai != null;
+                string type = ent.ShortPrefabName;
+                Reply(player, $"- id={kv.Key} tier={a.TierId} type={type} hp={hp} cratesField={cratesStr} ai={hasAi}");
+            }
+        }
+
+        [ChatCommand("helitiers.spawn")]
+        private void CmdSpawn(BasePlayer player, string command, string[] args)
+        {
+            if (args.Length == 0)
+            {
+                Reply(player, "Использование: /helitiers.spawn <tierId> [x z]");
+                return;
+            }
+
+            var tierId = args[0].ToLower();
+            var tier = GetTier(tierId);
+            if (tier == null)
+            {
+                Reply(player, config.Messages.TierNotFound.Replace("{tier}", tierId));
+                return;
+            }
+
+            if (!(permission.UserHasPermission(player.UserIDString, "helitiers.admin") ||
+                  permission.UserHasPermission(player.UserIDString, $"helitiers.spawn.{tierId}")))
+            {
+                Reply(player, config.Messages.NoPermission);
+                return;
+            }
+
+            var cdLeft = CooldownLeft();
+            if (cdLeft > 0)
+            {
+                Reply(player, config.Messages.CooldownActive.Replace("{minutes}", Math.Ceiling(cdLeft / 60f).ToString()));
+                return;
+            }
+
+            if (active.Count >= config.General.ActiveHeliLimit)
+            {
+                Reply(player, config.Messages.LimitReached.Replace("{limit}", config.General.ActiveHeliLimit.ToString()));
+                return;
+            }
+
+            Vector3 pos;
+            if (args.Length >= 3 && float.TryParse(args[1], out var x) && float.TryParse(args[2], out var z))
+                pos = new Vector3(x, config.General.DefaultSpawnAltitude, z);
+            else
+                pos = GetSpawnPosition();
+
+            var created = SpawnHeliAt(pos, tier);
+            if (created == null)
+            {
+                Reply(player, "Не удалось создать вертолёт.");
+                return;
+            }
+
+            Reply(player, config.Messages.Spawned.Replace("{prefix}", tier.Prefix));
+        }
+
+        #endregion
+
+        #region Core
+
+        private Tier GetTier(string id) => config.Tiers.Find(t => t.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+        private bool HasAnyPerm(BasePlayer player)
+        {
+            if (player == null) return false;
+            if (permission.UserHasPermission(player.UserIDString, "helitiers.admin")) return true;
+            foreach (var t in config.Tiers)
+                if (permission.UserHasPermission(player.UserIDString, $"helitiers.spawn.{t.Id}"))
+                    return true;
+            return false;
+        }
+
+        private double CurrentTime() => (double)UnityEngine.Time.realtimeSinceStartup;
+
+        private double CooldownLeft()
+        {
+            var passed = CurrentTime() - lastDeathTime;
+            var left = config.General.GlobalCooldownSeconds - passed;
+            return left > 0 ? left : 0;
+        }
+
+        private string TierLine(string fallback, Tier tier, string custom)
+        {
+            var line = string.IsNullOrEmpty(custom) ? fallback : custom;
+            return line.Replace("{prefix}", tier.Prefix);
+        }
+
+        private void Announce(Tier tier, string message)
+        {
+            if (!config.General.Announce || tier == null) return;
+            var text = message.Replace("{prefix}", tier.Prefix);
+            Server.Broadcast(text);
+        }
+
+        private void CleanupOrphaned()
+        {
+            // future
+        }
+
+        private Vector3 GetSpawnPosition()
+        {
+            var size = TerrainMeta.Size.x;
+            var radiusMin = Mathf.Clamp(config.General.WaterRingRadiusMin, 50f, size);
+            var radiusMax = Mathf.Clamp(config.General.WaterRingRadiusMax, radiusMin + 1f, size * 0.9f);
+
+            for (int i = 0; i < 25; i++)
+            {
+                var ang = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+                var radius = UnityEngine.Random.Range(radiusMin, radiusMax);
+                var x = Mathf.Cos(ang) * radius;
+                var z = Mathf.Sin(ang) * radius;
+                var y = Mathf.Max(Mathf.Max(100f, config.General.DefaultSpawnAltitude), GetWaterHeight(new Vector3(x, 0, z)) + 30f);
+                var pos = new Vector3(x, y, z);
+
+                var waterY = GetWaterHeight(pos);
+                if (pos.y > waterY + 5f) return pos;
+            }
+            return new Vector3(0f, Mathf.Max(120f, config.General.DefaultSpawnAltitude), 0f);
+        }
+
+        private BaseEntity SpawnHeliAt(Vector3 position, Tier tier)
+        {
+            var prefab = "assets/prefabs/npc/patrol helicopter/patrolhelicopter.prefab";
+            try
+            {
+                if (position.y < 100f) position.y = 120f;
+
+                var ent = GameManager.server.CreateEntity(prefab, position, Quaternion.identity, true);
+                if (ent == null)
+                {
+                    PrintWarning($"CreateEntity returned null for prefab: {prefab} at {position}");
+                    return null;
+                }
+
+                ent.Spawn();
+
+                var bce = ent as BaseCombatEntity;
+                if (bce == null)
+                {
+                    PrintWarning("Spawned entity is not BaseCombatEntity; killing it to avoid leaks.");
+                    ent.Kill();
+                    return null;
+                }
+
+                // HP
+                try
+                {
+                    bce.InitializeHealth(tier.Health, tier.Health);
+                }
+                catch (Exception ex)
+                {
+                    PrintWarning($"Failed to set helicopter health: {ex.Message}");
+                }
+
+                // crates via reflection
+                var ai = ent.GetComponent<PatrolHelicopterAI>();
+                bool cratesSet = false;
+                if (ai != null)
+                {
+                    cratesSet |= TrySetIntField(ai, "maxCratesToSpawn", tier.Crates);
+                    cratesSet |= TrySetIntField(ai, "numCratesToSpawn", tier.Crates);
+                    cratesSet |= TrySetIntField(ai, "cratesToSpawn", tier.Crates);
+                }
+                cratesSet |= TrySetIntField(ent, "maxCratesToSpawn", tier.Crates);
+                cratesSet |= TrySetIntField(ent, "numCratesToSpawn", tier.Crates);
+                if (!cratesSet)
+                {
+                    PrintWarning($"Не удалось применить количество ящиков для {tier.Id} — поле версии изменилось.");
+                }
+
+                // track
+                var netId = ent.net?.ID.Value ?? 0UL;
+                active[netId] = new ActiveHeli
+                {
+                    NetId = netId,
+                    TierId = tier.Id,
+                    Entity = ent
+                };
+
+                // announce
+                Announce(tier, TierLine(config.Messages.Spawn, tier, tier.SpawnMsg));
+                timer.Once(5f, () => Announce(tier, TierLine(config.Messages.Engage, tier, tier.EngageMsg)));
+
+                return ent;
+            }
+            catch (Exception e)
+            {
+                PrintError($"SpawnHeliAt exception: {e}");
+                return null;
+            }
+        }
+
+        #endregion
+
+        #region API
+
+        private bool API_HeliTiers_Start(string tierId)
+        {
+            var tier = GetTier(tierId);
+            if (tier == null) return false;
+
+            if (CooldownLeft() > 0) return false;
+            if (active.Count >= config.General.ActiveHeliLimit) return false;
+
+            var pos = GetSpawnPosition();
+            return SpawnHeliAt(pos, tier) != null;
+        }
+
+        private int API_HeliTiers_Stop(string tierId)
+        {
+            int removed = 0;
+            var toKill = new List<ActiveHeli>();
+            foreach (var a in active.Values)
+            {
+                if (string.IsNullOrEmpty(tierId) || a.TierId.Equals(tierId, StringComparison.OrdinalIgnoreCase))
+                    toKill.Add(a);
+            }
+            foreach (var a in toKill)
+            {
+                if (a.Entity != null && !a.Entity.IsDestroyed) a.Entity.Kill();
+                active.Remove(a.NetId);
+                removed++;
+            }
+            return removed;
+        }
+
+        private bool API_HeliTiers_IsActive(string tierId)
+        {
+            foreach (var a in active.Values)
+                if (a.TierId.Equals(tierId, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private bool IsBlockedProjectile(string shortPrefabName)
+        {
+            if (string.IsNullOrEmpty(shortPrefabName)) return false;
+            var s = shortPrefabName.ToLower();
+            return s == "rocket_heli_napalm"
+                || s == "napalm"
+                || s == "fireball_small"
+                || s == "rocket_heli";
+        }
+
+        private bool TrySetIntField(object obj, string fieldName, int value)
+        {
+            if (obj == null) return false;
+            try
+            {
+                var f = obj.GetType().GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (f != null && f.FieldType == typeof(int))
+                {
+                    f.SetValue(obj, value);
+                    return true;
+                }
+            }
+            catch {}
+            return false;
+        }
+
+        private bool TryGetIntField(object obj, string fieldName, out int value)
+        {
+            value = 0;
+            if (obj == null) return false;
+            try
+            {
+                var f = obj.GetType().GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (f != null && f.FieldType == typeof(int))
+                {
+                    value = (int)f.GetValue(obj);
+                    return true;
+                }
+            }
+            catch {}
+            return false;
+        }
+
+        private float GetWaterHeight(Vector3 pos)
+        {
+            try
+            {
+                if (TerrainMeta.WaterMap != null) return TerrainMeta.WaterMap.GetHeight(pos);
+                return 0f;
+            }
+            catch { return 0f; }
+        }
+
+        private string EscapeRichText(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            return s.Replace("<", "\u02C2").Replace(">", "\u02C3");
+        }
+
+        private void Reply(BasePlayer player, string msg) => player?.ChatMessage(msg);
+
+
+        private void ForceMonumentCrashOff()
+        {
+            try
+            {
+                var asm = typeof(ConsoleSystem).Assembly;
+                var tAI = asm.GetType("ConVar+PatrolHelicopterAI");
+                var tPH = asm.GetType("ConVar+PatrolHelicopter");
+                var fieldAI = tAI != null ? tAI.GetField("monument_crash", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                var fieldPH = tPH != null ? tPH.GetField("monument_crash", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                bool changed = false;
+                if (fieldAI != null)
+                {
+                    fieldAI.SetValue(null, false);
+                    changed = true;
+                }
+                if (fieldPH != null)
+                {
+                    fieldPH.SetValue(null, false);
+                    changed = true;
+                }
+                if (changed)
+                    Puts("[HeliTiers] monument_crash отключён через рефлексию.");
+                else
+                {
+                    // Фоллбек на консольные команды (под разные названия конваров)
+                    ConsoleSystem.Run(ConsoleSystem.Option.Server.Quiet(), "patrolhelicopterai.monument_crash false");
+                    ConsoleSystem.Run(ConsoleSystem.Option.Server.Quiet(), "patrolhelicopter.monument_crash false");
+                    Puts("[HeliTiers] monument_crash отключён через консольную команду.");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                PrintWarning($"Не удалось отключить monument_crash: {ex.Message}");
+                try
+                {
+                    ConsoleSystem.Run(ConsoleSystem.Option.Server.Quiet(), "patrolhelicopterai.monument_crash false");
+                    ConsoleSystem.Run(ConsoleSystem.Option.Server.Quiet(), "patrolhelicopter.monument_crash false");
+                }
+                catch {}
+            }
+        }
+
+        #endregion
+    }
+}
