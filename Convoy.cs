@@ -1347,6 +1347,9 @@ namespace Oxide.Plugins
         {
             static Coroutine autoEventCoroutine;
             static Coroutine delayedEventStartCorountine;
+            static Coroutine fixedScheduleStopCoroutine;
+            static DateTime? pendingFixedScheduleEndUtc;
+            static DateTime? activeFixedScheduleEndUtc;
 
             internal static bool IsEventActive()
             {
@@ -1361,7 +1364,10 @@ namespace Oxide.Plugins
                 if (autoEventCoroutine != null)
                     ServerMgr.Instance.StopCoroutine(autoEventCoroutine);
 
-                autoEventCoroutine = ServerMgr.Instance.StartCoroutine(AutoEventCorountine());
+                if (ins._config.mainConfig.fixedSchedule != null && ins._config.mainConfig.fixedSchedule.enabled)
+                    autoEventCoroutine = ServerMgr.Instance.StartCoroutine(FixedScheduleAutoEventCoroutine());
+                else
+                    autoEventCoroutine = ServerMgr.Instance.StartCoroutine(AutoEventCorountine());
             }
 
             internal static void DelayStartEvent(bool isAutoActivated = false, BasePlayer activator = null, string presetName = "")
@@ -1396,6 +1402,21 @@ namespace Oxide.Plugins
                 DelayStartEvent(true);
             }
 
+            static IEnumerator FixedScheduleAutoEventCoroutine()
+            {
+                DateTime nextStartUtc;
+                DateTime nextEndUtc;
+
+                if (!TryGetNextFixedScheduleWindowUtc(out nextStartUtc, out nextEndUtc))
+                    yield break;
+
+                var delay = Mathf.Max(1f, (float)(nextStartUtc - DateTime.UtcNow).TotalSeconds);
+                yield return CoroutineEx.waitForSeconds(delay);
+
+                pendingFixedScheduleEndUtc = nextEndUtc;
+                DelayStartEvent(true);
+            }
+
             static IEnumerator DelayedStartEventCorountine(EventConfig eventConfig)
             {
                 if (ins._config.mainConfig.preStartTime > 0)
@@ -1417,11 +1438,22 @@ namespace Oxide.Plugins
                 if (ins._config.mainConfig.enableStartStopLogs)
                     NotifyManager.PrintLogMessage("EventStart_Log", eventConfig.presetName);
 
+                ApplyFixedScheduleStopIfNeeded();
+
                 Interface.CallHook($"On{ins.Name}Start");
             }
 
             internal static void StopEvent(bool isPluginUnloadingOrFailed = false)
             {
+                pendingFixedScheduleEndUtc = null;
+                activeFixedScheduleEndUtc = null;
+
+                if (fixedScheduleStopCoroutine != null)
+                {
+                    ServerMgr.Instance.StopCoroutine(fixedScheduleStopCoroutine);
+                    fixedScheduleStopCoroutine = null;
+                }
+
                 if (IsEventActive())
                 {
                     ins.Unsubscribes();
@@ -1494,6 +1526,122 @@ namespace Oxide.Plugins
                 if (eventConfig.maxTimeAfterWipe > 0 && timeScienceWipe > eventConfig.maxTimeAfterWipe)
                     return false;
 
+                return true;
+            }
+
+
+            static void ApplyFixedScheduleStopIfNeeded()
+            {
+                if (pendingFixedScheduleEndUtc == null)
+                    return;
+
+                var endUtc = pendingFixedScheduleEndUtc.Value;
+                pendingFixedScheduleEndUtc = null;
+                activeFixedScheduleEndUtc = endUtc;
+
+                var secondsToEnd = Mathf.Max(1f, (float)(endUtc - DateTime.UtcNow).TotalSeconds);
+
+                if (fixedScheduleStopCoroutine != null)
+                {
+                    ServerMgr.Instance.StopCoroutine(fixedScheduleStopCoroutine);
+                    fixedScheduleStopCoroutine = null;
+                }
+
+                fixedScheduleStopCoroutine = ServerMgr.Instance.StartCoroutine(FixedScheduleStopCoroutine(secondsToEnd));
+            }
+
+            static IEnumerator FixedScheduleStopCoroutine(float delaySeconds)
+            {
+                yield return CoroutineEx.waitForSeconds(delaySeconds);
+                fixedScheduleStopCoroutine = null;
+
+                activeFixedScheduleEndUtc = null;
+
+                if (IsEventActive())
+                    StopEvent();
+            }
+
+            static bool TryParseHhMm(string raw, out TimeSpan tod)
+            {
+                tod = TimeSpan.Zero;
+                if (string.IsNullOrWhiteSpace(raw)) return false;
+
+                var parts = raw.Trim().Split(':');
+                if (parts.Length != 2) return false;
+
+                int h;
+                int m;
+                if (!int.TryParse(parts[0], out h)) return false;
+                if (!int.TryParse(parts[1], out m)) return false;
+                if (h < 0 || h > 23 || m < 0 || m > 59) return false;
+
+                tod = new TimeSpan(h, m, 0);
+                return true;
+            }
+
+            static bool TryGetNextFixedScheduleWindowUtc(out DateTime nextStartUtc, out DateTime nextEndUtc)
+            {
+                nextStartUtc = default(DateTime);
+                nextEndUtc = default(DateTime);
+
+                var fs = ins?._config?.mainConfig?.fixedSchedule;
+                if (fs == null || !fs.enabled || fs.windows == null || fs.windows.Count == 0)
+                    return false;
+
+                int offsetHours = fs.utcOffsetHours;
+                if (offsetHours < -12) offsetHours = -12;
+                if (offsetHours > 14) offsetHours = 14;
+
+                var offset = TimeSpan.FromHours(offsetHours);
+                var nowTz = DateTime.UtcNow + offset;
+
+                DateTime? bestStart = null;
+                DateTime? bestEnd = null;
+
+                foreach (var w in fs.windows)
+                {
+                    if (w == null) continue;
+
+                    TimeSpan startTod;
+                    if (!TryParseHhMm(w.start, out startTod)) continue;
+
+                    TimeSpan endTod;
+                    if (!TryParseHhMm(w.end, out endTod)) continue;
+
+                    var candidateStart = nowTz.Date + startTod;
+                    if (candidateStart <= nowTz) candidateStart = candidateStart.AddDays(1);
+
+                    var candidateEnd = candidateStart.Date + endTod;
+                    if (candidateEnd <= candidateStart)
+                        candidateEnd = candidateEnd.AddDays(1);
+
+                    if (!bestStart.HasValue || candidateStart < bestStart.Value)
+                    {
+                        bestStart = candidateStart;
+                        bestEnd = candidateEnd;
+                    }
+                }
+
+                if (!bestStart.HasValue || !bestEnd.HasValue)
+                    return false;
+
+                nextStartUtc = bestStart.Value - offset;
+                nextEndUtc = bestEnd.Value - offset;
+                return true;
+            }
+
+            internal static bool TryGetFixedScheduleRemainingSeconds(out int remainingSeconds)
+            {
+                remainingSeconds = 0;
+
+                if (activeFixedScheduleEndUtc == null)
+                    return false;
+
+                var remain = (activeFixedScheduleEndUtc.Value - DateTime.UtcNow).TotalSeconds;
+                if (remain <= 0)
+                    return false;
+
+                remainingSeconds = Mathf.Max(1, Mathf.CeilToInt((float)remain));
                 return true;
             }
 
@@ -1968,6 +2116,10 @@ namespace Oxide.Plugins
             {
                 spawnCoroutine = null;
                 eventTime = eventConfig.eventTime;
+
+                int fixedScheduleSeconds;
+                if (EventLauncher.TryGetFixedScheduleRemainingSeconds(out fixedScheduleSeconds))
+                    eventTime = fixedScheduleSeconds;
                 EventMapMarker.CreateMarker();
                 eventCoroutine = ServerMgr.Instance.StartCoroutine(EventCorountine());
                 PathManager.OnSpawnFinish();
@@ -2028,7 +2180,10 @@ namespace Oxide.Plugins
                 {
                     isEventLooted = true;
                     SwitchMoving(false);
-                    eventTime = ins._config.mainConfig.endAfterLootTime;
+
+                    int _ignoreFixedScheduleSeconds;
+                    if (!EventLauncher.TryGetFixedScheduleRemainingSeconds(out _ignoreFixedScheduleSeconds))
+                        eventTime = ins._config.mainConfig.endAfterLootTime;
 
                     NotifyManager.SendMessageToAll("Looted_" + PresetKey(eventConfig.presetName), ins._config.prefix, eventConfig.displayName);
                 }
@@ -3546,6 +3701,7 @@ namespace Oxide.Plugins
 
                 return true;
             }
+
         }
 
         class CollisionDisabler : FacepunchBehaviour
@@ -7082,6 +7238,7 @@ static void UpdateLootTable(ItemContainer itemContainer, LootTableConfig lootTab
                             _config.mainConfig.enableStartStopLogs = oldPluginConfig.enableStartStopLogs;
                             _config.mainConfig.killEventAfterLoot = true;
                             _config.mainConfig.endAfterLootTime = oldPluginConfig.killTimeConvoyAfterLoot;
+                            _config.mainConfig.fixedSchedule = defaultConfig.mainConfig.fixedSchedule;
 
                             _config.behaviorConfig = new BehaviorConfig
                             {
@@ -7176,6 +7333,9 @@ static void UpdateLootTable(ItemContainer itemContainer, LootTableConfig lootTab
                     return false;
                 }
 
+                if (_config.mainConfig != null && _config.mainConfig.fixedSchedule == null)
+                    _config.mainConfig.fixedSchedule = PluginConfig.DefaultConfig().mainConfig.fixedSchedule;
+
                 _config.version = Version.ToString();
             }
             return true;
@@ -7186,11 +7346,25 @@ static void UpdateLootTable(ItemContainer itemContainer, LootTableConfig lootTab
             Config.WriteObject(_config);
         }
 
+        public class FixedScheduleWindow
+        {
+            [JsonProperty(en ? "Start" : "Начало")] public string start { get; set; }
+            [JsonProperty(en ? "End" : "Конец")] public string end { get; set; }
+        }
+
+        public class FixedScheduleConfig
+        {
+            [JsonProperty(en ? "Enable fixed schedule [true/false]" : "Включить фиксированное расписание [true/false]")] public bool enabled { get; set; }
+            [JsonProperty(en ? "UTC timezone offset" : "Часовой пояс UTC")] public int utcOffsetHours { get; set; }
+            [JsonProperty(en ? "Windows" : "Окна")] public List<FixedScheduleWindow> windows { get; set; }
+        }
+
         public class MainConfig
         {
             [JsonProperty(en ? "Enable automatic event holding [true/false]" : "Включить автоматическое проведение ивента [true/false]")] public bool isAutoEvent { get; set; }
             [JsonProperty(en ? "Minimum time between events [sec]" : "Минимальное вермя между ивентами [sec]")] public int minTimeBetweenEvents { get; set; }
             [JsonProperty(en ? "Maximum time between events [sec]" : "Максимальное вермя между ивентами [sec]")] public int maxTimeBetweenEvents { get; set; }
+            [JsonProperty(en ? "Fixed schedule" : "Фиксированное расписание")] public FixedScheduleConfig fixedSchedule { get; set; }
             [JsonProperty(en ? "The time between receiving a chat notification and the start of the event [sec.]" : "Время до начала ивента после сообщения в чате [sec.]")] public int preStartTime { get; set; }
             [JsonProperty(en ? "Enable logging of the start and end of the event? [true/false]" : "Включить логирование начала и окончания ивента? [true/false]")] public bool enableStartStopLogs { get; set; }
             [JsonProperty(en ? "The event will not end if there are players nearby [true/false]" : "Ивент не будет заканчиваться, если рядом есть игроки [true/false]")] public bool dontStopEventIfPlayerInZone { get; set; }
@@ -7677,6 +7851,19 @@ static void UpdateLootTable(ItemContainer itemContainer, LootTableConfig lootTab
                         isAutoEvent = false,
                         minTimeBetweenEvents = 3600,
                         maxTimeBetweenEvents = 3600,
+                        fixedSchedule = new FixedScheduleConfig
+                        {
+                            enabled = false,
+                            utcOffsetHours = 3,
+                            windows = new List<FixedScheduleWindow>
+                            {
+                                new FixedScheduleWindow { start = "08:00", end = "09:00" },
+                                new FixedScheduleWindow { start = "12:00", end = "13:00" },
+                                new FixedScheduleWindow { start = "16:00", end = "17:00" },
+                                new FixedScheduleWindow { start = "20:00", end = "21:00" },
+                                new FixedScheduleWindow { start = "23:00", end = "00:00" }
+                            }
+                        },
                         preStartTime = 0,
                         enableStartStopLogs = false,
                         dontStopEventIfPlayerInZone = false,
