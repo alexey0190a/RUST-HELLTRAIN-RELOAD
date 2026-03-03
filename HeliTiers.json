@@ -25,6 +25,27 @@
     "NoPermission": "Недостаточно прав.",
     "ListActiveHeader": "Активные вертолёты: {count}"
   },
+  "Autopilot": {
+    "Enabled": true,
+    "CheckPeriodSeconds": 60,
+    "ActiveLimit": 1,
+    "CooldownMinutesOnDeath": 60,
+    "TTLMinutes": 30,
+    "RandomTier": true,
+    "FallbackTier": "normal",
+    "AllowedTiers": [],
+    "Debug": false,
+    "Selection": {
+      "Mode": "weighted",
+      "Weights": {
+        "easy": 1,
+        "normal": 3,
+        "strong": 3,
+        "hardcore": 2
+      },
+      "NoRepeatLast": 1
+    }
+  },
   "Tiers": [
     {
       "Id": "easy",

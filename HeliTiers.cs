@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Oxide.Core;
 using Oxide.Core.Libraries;
@@ -68,11 +69,33 @@ namespace Oxide.Plugins
             public bool DebugProjectilesEnabled = false;
         }
 
+        public class AutopilotSelectionCfg
+        {
+            public string Mode = "weighted";
+            public Dictionary<string, int> Weights = new Dictionary<string, int>();
+            public int NoRepeatLast = 1;
+        }
+
+        public class AutopilotCfg
+        {
+            public bool Enabled = true;
+            public int CheckPeriodSeconds = 60;
+            public int ActiveLimit = 1;
+            public int CooldownMinutesOnDeath = 60;
+            public int TTLMinutes = 30;
+            public bool RandomTier = true;
+            public string FallbackTier = "normal";
+            public List<string> AllowedTiers = new List<string>();
+            public bool Debug = false;
+            public AutopilotSelectionCfg Selection = new AutopilotSelectionCfg();
+        }
+
         public class ConfigData
         {
             public GeneralCfg General = new GeneralCfg();
             public MessagesCfg Messages = new MessagesCfg();
             public List<Tier> Tiers = new List<Tier>();
+            public AutopilotCfg Autopilot = new AutopilotCfg();
         }
 
         protected override void LoadDefaultConfig()
@@ -93,6 +116,27 @@ namespace Oxide.Plugins
                     DebugProjectilesEnabled = false
                 },
                 Messages = new MessagesCfg(),
+                Autopilot = new AutopilotCfg
+                {
+                    Enabled = true,
+                    CheckPeriodSeconds = 60,
+                    ActiveLimit = 1,
+                    CooldownMinutesOnDeath = 60,
+                    TTLMinutes = 30,
+                    RandomTier = true,
+                    FallbackTier = "normal",
+                    AllowedTiers = new List<string>(),
+                    Debug = false,
+                    Selection = new AutopilotSelectionCfg
+                    {
+                        Mode = "weighted",
+                        Weights = new Dictionary<string, int>
+                        {
+                            {"easy", 1}, {"normal", 3}, {"strong", 3}, {"hardcore", 2}
+                        },
+                        NoRepeatLast = 1
+                    }
+                },
                 Tiers = new List<Tier>
                 {
                     new Tier{
@@ -148,6 +192,10 @@ namespace Oxide.Plugins
                 config = Config.ReadObject<ConfigData>();
                 if (config == null) throw new Exception("null config");
                 if (config.Tiers == null || config.Tiers.Count == 0) LoadDefaultConfig();
+                if (config.Autopilot == null) config.Autopilot = new AutopilotCfg();
+                if (config.Autopilot.AllowedTiers == null) config.Autopilot.AllowedTiers = new List<string>();
+                if (config.Autopilot.Selection == null) config.Autopilot.Selection = new AutopilotSelectionCfg();
+                if (config.Autopilot.Selection.Weights == null) config.Autopilot.Selection.Weights = new Dictionary<string, int>();
             }
             catch (Exception e)
             {
@@ -169,8 +217,12 @@ namespace Oxide.Plugins
 
         // кэш последнего игрока, кто наносил урон (чтобы не было "неизвестный")
         private readonly Dictionary<ulong, string> lastAttacker = new Dictionary<ulong, string>();
+        private readonly Dictionary<ulong, Timer> autopilotTtlTimers = new Dictionary<ulong, Timer>();
+        private readonly Queue<string> autopilotLastPicked = new Queue<string>();
+        private Timer autopilotTimer;
 
         private double lastDeathTime;
+        private double autopilotLastDeathTime;
 
         private class ActiveHeli
         {
@@ -197,6 +249,7 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             CleanupOrphaned();
+            StartAutopilot();
         }
 
         private void Unload()
@@ -213,6 +266,11 @@ namespace Oxide.Plugins
             forcedCrashPos.Clear();
             crashSpawnCount.Clear();
             lastAttacker.Clear();
+            autopilotTimer?.Destroy();
+            autopilotTimer = null;
+            foreach (var kv in autopilotTtlTimers)
+                kv.Value?.Destroy();
+            autopilotTtlTimers.Clear();
         }
 
         // кэшируем последнего атакующего игрока
@@ -279,6 +337,7 @@ namespace Oxide.Plugins
 
                 active.Remove(netId);
                 lastDeathTime = CurrentTime();
+                autopilotLastDeathTime = CurrentTime();
 
                 // чистка вспомогательных структур
                 lastAttacker.Remove(netId);
@@ -306,6 +365,7 @@ namespace Oxide.Plugins
             forcedCrashPos.Remove(netId);
             crashSpawnCount.Remove(netId);
             lastAttacker.Remove(netId);
+            CancelAutopilotTtl(netId);
         }
 
         // фильтр ракет/напалма + перенос краш-объектов в точку смерти
@@ -619,6 +679,160 @@ rep = timer.Every(0.1f, () => {
             // future
         }
 
+        private void StartAutopilot()
+        {
+            autopilotTimer?.Destroy();
+            autopilotTimer = null;
+
+            if (config.Autopilot == null || !config.Autopilot.Enabled) return;
+
+            autopilotTimer = timer.Every(Mathf.Max(5, config.Autopilot.CheckPeriodSeconds), EvaluateAutopilot);
+            if (config.Autopilot.Debug)
+            {
+                Puts("[HeliTiers] Autopilot ON. ActiveLimit=" + config.Autopilot.ActiveLimit
+                    + ", TTL=" + config.Autopilot.TTLMinutes + "m, CD=" + config.Autopilot.CooldownMinutesOnDeath
+                    + "m, Check=" + config.Autopilot.CheckPeriodSeconds + "s");
+            }
+        }
+
+        private void EvaluateAutopilot()
+        {
+            if (config.Autopilot == null || !config.Autopilot.Enabled) return;
+
+            if (active.Count >= config.Autopilot.ActiveLimit) return;
+            if (!AutopilotCooldownReady()) return;
+
+            int need = config.Autopilot.ActiveLimit - active.Count;
+            for (int i = 0; i < need; i++)
+            {
+                var tier = PickAutopilotTier();
+                if (tier == null) break;
+
+                var pos = GetSpawnPosition();
+                var created = SpawnHeliAt(pos, tier);
+                if (created == null) break;
+
+                RememberAutopilotPick(tier.Id);
+                if (config.Autopilot.Debug)
+                    Puts("[HeliTiers] Autopilot spawned tier=" + tier.Id);
+            }
+        }
+
+        private bool AutopilotCooldownReady()
+        {
+            if (autopilotLastDeathTime <= 0) return true;
+            var since = CurrentTime() - autopilotLastDeathTime;
+            return since >= config.Autopilot.CooldownMinutesOnDeath * 60f;
+        }
+
+        private void RememberAutopilotPick(string tierId)
+        {
+            if (config.Autopilot.Selection == null || config.Autopilot.Selection.NoRepeatLast <= 0) return;
+            autopilotLastPicked.Enqueue(tierId);
+            while (autopilotLastPicked.Count > config.Autopilot.Selection.NoRepeatLast)
+                autopilotLastPicked.Dequeue();
+        }
+
+        private Tier PickAutopilotTier()
+        {
+            List<string> pool;
+            if (config.Autopilot.AllowedTiers != null && config.Autopilot.AllowedTiers.Count > 0)
+                pool = config.Autopilot.AllowedTiers;
+            else
+                pool = config.Tiers.Select(t => t.Id).ToList();
+
+            if (pool == null || pool.Count == 0)
+                return GetTier(config.Autopilot.FallbackTier);
+
+            var filtered = new List<string>();
+            foreach (var id in pool)
+            {
+                if (config.Autopilot.Selection == null || config.Autopilot.Selection.NoRepeatLast <= 0 || !autopilotLastPicked.Contains(id))
+                    filtered.Add(id);
+            }
+            if (filtered.Count == 0) filtered = pool;
+
+            if (!config.Autopilot.RandomTier)
+                return GetTier(filtered[0]) ?? GetTier(config.Autopilot.FallbackTier);
+
+            string mode = config.Autopilot.Selection != null ? (config.Autopilot.Selection.Mode ?? "weighted") : "weighted";
+            var weights = (config.Autopilot.Selection != null && config.Autopilot.Selection.Weights != null)
+                ? config.Autopilot.Selection.Weights
+                : new Dictionary<string, int>();
+
+            if (mode == "weighted" && weights.Count > 0)
+            {
+                var items = new List<Tuple<string, int>>();
+                int total = 0;
+                foreach (var id in filtered)
+                {
+                    int w;
+                    if (!weights.TryGetValue(id, out w)) w = 1;
+                    if (w < 0) w = 0;
+                    total += w;
+                    items.Add(new Tuple<string, int>(id, w));
+                }
+
+                if (total > 0)
+                {
+                    int r = UnityEngine.Random.Range(0, total);
+                    int acc = 0;
+                    foreach (var it in items)
+                    {
+                        acc += it.Item2;
+                        if (r < acc)
+                            return GetTier(it.Item1) ?? GetTier(config.Autopilot.FallbackTier);
+                    }
+                    return GetTier(items[items.Count - 1].Item1) ?? GetTier(config.Autopilot.FallbackTier);
+                }
+            }
+
+            int idx = UnityEngine.Random.Range(0, filtered.Count);
+            return GetTier(filtered[idx]) ?? GetTier(config.Autopilot.FallbackTier);
+        }
+
+        private void ScheduleAutopilotTtl(BaseEntity ent, ulong netId)
+        {
+            if (config.Autopilot == null || !config.Autopilot.Enabled) return;
+            if (config.Autopilot.TTLMinutes <= 0) return;
+
+            CancelAutopilotTtl(netId);
+
+            var ttl = Mathf.Max(60, config.Autopilot.TTLMinutes * 60);
+            autopilotTtlTimers[netId] = timer.Once(ttl, () =>
+            {
+                autopilotTtlTimers.Remove(netId);
+                if (ent == null || ent.IsDestroyed) return;
+
+                try
+                {
+                    var ai = ent.GetComponent<PatrolHelicopterAI>();
+                    if (ai != null)
+                    {
+                        if (config.Autopilot.Debug) Puts("[HeliTiers] TTL retire heli netid=" + netId);
+                        ai.Retire();
+                        return;
+                    }
+                }
+                catch (Exception e)
+                {
+                    PrintWarning("Autopilot Retire() failed: " + e.Message);
+                }
+
+                ent.Kill();
+            });
+        }
+
+        private void CancelAutopilotTtl(ulong netId)
+        {
+            Timer t;
+            if (autopilotTtlTimers.TryGetValue(netId, out t))
+            {
+                t?.Destroy();
+                autopilotTtlTimers.Remove(netId);
+            }
+        }
+
         private Vector3 GetSpawnPosition()
         {
             var size = TerrainMeta.Size.x;
@@ -698,6 +912,7 @@ rep = timer.Every(0.1f, () => {
                     TierId = tier.Id,
                     Entity = ent
                 };
+                ScheduleAutopilotTtl(ent, netId);
 
                 // announce
                 Announce(tier, TierLine(config.Messages.Spawn, tier, tier.SpawnMsg));
