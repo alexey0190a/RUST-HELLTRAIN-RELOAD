@@ -1,0 +1,238 @@
+{
+  "name": "wagonC_pmc",
+  "faction": "PMC",
+  "cars": [
+    {
+      "type": null,
+      "variant": "C"
+    }
+  ],
+  "objects": [],
+  "NpcSlots": [
+    {
+      "pos": [
+        1.13788843,
+        1.52228808,
+        -5.878157
+      ],
+      "rot": [
+        0.329436332,
+        307.003,
+        359.5629
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.0220859051,
+        1.55803156,
+        -7.029394
+      ],
+      "rot": [
+        0.543991,
+        353.6432,
+        359.9394
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.28548229,
+        1.358539,
+        -5.901164
+      ],
+      "rot": [
+        0.267177254,
+        60.7834663,
+        0.477720618
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.15190434,
+        1.48627055,
+        5.917454
+      ],
+      "rot": [
+        359.458862,
+        171.346817,
+        0.08235014
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.15959847,
+        1.5244,
+        5.65911627
+      ],
+      "rot": [
+        359.633759,
+        228.002182,
+        359.593231
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        0.0436415672,
+        1.52918422,
+        7.116185
+      ],
+      "rot": [
+        359.4553,
+        174.371414,
+        0.05368358
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.42196631,
+        1.38457727,
+        -4.0950346
+      ],
+      "rot": [
+        0.0586485,
+        276.1508,
+        359.45578
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.46135008,
+        1.3697257,
+        -4.42045832
+      ],
+      "rot": [
+        0.0528670326,
+        84.4575348,
+        0.5447971
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.42209244,
+        1.38809514,
+        4.52619362
+      ],
+      "rot": [
+        0.000513144652,
+        89.94629,
+        0.5473559
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.44813466,
+        1.36461914,
+        3.763013
+      ],
+      "rot": [
+        0.08143181,
+        278.555573,
+        359.45874
+      ],
+      "kitPool": null,
+      "lootKey": null
+    }
+  ],
+  "CrateSlots": [],
+  "Shelves": [],
+  "Decor": [
+    {
+      "prefab": "assets/prefabs/deployable/barricades/barricade.stone.prefab",
+      "pos": [
+        -1.13433218,
+        1.55522466,
+        6.845628
+      ],
+      "rot": [
+        0.0150204664,
+        88.42755,
+        0.5471501
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/barricades/barricade.stone.prefab",
+      "pos": [
+        1.13676155,
+        1.54151964,
+        6.955059
+      ],
+      "rot": [
+        0.00644647144,
+        89.3251953,
+        0.547318339
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/barricades/barricade.stone.prefab",
+      "pos": [
+        1.23917031,
+        1.61002851,
+        -7.014058
+      ],
+      "rot": [
+        0.009611437,
+        271.0061,
+        359.452728
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/barricades/barricade.stone.prefab",
+      "pos": [
+        -1.31111884,
+        1.601489,
+        -7.0034647
+      ],
+      "rot": [
+        0.00733292848,
+        89.23242,
+        0.5473071
+      ]
+    }
+  ],
+  "BradleySlot": {
+    "pos": [
+      0.0,
+      1.2,
+      0.0
+    ],
+    "rot": [
+      0.0,
+      180.0,
+      0.0
+    ],
+    "kitPool": null,
+    "lootKey": null
+  },
+  "SamSiteSlot": {
+    "pos": [
+      0.0,
+      1.2,
+      0.0
+    ],
+    "rot": [
+      0.0,
+      180.0,
+      0.0
+    ],
+    "kitPool": null,
+    "lootKey": null
+  },
+  "TurretSlots": []
+}

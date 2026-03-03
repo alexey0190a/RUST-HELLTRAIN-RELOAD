@@ -1,0 +1,898 @@
+{
+  "name": "wagonA_pmc",
+  "faction": "PMC",
+  "cars": [
+    {
+      "type": null,
+      "variant": "A"
+    }
+  ],
+  "objects": [],
+  "NpcSlots": [
+    {
+      "pos": [
+        1.89005351,
+        0.9866142,
+        -6.632925
+      ],
+      "rot": [
+        0.0,
+        129.816055,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        0.02607727,
+        1.50822449,
+        -7.33793926
+      ],
+      "rot": [
+        0.0,
+        210.269,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.93087292,
+        0.985683441,
+        -6.66838551
+      ],
+      "rot": [
+        0.0,
+        238.99118,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -1.87508488,
+        1.02356339,
+        6.879715
+      ],
+      "rot": [
+        0.0,
+        313.2888,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.88040781,
+        1.03581619,
+        6.82848263
+      ],
+      "rot": [
+        0.0,
+        24.1647224,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.036090374,
+        1.54309845,
+        7.212315
+      ],
+      "rot": [
+        0.0,
+        10.177906,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.8095156,
+        1.45071793,
+        2.92793941
+      ],
+      "rot": [
+        0.0,
+        44.86628,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.920989037,
+        1.54244614,
+        -3.311834
+      ],
+      "rot": [
+        0.0,
+        75.95093,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.9495187,
+        1.54136276,
+        -5.82683372
+      ],
+      "rot": [
+        0.0,
+        36.07488,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.807044268,
+        1.53147125,
+        5.657736
+      ],
+      "rot": [
+        0.0,
+        157.787369,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.01459956,
+        1.56398773,
+        4.47322273
+      ],
+      "rot": [
+        0.0,
+        224.69722,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.09870529,
+        1.53765106,
+        3.15872288
+      ],
+      "rot": [
+        0.0,
+        278.478973,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        0.9760323,
+        1.54611969,
+        -2.592239
+      ],
+      "rot": [
+        0.0,
+        337.1012,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        0.9503405,
+        1.51155853,
+        -5.35975456
+      ],
+      "rot": [
+        0.0,
+        351.50766,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    }
+  ],
+  "CrateSlots": [
+    {
+      "pos": [
+        -0.851479232,
+        1.51187134,
+        1.4682225
+      ],
+      "rot": [
+        0.0,
+        89.19517,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.823454142,
+        1.486042,
+        -1.90220785
+      ],
+      "rot": [
+        0.0,
+        89.33689,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        1.03818238,
+        1.51502609,
+        -4.05676126
+      ],
+      "rot": [
+        0.0,
+        269.172516,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        0.431297123,
+        1.73958969,
+        -0.169916362
+      ],
+      "rot": [
+        359.9896,
+        268.5585,
+        359.586884
+      ],
+      "kitPool": null,
+      "lootKey": null
+    },
+    {
+      "pos": [
+        -0.936908364,
+        1.560421,
+        4.266652
+      ],
+      "rot": [
+        0.0,
+        89.62257,
+        0.0
+      ],
+      "kitPool": null,
+      "lootKey": null
+    }
+  ],
+  "Shelves": [],
+  "Decor": [
+    {
+      "prefab": "assets/prefabs/building/door.hinged/door.hinged.toptier.prefab",
+      "pos": [
+        0.7247169,
+        1.5210762,
+        6.43780136
+      ],
+      "rot": [
+        0.0,
+        90.93899,
+        0.0
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/building/door.hinged/door.hinged.toptier.prefab",
+      "pos": [
+        0.733531237,
+        1.58049393,
+        -6.535526
+      ],
+      "rot": [
+        0.0,
+        270.480835,
+        0.0
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+      "pos": [
+        -1.18919873,
+        3.59671021,
+        6.3894453
+      ],
+      "rot": [
+        50.0249329,
+        269.373749,
+        90.0
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+      "pos": [
+        -1.4330945,
+        3.590725,
+        -6.10157633
+      ],
+      "rot": [
+        352.4752,
+        356.373718,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+      "pos": [
+        1.13959467,
+        1.32320023,
+        0.7361319
+      ],
+      "rot": [
+        -3.64350012E-06,
+        324.705139,
+        180.0
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/lights/sirenlight/electric.sirenlight.deployed.prefab",
+      "pos": [
+        -1.17356455,
+        1.28895569,
+        0.6931954
+      ],
+      "rot": [
+        4.83706344E-06,
+        116.427475,
+        180.0
+      ]
+    },
+    {
+      "prefab": "assets/prefabs/deployable/playerioents/alarms/audioalarm.prefab",
+      "pos": [
+        -0.07613218,
+        1.2440567,
+        -2.25402546
+      ],
+      "rot": [
+        295.8962,
+        109.8117,
+        81.1772461
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.59544182,
+        1.09290314,
+        6.516139
+      ],
+      "rot": [
+        -3.41509462E-06,
+        88.4138641,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.57095909,
+        2.856968,
+        6.52189445
+      ],
+      "rot": [
+        3.41509462E-06,
+        87.65795,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.6337986,
+        1.10690689,
+        1.78712165
+      ],
+      "rot": [
+        3.41509462E-06,
+        90.35114,
+        269.999969
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.62732339,
+        2.82661819,
+        2.49435
+      ],
+      "rot": [
+        1.70754731E-06,
+        89.831604,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.65922737,
+        1.10428238,
+        -0.500050068
+      ],
+      "rot": [
+        3.41509462E-06,
+        90.35114,
+        269.999969
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.65438223,
+        1.0987854,
+        -2.88743663
+      ],
+      "rot": [
+        1.53679266E-05,
+        90.3511353,
+        269.999969
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.65488029,
+        1.20346451,
+        4.11064625
+      ],
+      "rot": [
+        3.41509462E-06,
+        271.317871,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.49778986,
+        1.20692062,
+        -6.51811
+      ],
+      "rot": [
+        -1.02452841E-05,
+        85.69602,
+        90.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.74347234,
+        1.20599365,
+        -4.14413166
+      ],
+      "rot": [
+        0.0,
+        270.232422,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.7453475,
+        1.2040863,
+        -1.757277
+      ],
+      "rot": [
+        0.0,
+        272.2167,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.666697,
+        1.19634247,
+        0.750008
+      ],
+      "rot": [
+        -1.36603785E-05,
+        269.523438,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.66936529,
+        1.19981384,
+        3.13794613
+      ],
+      "rot": [
+        -1.36603785E-05,
+        270.3261,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.6770637,
+        2.82177353,
+        4.02686644
+      ],
+      "rot": [
+        6.83018925E-06,
+        270.7036,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.70775223,
+        2.81344223,
+        2.32005262
+      ],
+      "rot": [
+        -1.53679266E-05,
+        270.0428,
+        90.00001
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.710977,
+        2.82646561,
+        -2.50943851
+      ],
+      "rot": [
+        0.0,
+        270.609863,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.66040111,
+        2.90210724,
+        -4.10261869
+      ],
+      "rot": [
+        -1.70754731E-06,
+        268.058655,
+        90.00001
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.6576407,
+        1.09906769,
+        4.17252874
+      ],
+      "rot": [
+        0.0,
+        90.5402,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.62449718,
+        2.83217239,
+        0.11887908
+      ],
+      "rot": [
+        1.02452841E-05,
+        89.73703,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.59228051,
+        0.101902008,
+        -5.655431
+      ],
+      "rot": [
+        2.27167423E-08,
+        91.86327,
+        -9.161407E-08
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.64048958,
+        2.853756,
+        -2.19962978
+      ],
+      "rot": [
+        0.0,
+        90.20955,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.69600272,
+        2.87556458,
+        -4.119501
+      ],
+      "rot": [
+        -1.53679266E-05,
+        93.09164,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.802485943,
+        1.4948349,
+        -6.540709
+      ],
+      "rot": [
+        -8.036391E-08,
+        180.93129,
+        3.93688282E-08
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.856191635,
+        1.53129578,
+        6.577659
+      ],
+      "rot": [
+        1.33319219E-07,
+        359.822235,
+        -5.356776E-08
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.770791531,
+        4.49721527,
+        -6.448577
+      ],
+      "rot": [
+        315.0,
+        90.13664,
+        89.99998
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.7780472,
+        4.502228,
+        -4.08060455
+      ],
+      "rot": [
+        315.0,
+        91.43405,
+        90.0000153
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.7910063,
+        4.461117,
+        -1.74378014
+      ],
+      "rot": [
+        45.0000076,
+        270.6308,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.8628845,
+        4.50136566,
+        0.608031154
+      ],
+      "rot": [
+        315.0,
+        90.11102,
+        90.00004
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.8300121,
+        4.50319672,
+        2.967585
+      ],
+      "rot": [
+        315.0,
+        90.06382,
+        89.9999847
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.943877459,
+        4.498268,
+        7.073811
+      ],
+      "rot": [
+        314.999969,
+        93.89445,
+        270.000061
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        0.773663163,
+        4.502041,
+        -4.46751833
+      ],
+      "rot": [
+        315.0,
+        88.7429657,
+        270.000031
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.8073232,
+        4.44215775,
+        -6.757318
+      ],
+      "rot": [
+        44.9999962,
+        89.61866,
+        90.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.821892738,
+        4.452183,
+        -4.387015
+      ],
+      "rot": [
+        45.0000229,
+        88.95744,
+        89.99998
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.9196758,
+        4.498661,
+        -2.01400685
+      ],
+      "rot": [
+        314.999969,
+        269.666077,
+        269.999969
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.88819325,
+        4.50278854,
+        0.3733616
+      ],
+      "rot": [
+        314.999969,
+        270.090454,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.796536267,
+        4.47374344,
+        2.75250721
+      ],
+      "rot": [
+        45.00002,
+        90.13901,
+        90.00004
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -0.8022735,
+        4.46773529,
+        4.742847
+      ],
+      "rot": [
+        44.9999962,
+        90.1392441,
+        90.00002
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.685395,
+        1.14749527,
+        7.55330324
+      ],
+      "rot": [
+        0.0,
+        269.660858,
+        90.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        -1.65229607,
+        1.07945251,
+        -7.61076546
+      ],
+      "rot": [
+        0.0,
+        268.391174,
+        270.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.71384025,
+        1.08850861,
+        -7.65561962
+      ],
+      "rot": [
+        0.0,
+        88.227066,
+        90.0
+      ]
+    },
+    {
+      "prefab": "assets/bundled/prefabs/static/door.hinged.elevator_inside_door_dilapidated.prefab",
+      "pos": [
+        1.65249825,
+        1.07726669,
+        7.70122337
+      ],
+      "rot": [
+        0.0,
+        90.5419159,
+        270.0
+      ]
+    }
+  ],
+  "BradleySlot": null,
+  "SamSiteSlot": null,
+  "TurretSlots": []
+}
