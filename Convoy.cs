@@ -3557,7 +3557,7 @@ namespace Oxide.Plugins
 
                 autoTurret.Invoke(() =>
                 {
-                    autoTurret.CancelInvoke(autoTurret.ServerTick);
+                    autoTurret.CancelInvoke("ServerTick");
                     autoTurret.SetTarget(null);
 
                     
