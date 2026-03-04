@@ -440,7 +440,7 @@ AddButton(ui, "KITSUITE_MENU_BG", "0.96 0.94", "0.995 0.99",
 
                 string cellName = $"KITSUITE_MENU_CELL_{slotIndex}";
                 AddPanel(ui, "KITSUITE_MENU_BG", $"{xMin} {yMin}", $"{xMax} {yMax}", "0.6 0 0 0.25", cellName);
-                var kitName = (slotIndex < _config.Kits.Length && _config.Kits[slotIndex] != null && !string.IsNullOrEmpty(_config.Kits[slotIndex].Name)) ? _config.Kits[slotIndex].Name : $"Kit {slotIndex+1}";
+                var kitName = (slotIndex < _config.Kits.Length && _config.Kits[slotIndex] != null) ? (_config.Kits[slotIndex].Name ?? string.Empty) : string.Empty;
                 AddLabel(ui, cellName, kitName, "0.05 0.85", "0.95 0.98", 14, "1 1 1 1");
                 AddButton(ui, cellName, "0 0", "1 1", "0 0 0 0", "", $"{nameof(Console_KS_OpenCard)} {slotIndex}");
             }
@@ -459,7 +459,7 @@ AddButton(ui, "KITSUITE_MENU_BG", "0.96 0.94", "0.995 0.99",
 
             string cellName = $"KITSUITE_MENU_CELL_{i}";
             AddPanel(ui, "KITSUITE_MENU_BG", $"{xMin} {yMin}", $"{xMax} {yMax}", "0.6 0 0 0.25", cellName);
-            var kitName = (i < _config.Kits.Length && _config.Kits[i] != null && !string.IsNullOrEmpty(_config.Kits[i].Name)) ? _config.Kits[i].Name : $"Kit {i+1}";
+            var kitName = (i < _config.Kits.Length && _config.Kits[i] != null) ? (_config.Kits[i].Name ?? string.Empty) : string.Empty;
             AddLabel(ui, cellName, kitName, "0.05 0.85", "0.95 0.98", 14, "1 1 1 1");
             AddButton(ui, cellName, "0 0", "1 1", "0 0 0 0", "", $"{nameof(Console_KS_OpenCard)} {i}");
         }
