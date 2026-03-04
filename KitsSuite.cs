@@ -2295,32 +2295,6 @@ private void DrawOutline(CuiElementContainer cont, string parent, float[] r, str
     }
 
     
-    // === Fine adjust (±0.01) block — always on top ===
-    // Remove previous fine panel to avoid stacking
-    CuiHelper.DestroyUi(player, "KITSUITE_MENU_TOOL_FINE");
-    ui.Add(new CuiElement
-    {
-        Name = "KITSUITE_MENU_TOOL_FINE",
-        Parent = "KITSUITE_MENU_EDITOR",
-        Components =
-        {
-            new CuiRawImageComponent{ Color = "0 0 0 0" },
-            new CuiRectTransformComponent{ AnchorMin = "0.06 0.24", AnchorMax = "0.94 0.34" }
-        }
-    });
-    AddLabel(ui, "KITSUITE_MENU_TOOL_FINE", "Ювелирная подгонка (±0.01):", "0 0.74", "0.28 1", 12, "1 1 1 0.85", TextAnchor.MiddleLeft);
-
-    // Move fine
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.30 0.05", "0.42 0.45", "0.20 0.20 0.20 0.95", "← 0.01", "Console_KS_MenuCellMove -x 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.44 0.05", "0.56 0.45", "0.20 0.20 0.20 0.95", "→ 0.01", "Console_KS_MenuCellMove +x 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.58 0.05", "0.70 0.45", "0.20 0.20 0.20 0.95", "↑ 0.01", "Console_KS_MenuCellMove +y 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.72 0.05", "0.84 0.45", "0.20 0.20 0.20 0.95", "↓ 0.01", "Console_KS_MenuCellMove -y 0.01");
-
-    // Resize fine (width/height ±0.01)
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.30 0.55", "0.40 0.95", "0.20 0.20 0.20 0.95", "Шир-", "Console_KS_MenuCellResize -w 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.42 0.55", "0.52 0.95", "0.20 0.20 0.20 0.95", "Шир+", "Console_KS_MenuCellResize +w 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.54 0.55", "0.64 0.95", "0.20 0.20 0.20 0.95", "Выс-", "Console_KS_MenuCellResize -h 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.66 0.55", "0.76 0.95", "0.20 0.20 0.20 0.95", "Выс+", "Console_KS_MenuCellResize +h 0.01");
 
     CuiHelper.AddUi(player, ui);
 }
