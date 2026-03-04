@@ -363,7 +363,8 @@ namespace Oxide.Plugins
                 timer.Once(0.5f, () => Server.Broadcast(down));
 
                 active.Remove(netId);
-                SetCooldownNow();
+                lastDeathTime = CurrentTime();
+                autopilotLastDeathTime = CurrentTime();
 
                 // чистка вспомогательных структур
                 lastAttacker.Remove(netId);
@@ -386,7 +387,6 @@ namespace Oxide.Plugins
                 var tier = GetTier(ah.TierId);
                 Announce(tier, TierLine(config.Messages.Finished, tier, tier.FinishedMsg));
                 active.Remove(netId);
-                SetCooldownNow();
             }
 
             forcedCrashPos.Remove(netId);
@@ -698,13 +698,6 @@ rep = timer.Every(0.1f, () => {
         }
 
         private double CurrentTime() => (double)UnityEngine.Time.realtimeSinceStartup;
-
-        private void SetCooldownNow()
-        {
-            var now = CurrentTime();
-            lastDeathTime = now;
-            autopilotLastDeathTime = now;
-        }
 
         private double CooldownLeft()
         {
