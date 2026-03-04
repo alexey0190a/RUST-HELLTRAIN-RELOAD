@@ -786,12 +786,13 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
 
             if (!CanTake(player, slot, out var reason))
             {
+                SafeDestroyAllUI(player);
                 player.ChatMessage($"[BLOODHELL] Недоступно: {reason}");
                 return;
             }
 
             var kit = _config.Kits[slot];
-            if (!GiveKit(player, kit)) { player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
+            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
             SetCooldown(player.userID, slot, kit.CooldownSeconds);
             player.ChatMessage(Prefix + "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>");
             // Lucifer-only visuals/sfx
@@ -802,7 +803,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 PlayLuciferVoice(player, "lucifer_roar"); // TODO: replace with your actual file name
             }
 
-            CloseCard(player);
+            SafeDestroyAllUI(player);
         }
 
         [ConsoleCommand(nameof(Console_KS_Reason))]
@@ -814,6 +815,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             if (arg.Args != null && arg.Args.Length >= 1) int.TryParse(arg.Args[0], out slot);
             slot = Mathf.Clamp(slot, 0, 19);
 
+            SafeDestroyAllUI(player);
             CanTake(player, slot, out var reason);
             player.ChatMessage($"[BLOODHELL] Недоступно: {reason}");
         }
