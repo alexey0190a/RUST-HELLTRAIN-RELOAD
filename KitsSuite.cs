@@ -1852,12 +1852,15 @@ timer.Once(0.2f, () =>
         {
             bool changed = false;
             if (_config == null) return;
-            if (_config.Kits == null || _config.Kits.Length != 6)
+            if (_config.Kits == null || _config.Kits.Length != 20)
             {
                 var old = _config.Kits ?? new KitDef[0];
                 var arr = new KitDef[20];
-                for (int i = 0; i < _config.Kits.Length; i++)
+                int copy = Math.Min(old.Length, arr.Length);
+                for (int i = 0; i < copy; i++)
                     arr[i] = (i < old.Length && old[i] != null) ? old[i] : new KitDef();
+                for (int i = copy; i < arr.Length; i++)
+                    arr[i] = new KitDef();
                 _config.Kits = arr;
                 changed = true;
             
