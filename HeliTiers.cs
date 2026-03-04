@@ -260,7 +260,15 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             CleanupOrphaned();
+            RegisterHeliTiersPresetsToLoottable();
             StartAutopilot();
+        }
+
+        private void OnPluginLoaded(Plugin plugin)
+        {
+            if (plugin == null) return;
+            if (!string.Equals(plugin.Name, "Loottable", StringComparison.OrdinalIgnoreCase)) return;
+            RegisterHeliTiersPresetsToLoottable();
         }
 
         private void Unload()
@@ -879,6 +887,31 @@ rep = timer.Every(0.1f, () => {
         {
             if (ent == null || ent.IsDestroyed) return false;
             return ent.gameObject.GetComponent("EventHeli") != null;
+        }
+
+        private void RegisterHeliTiersPresetsToLoottable()
+        {
+            if (Loottable == null || config == null || config.Tiers == null) return;
+
+            try
+            {
+                Loottable.Call("ClearPresets", this);
+                Loottable.Call("CreatePresetCategory", this, "HeliTiers");
+
+                var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var tier in config.Tiers)
+                {
+                    if (tier == null || string.IsNullOrEmpty(tier.LootPreset)) continue;
+                    if (!keys.Add(tier.LootPreset)) continue;
+
+                    var display = !string.IsNullOrEmpty(tier.Title) ? tier.Title : tier.LootPreset;
+                    Loottable.Call("CreatePreset", this, tier.LootPreset, display, "crate_normal", false);
+                }
+            }
+            catch (Exception e)
+            {
+                PrintWarning("Loottable preset registration failed: " + e.Message);
+            }
         }
 
         private void TryAssignLootPreset(ulong heliNetId, LootContainer crate)
