@@ -25,7 +25,8 @@
     "Spawned": "",
     "Stopped": "{prefix} Снят с карты.",
     "NoPermission": "Недостаточно прав.",
-    "ListActiveHeader": "Активные вертолёты: {count}"
+    "ListActiveHeader": "Активные вертолёты: {count}",
+    "DoubleSpawnProc": "🎲 Шанс сработал: в небо поднялся второй вертолёт!"
   },
   "Autopilot": {
     "Enabled": true,
@@ -33,6 +34,7 @@
     "ActiveLimit": 1,
     "CooldownMinutesOnDeath": 70,
     "TTLMinutes": 30,
+    "SecondHeliChanceDenominator": 12,
     "RandomTier": true,
     "FallbackTier": "normal",
     "AllowedTiers": [],
