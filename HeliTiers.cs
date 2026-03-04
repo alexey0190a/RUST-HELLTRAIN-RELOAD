@@ -1,7 +1,7 @@
 {
   "General": {
     "Announce": true,
-    "GlobalCooldownSeconds": 3600,
+    "GlobalCooldownSeconds": 7600,
     "ActiveHeliLimit": 1,
     "CleanOnUnload": true,
     "SpawnMode": "WaterRing",
@@ -32,7 +32,7 @@
     "Enabled": true,
     "CheckPeriodSeconds": 60,
     "ActiveLimit": 2,
-    "CooldownMinutesOnDeath": 120,
+    "CooldownMinutesOnDeath": 126.6667,
     "TTLMinutes": 45,
     "SecondHeliChanceDenominator": 12,
     "RandomTier": true,
