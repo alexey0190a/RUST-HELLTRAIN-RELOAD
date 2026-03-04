@@ -77,6 +77,12 @@ namespace Oxide.Plugins
         }
 
         [Serializable]
+        public class CooldownsData
+        {
+            public Dictionary<string, Dictionary<string, double>> Data = new Dictionary<string, Dictionary<string, double>>();
+        }
+
+        [Serializable]
         public class KitDef
         {
             public string CardArtKey = null;
@@ -177,6 +183,7 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
+            SaveCooldowns();
             foreach (var player in BasePlayer.activePlayerList)
                 SafeDestroyAllUI(player);
         }
@@ -204,7 +211,7 @@ namespace Oxide.Plugins
 
         private void LoadAll()
         {
-            _cfgFile = Interface.Oxide.DataFileSystem.GetFile(Name);
+            _cfgFile = Interface.Oxide.DataFileSystem.GetFile($"{Name}.cooldowns");
             try
             {
                 _config = Config.ReadObject<ConfigData>();
@@ -237,6 +244,7 @@ namespace Oxide.Plugins
             }
         
             EnsureHiddenKitNames();
+            LoadCooldowns();
 }
 
         private void SaveConfig()
@@ -916,7 +924,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 return false;
             }
             // Cooldown
-            double now = Time.realtimeSinceStartupAsDouble;
+            double now = GetNowUnix();
             double next = GetCooldown(player.userID, slot);
             if (next > now)
             {
@@ -1138,6 +1146,50 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             }
         }
 
+        private static double GetNowUnix()
+        {
+            return DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+
+        private void LoadCooldowns()
+        {
+            _cooldowns.Clear();
+            try
+            {
+                var data = _cfgFile.ReadObject<CooldownsData>();
+                if (data?.Data == null) return;
+
+                foreach (var playerKv in data.Data)
+                {
+                    if (!ulong.TryParse(playerKv.Key, out var userId) || playerKv.Value == null) continue;
+                    var slotMap = new Dictionary<int, double>();
+                    foreach (var slotKv in playerKv.Value)
+                    {
+                        if (!int.TryParse(slotKv.Key, out var slot)) continue;
+                        slotMap[slot] = slotKv.Value;
+                    }
+                    if (slotMap.Count > 0) _cooldowns[userId] = slotMap;
+                }
+            }
+            catch
+            {
+                _cfgFile.WriteObject(new CooldownsData(), true);
+            }
+        }
+
+        private void SaveCooldowns()
+        {
+            var data = new CooldownsData();
+            foreach (var playerKv in _cooldowns)
+            {
+                var slotMap = new Dictionary<string, double>();
+                foreach (var slotKv in playerKv.Value)
+                    slotMap[slotKv.Key.ToString()] = slotKv.Value;
+                data.Data[playerKv.Key.ToString()] = slotMap;
+            }
+            _cfgFile.WriteObject(data, true);
+        }
+
         private double GetCooldown(ulong userId, int slot)
         {
             if (_cooldowns.TryGetValue(userId, out var map) && map.TryGetValue(slot, out var t))
@@ -1152,7 +1204,8 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 map = new Dictionary<int, double>();
                 _cooldowns[userId] = map;
             }
-            map[slot] = Time.realtimeSinceStartupAsDouble + seconds;
+            map[slot] = GetNowUnix() + seconds;
+            SaveCooldowns();
         }
 
         private KitDef GetEdit(int slot)
@@ -1347,7 +1400,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 return string.IsNullOrEmpty(kit.BtnPng_Take) ? "kit_btn_take" : kit.BtnPng_Take;
             // cannot take: cooldown or locked
             // Try cooldown first (if in cooldown), else locked
-            double now = Time.realtimeSinceStartupAsDouble;
+            double now = GetNowUnix();
             double next = GetCooldown(_lastPlayerIdForState, _lastSlotForState); // uses fields set before render
             if (next > now)
                 return string.IsNullOrEmpty(kit.BtnPng_Cooldown) ? "kit_btn_cd" : kit.BtnPng_Cooldown;
