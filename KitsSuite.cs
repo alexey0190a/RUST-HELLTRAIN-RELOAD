@@ -77,6 +77,12 @@ namespace Oxide.Plugins
         }
 
         [Serializable]
+        public class CooldownsData
+        {
+            public Dictionary<string, Dictionary<string, double>> Data = new Dictionary<string, Dictionary<string, double>>();
+        }
+
+        [Serializable]
         public class KitDef
         {
             public string CardArtKey = null;
@@ -177,6 +183,7 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
+            SaveCooldowns();
             foreach (var player in BasePlayer.activePlayerList)
                 SafeDestroyAllUI(player);
         }
@@ -204,7 +211,7 @@ namespace Oxide.Plugins
 
         private void LoadAll()
         {
-            _cfgFile = Interface.Oxide.DataFileSystem.GetFile(Name);
+            _cfgFile = Interface.Oxide.DataFileSystem.GetFile($"{Name}.cooldowns");
             try
             {
                 _config = Config.ReadObject<ConfigData>();
@@ -237,6 +244,7 @@ namespace Oxide.Plugins
             }
         
             EnsureHiddenKitNames();
+            LoadCooldowns();
 }
 
         private void SaveConfig()
@@ -432,7 +440,7 @@ AddButton(ui, "KITSUITE_MENU_BG", "0.96 0.94", "0.995 0.99",
 
                 string cellName = $"KITSUITE_MENU_CELL_{slotIndex}";
                 AddPanel(ui, "KITSUITE_MENU_BG", $"{xMin} {yMin}", $"{xMax} {yMax}", "0.6 0 0 0.25", cellName);
-                var kitName = (slotIndex < _config.Kits.Length && _config.Kits[slotIndex] != null && !string.IsNullOrEmpty(_config.Kits[slotIndex].Name)) ? _config.Kits[slotIndex].Name : $"Kit {slotIndex+1}";
+                var kitName = (slotIndex < _config.Kits.Length && _config.Kits[slotIndex] != null) ? (_config.Kits[slotIndex].Name ?? string.Empty) : string.Empty;
                 AddLabel(ui, cellName, kitName, "0.05 0.85", "0.95 0.98", 14, "1 1 1 1");
                 AddButton(ui, cellName, "0 0", "1 1", "0 0 0 0", "", $"{nameof(Console_KS_OpenCard)} {slotIndex}");
             }
@@ -451,7 +459,7 @@ AddButton(ui, "KITSUITE_MENU_BG", "0.96 0.94", "0.995 0.99",
 
             string cellName = $"KITSUITE_MENU_CELL_{i}";
             AddPanel(ui, "KITSUITE_MENU_BG", $"{xMin} {yMin}", $"{xMax} {yMax}", "0.6 0 0 0.25", cellName);
-            var kitName = (i < _config.Kits.Length && _config.Kits[i] != null && !string.IsNullOrEmpty(_config.Kits[i].Name)) ? _config.Kits[i].Name : $"Kit {i+1}";
+            var kitName = (i < _config.Kits.Length && _config.Kits[i] != null) ? (_config.Kits[i].Name ?? string.Empty) : string.Empty;
             AddLabel(ui, cellName, kitName, "0.05 0.85", "0.95 0.98", 14, "1 1 1 1");
             AddButton(ui, cellName, "0 0", "1 1", "0 0 0 0", "", $"{nameof(Console_KS_OpenCard)} {i}");
         }
@@ -778,12 +786,13 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
 
             if (!CanTake(player, slot, out var reason))
             {
+                SafeDestroyAllUI(player);
                 player.ChatMessage($"[BLOODHELL] Недоступно: {reason}");
                 return;
             }
 
             var kit = _config.Kits[slot];
-            if (!GiveKit(player, kit)) { player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
+            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
             SetCooldown(player.userID, slot, kit.CooldownSeconds);
             player.ChatMessage(Prefix + "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>");
             // Lucifer-only visuals/sfx
@@ -794,7 +803,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 PlayLuciferVoice(player, "lucifer_roar"); // TODO: replace with your actual file name
             }
 
-            CloseCard(player);
+            SafeDestroyAllUI(player);
         }
 
         [ConsoleCommand(nameof(Console_KS_Reason))]
@@ -806,6 +815,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             if (arg.Args != null && arg.Args.Length >= 1) int.TryParse(arg.Args[0], out slot);
             slot = Mathf.Clamp(slot, 0, 19);
 
+            SafeDestroyAllUI(player);
             CanTake(player, slot, out var reason);
             player.ChatMessage($"[BLOODHELL] Недоступно: {reason}");
         }
@@ -916,7 +926,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 return false;
             }
             // Cooldown
-            double now = Time.realtimeSinceStartupAsDouble;
+            double now = GetNowUnix();
             double next = GetCooldown(player.userID, slot);
             if (next > now)
             {
@@ -1138,6 +1148,50 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             }
         }
 
+        private static double GetNowUnix()
+        {
+            return DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+
+        private void LoadCooldowns()
+        {
+            _cooldowns.Clear();
+            try
+            {
+                var data = _cfgFile.ReadObject<CooldownsData>();
+                if (data?.Data == null) return;
+
+                foreach (var playerKv in data.Data)
+                {
+                    if (!ulong.TryParse(playerKv.Key, out var userId) || playerKv.Value == null) continue;
+                    var slotMap = new Dictionary<int, double>();
+                    foreach (var slotKv in playerKv.Value)
+                    {
+                        if (!int.TryParse(slotKv.Key, out var slot)) continue;
+                        slotMap[slot] = slotKv.Value;
+                    }
+                    if (slotMap.Count > 0) _cooldowns[userId] = slotMap;
+                }
+            }
+            catch
+            {
+                _cfgFile.WriteObject(new CooldownsData(), true);
+            }
+        }
+
+        private void SaveCooldowns()
+        {
+            var data = new CooldownsData();
+            foreach (var playerKv in _cooldowns)
+            {
+                var slotMap = new Dictionary<string, double>();
+                foreach (var slotKv in playerKv.Value)
+                    slotMap[slotKv.Key.ToString()] = slotKv.Value;
+                data.Data[playerKv.Key.ToString()] = slotMap;
+            }
+            _cfgFile.WriteObject(data, true);
+        }
+
         private double GetCooldown(ulong userId, int slot)
         {
             if (_cooldowns.TryGetValue(userId, out var map) && map.TryGetValue(slot, out var t))
@@ -1152,7 +1206,8 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 map = new Dictionary<int, double>();
                 _cooldowns[userId] = map;
             }
-            map[slot] = Time.realtimeSinceStartupAsDouble + seconds;
+            map[slot] = GetNowUnix() + seconds;
+            SaveCooldowns();
         }
 
         private KitDef GetEdit(int slot)
@@ -1347,7 +1402,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 return string.IsNullOrEmpty(kit.BtnPng_Take) ? "kit_btn_take" : kit.BtnPng_Take;
             // cannot take: cooldown or locked
             // Try cooldown first (if in cooldown), else locked
-            double now = Time.realtimeSinceStartupAsDouble;
+            double now = GetNowUnix();
             double next = GetCooldown(_lastPlayerIdForState, _lastSlotForState); // uses fields set before render
             if (next > now)
                 return string.IsNullOrEmpty(kit.BtnPng_Cooldown) ? "kit_btn_cd" : kit.BtnPng_Cooldown;
@@ -1852,12 +1907,15 @@ timer.Once(0.2f, () =>
         {
             bool changed = false;
             if (_config == null) return;
-            if (_config.Kits == null || _config.Kits.Length != 6)
+            if (_config.Kits == null || _config.Kits.Length != 20)
             {
                 var old = _config.Kits ?? new KitDef[0];
                 var arr = new KitDef[20];
-                for (int i = 0; i < _config.Kits.Length; i++)
+                int copy = Math.Min(old.Length, arr.Length);
+                for (int i = 0; i < copy; i++)
                     arr[i] = (i < old.Length && old[i] != null) ? old[i] : new KitDef();
+                for (int i = copy; i < arr.Length; i++)
+                    arr[i] = new KitDef();
                 _config.Kits = arr;
                 changed = true;
             
@@ -2239,32 +2297,6 @@ private void DrawOutline(CuiElementContainer cont, string parent, float[] r, str
     }
 
     
-    // === Fine adjust (±0.01) block — always on top ===
-    // Remove previous fine panel to avoid stacking
-    CuiHelper.DestroyUi(player, "KITSUITE_MENU_TOOL_FINE");
-    ui.Add(new CuiElement
-    {
-        Name = "KITSUITE_MENU_TOOL_FINE",
-        Parent = "KITSUITE_MENU_EDITOR",
-        Components =
-        {
-            new CuiRawImageComponent{ Color = "0 0 0 0" },
-            new CuiRectTransformComponent{ AnchorMin = "0.06 0.24", AnchorMax = "0.94 0.34" }
-        }
-    });
-    AddLabel(ui, "KITSUITE_MENU_TOOL_FINE", "Ювелирная подгонка (±0.01):", "0 0.74", "0.28 1", 12, "1 1 1 0.85", TextAnchor.MiddleLeft);
-
-    // Move fine
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.30 0.05", "0.42 0.45", "0.20 0.20 0.20 0.95", "← 0.01", "Console_KS_MenuCellMove -x 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.44 0.05", "0.56 0.45", "0.20 0.20 0.20 0.95", "→ 0.01", "Console_KS_MenuCellMove +x 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.58 0.05", "0.70 0.45", "0.20 0.20 0.20 0.95", "↑ 0.01", "Console_KS_MenuCellMove +y 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.72 0.05", "0.84 0.45", "0.20 0.20 0.20 0.95", "↓ 0.01", "Console_KS_MenuCellMove -y 0.01");
-
-    // Resize fine (width/height ±0.01)
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.30 0.55", "0.40 0.95", "0.20 0.20 0.20 0.95", "Шир-", "Console_KS_MenuCellResize -w 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.42 0.55", "0.52 0.95", "0.20 0.20 0.20 0.95", "Шир+", "Console_KS_MenuCellResize +w 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.54 0.55", "0.64 0.95", "0.20 0.20 0.20 0.95", "Выс-", "Console_KS_MenuCellResize -h 0.01");
-    AddButton(ui, "KITSUITE_MENU_TOOL_FINE", "0.66 0.55", "0.76 0.95", "0.20 0.20 0.20 0.95", "Выс+", "Console_KS_MenuCellResize +h 0.01");
 
     CuiHelper.AddUi(player, ui);
 }
