@@ -25,14 +25,16 @@
     "Spawned": "",
     "Stopped": "{prefix} Снят с карты.",
     "NoPermission": "Недостаточно прав.",
-    "ListActiveHeader": "Активные вертолёты: {count}"
+    "ListActiveHeader": "Активные вертолёты: {count}",
+    "DoubleSpawnProc": "Бывает же! Для сильных духом выпстили второй вертолет!\nА слабым можем только посочувствовать :("
   },
   "Autopilot": {
     "Enabled": true,
     "CheckPeriodSeconds": 60,
-    "ActiveLimit": 1,
-    "CooldownMinutesOnDeath": 70,
-    "TTLMinutes": 30,
+    "ActiveLimit": 2,
+    "CooldownMinutesOnDeath": 120,
+    "TTLMinutes": 45,
+    "SecondHeliChanceDenominator": 12,
     "RandomTier": true,
     "FallbackTier": "normal",
     "AllowedTiers": [],
