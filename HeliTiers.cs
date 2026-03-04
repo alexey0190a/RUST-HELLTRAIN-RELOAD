@@ -57,6 +57,7 @@ namespace Oxide.Plugins
             public string Stopped = "{prefix} Снят с карты.";
             public string NoPermission = "Недостаточно прав.";
             public string ListActiveHeader = "Активные вертолёты: {count}";
+            public string DoubleSpawnProc = "🎲 Шанс сработал: в небо поднялся второй вертолёт!";
         }
 
         public class GeneralCfg
@@ -89,6 +90,7 @@ namespace Oxide.Plugins
             public int ActiveLimit = 1;
             public int CooldownMinutesOnDeath = 60;
             public int TTLMinutes = 30;
+            public int SecondHeliChanceDenominator = 12;
             public bool RandomTier = true;
             public string FallbackTier = "normal";
             public List<string> AllowedTiers = new List<string>();
@@ -131,6 +133,7 @@ namespace Oxide.Plugins
                     ActiveLimit = 1,
                     CooldownMinutesOnDeath = 60,
                     TTLMinutes = 30,
+                    SecondHeliChanceDenominator = 12,
                     RandomTier = true,
                     FallbackTier = "normal",
                     AllowedTiers = new List<string>(),
@@ -741,22 +744,38 @@ rep = timer.Every(0.1f, () => {
         {
             if (config.Autopilot == null || !config.Autopilot.Enabled) return;
 
-            if (active.Count >= config.Autopilot.ActiveLimit) return;
+            if (active.Count > 0) return;
             if (!AutopilotCooldownReady()) return;
 
-            int need = config.Autopilot.ActiveLimit - active.Count;
-            for (int i = 0; i < need; i++)
-            {
-                var tier = PickAutopilotTier();
-                if (tier == null) break;
+            var tier = PickAutopilotTier();
+            if (tier == null) return;
 
-                var ok = API_HeliTiers_Start(tier.Id);
-                if (!ok) break;
+            var ok = API_HeliTiers_Start(tier.Id);
+            if (!ok) return;
 
-                RememberAutopilotPick(tier.Id);
-                if (config.Autopilot.Debug)
-                    Puts("[HeliTiers] Autopilot spawned tier=" + tier.Id);
-            }
+            RememberAutopilotPick(tier.Id);
+            if (config.Autopilot.Debug)
+                Puts("[HeliTiers] Autopilot spawned tier=" + tier.Id);
+
+            if (config.Autopilot.ActiveLimit < 2) return;
+            if (active.Count < 1) return;
+
+            var denominator = Mathf.Max(1, config.Autopilot.SecondHeliChanceDenominator);
+            if (UnityEngine.Random.Range(1, denominator + 1) != 1) return;
+
+            var tierSecond = PickAutopilotTier();
+            if (tierSecond == null) return;
+
+            var okSecond = API_HeliTiers_Start(tierSecond.Id);
+            if (!okSecond) return;
+
+            RememberAutopilotPick(tierSecond.Id);
+
+            if (config.General.Announce && !string.IsNullOrEmpty(config.Messages.DoubleSpawnProc))
+                Server.Broadcast(config.Messages.DoubleSpawnProc);
+
+            if (config.Autopilot.Debug)
+                Puts("[HeliTiers] Autopilot extra heli spawned by chance 1/" + denominator + ", tier=" + tierSecond.Id);
         }
 
         private bool AutopilotCooldownReady()
