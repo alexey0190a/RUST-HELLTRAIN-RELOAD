@@ -251,10 +251,10 @@
     {
       "CardArtKey": "kitssuite_lucifer",
       "CloseRect": [
-        0.96,
         0.94,
-        0.995,
-        0.99
+        0.905000031,
+        1.0,
+        1.0
       ],
       "EditRect": [
         0.02,
@@ -264,21 +264,262 @@
       ],
       "Name": "",
       "Permission": "kitssuite.lucifer",
-      "CooldownSeconds": 10,
+      "CooldownSeconds": 3600,
       "CardArtUrl": "",
       "ActionRect": [
-        0.099999994,
-        0.29,
-        0.320000321,
-        0.370000035
+        0.11,
+        0.28,
+        0.30000034,
+        0.360000044
       ],
       "BtnPng_Take": "kitlucifer_btn_take",
       "BtnPng_Cooldown": "kitlucifer_btn_cd",
       "BtnPng_Locked": "kitlucifer_btn_locked",
-      "Main": [],
+      "Main": [
+        {
+          "Shortname": "rocket.launcher",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 2,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "ammo.rifle",
+          "Amount": 200,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 1,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "workbench3",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 0,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "ammo.rocket.basic",
+          "Amount": 10,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 3,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "hazmatsuit.arcticsuit",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 4,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "scrap",
+          "Amount": 550,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 5,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "cloth",
+          "Amount": 500,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 6,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "leather",
+          "Amount": 500,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 7,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "stones",
+          "Amount": 5000,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 8,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "metal.fragments",
+          "Amount": 2000,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 9,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "metal.refined",
+          "Amount": 200,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 10,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "wood",
+          "Amount": 10000,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 11,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "crude.oil",
+          "Amount": 250,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 12,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "lowgradefuel",
+          "Amount": 500,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 13,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "metalblade",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 14,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "metalpipe",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 15,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "metalspring",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 16,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "roadsigns",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 17,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "semibody",
+          "Amount": 10,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 18,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "riflebody",
+          "Amount": 10,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 19,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "smgbody",
+          "Amount": 10,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 20,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "sheetmetal",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 21,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "techparts",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 22,
+          "Container": "main",
+          "Mods": []
+        },
+        {
+          "Shortname": "gears",
+          "Amount": 30,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 23,
+          "Container": "main",
+          "Mods": []
+        }
+      ],
       "Belt": [
         {
-          "Shortname": "shotgun.pump",
+          "Shortname": "lmg.m249",
           "Amount": 1,
           "Skin": 0,
           "Ammo": 0,
@@ -288,27 +529,142 @@
           "Mods": []
         },
         {
-          "Shortname": "weapon.mod.8x.scope",
+          "Shortname": "rifle.l96",
           "Amount": 1,
           "Skin": 0,
           "Ammo": 0,
           "Magazine": 0,
           "Slot": 1,
           "Container": "belt",
-          "Mods": []
+          "Mods": [
+            "weapon.mod.8x.scope",
+            "weapon.mod.silencer",
+            "weapon.mod.lasersight"
+          ]
         },
         {
-          "Shortname": "pistol.semiauto",
-          "Amount": 1,
+          "Shortname": "syringe.medical",
+          "Amount": 10,
           "Skin": 0,
           "Ammo": 0,
           "Magazine": 0,
           "Slot": 2,
           "Container": "belt",
           "Mods": []
+        },
+        {
+          "Shortname": "supply.signal",
+          "Amount": 2,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 3,
+          "Container": "belt",
+          "Mods": []
+        },
+        {
+          "Shortname": "chainsaw",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 4,
+          "Container": "belt",
+          "Mods": []
+        },
+        {
+          "Shortname": "jackhammer",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 5,
+          "Container": "belt",
+          "Mods": []
         }
       ],
-      "Wear": []
+      "Wear": [
+        {
+          "Shortname": "roadsign.kilt",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 0,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "shoes.boots",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 1,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "hoodie",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 2,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "metal.facemask",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 3,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "pants",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 4,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "tactical.gloves",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 5,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "metal.plate.torso",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 6,
+          "Container": "wear",
+          "Mods": []
+        },
+        {
+          "Shortname": "kriegbackpack",
+          "Amount": 1,
+          "Skin": 0,
+          "Ammo": 0,
+          "Magazine": 0,
+          "Slot": 7,
+          "Container": "wear",
+          "Mods": []
+        }
+      ]
     },
     {
       "CardArtKey": null,
@@ -1285,7 +1641,7 @@
       "Wear": []
     }
   ],
-  "DebugHighlight": true,
+  "DebugHighlight": false,
   "MenuCells": [
     [
       0.126315773,
@@ -1331,5 +1687,11 @@
     0.9999999
   ],
   "MenuBackgroundKey": "menuback_ground",
-  "MenuBackgroundUrl": "https://s10.iimage.su/s/04/gCnynzPx7i6yleGkf0kM80njyLltNWm28UeGBGuzp.png"
+  "MenuBackgroundUrl": "https://s10.iimage.su/s/04/gCnynzPx7i6yleGkf0kM80njyLltNWm28UeGBGuzp.png",
+  "MenuCloseRect": [
+    0.95,
+    0.91,
+    1.0,
+    1.0
+  ]
 }
