@@ -600,17 +600,17 @@ if (IsAdmin(player) && IsCardEditorOpen(player, slot))
 
                 // Move
                                 AddLabel(ui, "KITSUITE_CARD_TOOL", "Сдвиг", "0.06 0.60", "0.46 0.66", 12, "1 1 1 0.8", TextAnchor.MiddleLeft);
-AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.54", "0.46 0.60", "0.25 0.25 0.25 0.95", "→ Вправо", $"Console_KS_MoveRect {slot} +x 0.02");
-                AddButton(ui, "KITSUITE_CARD_TOOL", "0.54 0.54", "0.94 0.60", "0.25 0.25 0.25 0.95", "← Влево", $"Console_KS_MoveRect {slot} -x 0.02");
-                AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.46", "0.46 0.52", "0.25 0.25 0.25 0.95", "↑ Вверх", $"Console_KS_MoveRect {slot} +y 0.02");
-                AddButton(ui, "KITSUITE_CARD_TOOL", "0.54 0.46", "0.94 0.52", "0.25 0.25 0.25 0.95", "↓ Вниз", $"Console_KS_MoveRect {slot} -y 0.02");
+AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.54", "0.46 0.60", "0.25 0.25 0.25 0.95", "→ Вправо", $"Console_KS_MoveRect {slot} +x 0.005");
+                AddButton(ui, "KITSUITE_CARD_TOOL", "0.54 0.54", "0.94 0.60", "0.25 0.25 0.25 0.95", "← Влево", $"Console_KS_MoveRect {slot} -x 0.005");
+                AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.46", "0.46 0.52", "0.25 0.25 0.25 0.95", "↑ Вверх", $"Console_KS_MoveRect {slot} +y 0.005");
+                AddButton(ui, "KITSUITE_CARD_TOOL", "0.54 0.46", "0.94 0.52", "0.25 0.25 0.25 0.95", "↓ Вниз", $"Console_KS_MoveRect {slot} -y 0.005");
 
                 // Resize
                                 AddLabel(ui, "KITSUITE_CARD_TOOL", "Размер", "0.06 0.42", "0.46 0.48", 12, "1 1 1 0.8", TextAnchor.MiddleLeft);
-AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.38", "0.46 0.44", "0.25 0.25 0.25 0.95", "Шир+ →", $"Console_KS_ResizeRect {slot} +w 0.02");
-                AddButton(ui, "KITSUITE_CARD_TOOL", "0.54 0.38", "0.94 0.44", "0.25 0.25 0.25 0.95", "Шир− ←", $"Console_KS_ResizeRect {slot} -w 0.02");
-                AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.30", "0.48 0.36", "0.25 0.25 0.25 0.95", "Выс+ ↑", $"Console_KS_ResizeRect {slot} +h 0.02");
-                AddButton(ui, "KITSUITE_CARD_TOOL", "0.52 0.30", "0.94 0.36", "0.25 0.25 0.25 0.95", "Выс− ↓", $"Console_KS_ResizeRect {slot} -h 0.02");
+AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.38", "0.46 0.44", "0.25 0.25 0.25 0.95", "Шир+ →", $"Console_KS_ResizeRect {slot} +w 0.005");
+                AddButton(ui, "KITSUITE_CARD_TOOL", "0.54 0.38", "0.94 0.44", "0.25 0.25 0.25 0.95", "Шир− ←", $"Console_KS_ResizeRect {slot} -w 0.005");
+                AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.30", "0.48 0.36", "0.25 0.25 0.25 0.95", "Выс+ ↑", $"Console_KS_ResizeRect {slot} +h 0.005");
+                AddButton(ui, "KITSUITE_CARD_TOOL", "0.52 0.30", "0.94 0.36", "0.25 0.25 0.25 0.95", "Выс− ↓", $"Console_KS_ResizeRect {slot} -h 0.005");
 
                 // Save/Reset/Close
                 AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.18", "0.46 0.26", "0.20 0.40 0.20 0.95", "Сохранить", $"Console_KS_SaveRect {slot}");
