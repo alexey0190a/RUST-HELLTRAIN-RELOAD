@@ -1041,7 +1041,14 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                     var order = CandidateContainers(player, e.Container);
                     if (!TryPlaceItem(item, e, order))
                     {
-                        _lastGiveFailReason = $"[KS DEBUG] Не влез предмет: {e.Shortname} x{amountLeft} (stack {def.stackable}, контейнер {e.Container}, слот {e.Slot})";
+                        var occupiedInfo = string.Empty;
+                        if (order.Count > 0 && e.Slot >= 0 && e.Slot < order[0].capacity)
+                        {
+                            var occupied = order[0].GetSlot(e.Slot);
+                            if (occupied != null && occupied.info != null)
+                                occupiedInfo = $", занято: {occupied.info.shortname} x{occupied.amount}";
+                        }
+                        _lastGiveFailReason = $"[KS DEBUG] Не влез предмет: {e.Shortname} x{amountLeft} (stack {def.stackable}, контейнер {e.Container}, слот {e.Slot}{occupiedInfo})";
                         item.Remove();
                         // rollback everything
                         foreach (var it in created)
