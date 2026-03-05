@@ -61,6 +61,7 @@ namespace Oxide.Plugins
 
         // Debug
         private bool _debug = true; // toggleable via /kitdebug
+        private string _lastGiveFailReason = string.Empty;
 
         #region Data Models
 
@@ -799,7 +800,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             }
 
             var kit = _config.Kits[slot];
-            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
+            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!" + (!string.IsNullOrEmpty(_lastGiveFailReason) ? "\n" + _lastGiveFailReason : string.Empty)); return; }
             SetCooldown(player.userID, slot, kit.CooldownSeconds);
             player.ChatMessage(Prefix + "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>");
             
@@ -970,11 +971,15 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
 
         private bool TryPlaceItem(Item item, ItemEntry e, List<ItemContainer> order)
         {
+            var targetSlot = e.Slot;
+            if (!string.IsNullOrEmpty(e.Container) && e.Container.Equals("belt", StringComparison.OrdinalIgnoreCase) && targetSlot > 5)
+                targetSlot = 5;
+
             // 1) Preferred slot in first container
-            if (order.Count > 0 && e.Slot >= 0)
+            if (order.Count > 0 && targetSlot >= 0)
             {
                 var preferred = order[0];
-                if (item.MoveToContainer(preferred, e.Slot, true))
+                if (item.MoveToContainer(preferred, targetSlot, true))
                     return true;
             }
             // 2) Any free in first container
@@ -1040,6 +1045,17 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                     var order = CandidateContainers(player, e.Container);
                     if (!TryPlaceItem(item, e, order))
                     {
+                        var occupiedInfo = string.Empty;
+                        var occupiedSlot = e.Slot;
+                        if (!string.IsNullOrEmpty(e.Container) && e.Container.Equals("belt", StringComparison.OrdinalIgnoreCase) && occupiedSlot > 5)
+                            occupiedSlot = 5;
+                        if (order.Count > 0 && occupiedSlot >= 0 && occupiedSlot < order[0].capacity)
+                        {
+                            var occupied = order[0].GetSlot(occupiedSlot);
+                            if (occupied != null && occupied.info != null)
+                                occupiedInfo = $", занято: {occupied.info.shortname} x{occupied.amount}";
+                        }
+                        _lastGiveFailReason = $"[KS DEBUG] Не влез предмет: {e.Shortname} x{amountLeft} (stack {def.stackable}, контейнер {e.Container}, слот {e.Slot}{occupiedInfo})";
                         item.Remove();
                         // rollback everything
                         foreach (var it in created)
@@ -1060,6 +1076,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
 
         private bool GiveKit(BasePlayer player, KitDef kit)
         {
+            _lastGiveFailReason = string.Empty;
             var created = new List<Item>();
 
             if (!TryGiveList(player, kit.Main, created)) return false;
