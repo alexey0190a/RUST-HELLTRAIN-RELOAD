@@ -971,15 +971,15 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
 
         private bool TryPlaceItem(Item item, ItemEntry e, List<ItemContainer> order)
         {
-            var preferredSlot = e.Slot;
-            if (!string.IsNullOrEmpty(e.Container) && e.Container.Equals("belt", StringComparison.OrdinalIgnoreCase) && preferredSlot >= 1 && preferredSlot <= 6)
-                preferredSlot = preferredSlot - 1;
+            var targetSlot = e.Slot;
+            if (!string.IsNullOrEmpty(e.Container) && e.Container.Equals("belt", StringComparison.OrdinalIgnoreCase) && targetSlot > 5)
+                targetSlot = 5;
 
             // 1) Preferred slot in first container
-            if (order.Count > 0 && preferredSlot >= 0)
+            if (order.Count > 0 && targetSlot >= 0)
             {
                 var preferred = order[0];
-                if (item.MoveToContainer(preferred, preferredSlot, true))
+                if (item.MoveToContainer(preferred, targetSlot, true))
                     return true;
             }
             // 2) Any free in first container
@@ -1047,8 +1047,8 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                     {
                         var occupiedInfo = string.Empty;
                         var occupiedSlot = e.Slot;
-                        if (!string.IsNullOrEmpty(e.Container) && e.Container.Equals("belt", StringComparison.OrdinalIgnoreCase) && occupiedSlot >= 1 && occupiedSlot <= 6)
-                            occupiedSlot = occupiedSlot - 1;
+                        if (!string.IsNullOrEmpty(e.Container) && e.Container.Equals("belt", StringComparison.OrdinalIgnoreCase) && occupiedSlot > 5)
+                            occupiedSlot = 5;
                         if (order.Count > 0 && occupiedSlot >= 0 && occupiedSlot < order[0].capacity)
                         {
                             var occupied = order[0].GetSlot(occupiedSlot);
