@@ -17,6 +17,7 @@
       "Name": "",
       "Permission": "kitssuite.starter",
       "CooldownSeconds": 900,
+      "GiveMessage": "",
       "CardArtUrl": "",
       "ActionRect": [
         0.06,
@@ -79,6 +80,7 @@
       "Name": "",
       "Permission": "kitssuite.builder",
       "CooldownSeconds": 600,
+      "GiveMessage": "",
       "CardArtUrl": "",
       "ActionRect": [
         0.06,
@@ -141,6 +143,7 @@
       "Name": "",
       "Permission": "kitssuite.food",
       "CooldownSeconds": 600,
+      "GiveMessage": "",
       "CardArtUrl": "",
       "ActionRect": [
         0.06,
@@ -203,6 +206,7 @@
       "Name": "",
       "Permission": "kitssuite.warlock",
       "CooldownSeconds": 600,
+      "GiveMessage": "",
       "CardArtUrl": "",
       "ActionRect": [
         0.06,
@@ -265,6 +269,7 @@
       "Name": "",
       "Permission": "kitssuite.lucifer",
       "CooldownSeconds": 3600,
+      "GiveMessage": "",
       "CardArtUrl": "",
       "ActionRect": [
         0.11,
@@ -683,6 +688,7 @@
       "Name": "",
       "Permission": "kitssuite.daemon",
       "CooldownSeconds": 600,
+      "GiveMessage": "",
       "CardArtUrl": "",
       "ActionRect": [
         0.06,

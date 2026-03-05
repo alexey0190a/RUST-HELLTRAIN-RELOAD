@@ -93,6 +93,7 @@ namespace Oxide.Plugins
             public string Name = "";
             public string Permission = "";
             public int CooldownSeconds = 600;
+            public string GiveMessage = "";
 
             // Full-card PNG (covers entire card BG)
             public string CardArtUrl = "";
@@ -235,6 +236,7 @@ namespace Oxide.Plugins
                     if (_config.Kits[i].ActionRect == null || _config.Kits[i].ActionRect.Length != 4)
                         _config.Kits[i].ActionRect = new float[] { 0.06f, 0.05f, 0.94f, 0.17f };
                     if (_config.Kits[i].CardArtUrl == null) _config.Kits[i].CardArtUrl = "";
+                    if (_config.Kits[i].GiveMessage == null) _config.Kits[i].GiveMessage = string.Empty;
                 }
                 if (_config.MenuBackgroundKey == null) _config.MenuBackgroundKey = string.Empty;
                 if (_config.MenuCloseRect == null || _config.MenuCloseRect.Length != 4) _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
@@ -800,9 +802,12 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             }
 
             var kit = _config.Kits[slot];
-            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!" + (!string.IsNullOrEmpty(_lastGiveFailReason) ? "\n" + _lastGiveFailReason : string.Empty)); return; }
+            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
             SetCooldown(player.userID, slot, kit.CooldownSeconds);
-            player.ChatMessage(Prefix + "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>");
+            var giveMessage = (slot >= 0 && slot <= 5 && !string.IsNullOrWhiteSpace(kit.GiveMessage))
+                ? kit.GiveMessage
+                : "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>";
+            player.ChatMessage(Prefix + giveMessage);
             
             
             SafeDestroyAllUI(player);
@@ -1055,7 +1060,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                             if (occupied != null && occupied.info != null)
                                 occupiedInfo = $", занято: {occupied.info.shortname} x{occupied.amount}";
                         }
-                        _lastGiveFailReason = $"[KS DEBUG] Не влез предмет: {e.Shortname} x{amountLeft} (stack {def.stackable}, контейнер {e.Container}, слот {e.Slot}{occupiedInfo})";
+                        _lastGiveFailReason = string.Empty;
                         item.Remove();
                         // rollback everything
                         foreach (var it in created)
