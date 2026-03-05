@@ -74,6 +74,7 @@ namespace Oxide.Plugins
             // NEW: optional background for /kit menu (drawn under buttons)
             public string MenuBackgroundKey = "";
             public string MenuBackgroundUrl = "";
+            public float[] MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
         }
 
         [Serializable]
@@ -197,6 +198,7 @@ namespace Oxide.Plugins
             _config = new ConfigData();
             _config.MenuBackgroundKey = "";
             _config.MenuBackgroundUrl = "";
+            _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
             for (int i = 0; i < 6; i++) {
                 _config.Kits[i] = new KitDef
                 {
@@ -234,6 +236,7 @@ namespace Oxide.Plugins
                     if (_config.Kits[i].CardArtUrl == null) _config.Kits[i].CardArtUrl = "";
                 }
                 if (_config.MenuBackgroundKey == null) _config.MenuBackgroundKey = string.Empty;
+                if (_config.MenuCloseRect == null || _config.MenuCloseRect.Length != 4) _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
                 if (_config.MenuBackgroundUrl == null) _config.MenuBackgroundUrl = string.Empty;
             }
             catch
@@ -405,16 +408,19 @@ if (player == null) return;
     else if (!string.IsNullOrEmpty(_config.MenuBackgroundUrl))
         AddImageFromKeyOrUrl(ui, "KITSUITE_MENU_IMG", "0 0", "1 1", _config.MenuBackgroundUrl);
 
+    var __mcr = _config.MenuCloseRect ?? new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
+
     // === Admin controls (above) ===
     if (IsAdmin(player))
     {
         AddButton(ui, "KITSUITE_MENU_BG", "0.015 0.94", "0.24 0.985", "0.2 0.4 0.2 0.95", "Настройка позиций меню", $"{nameof(Console_KS_MenuToggleEditor)}");
-        AddButton(ui, "KITSUITE_MENU_BG", "0.96 0.94", "0.995 0.99", "0.2 0.2 0.2 0.95", "X", $"{nameof(Console_KS_CloseMenu)}");
+        AddButton(ui, "KITSUITE_MENU_BG", "0.245 0.94", "0.395 0.985", "0.2 0.2 0.4 0.95", $"Debug: {(_debug ? "ON" : "OFF")}", "Console_KS_ToggleGlobalDebug");
     }
-	
+
 	// Кнопка "Закрыть" — для всех игроков
-AddButton(ui, "KITSUITE_MENU_BG", "0.96 0.94", "0.995 0.99",
-    "0.2 0.2 0.2 0.95", "X", $"{nameof(Console_KS_CloseMenu)}");
+AddButton(ui, "KITSUITE_MENU_BG", $"{__mcr[0]} {__mcr[1]}", $"{__mcr[2]} {__mcr[3]}",
+    "0 0 0 0", "", $"{nameof(Console_KS_CloseMenu)}");
+    if (this._debug) AddBorder(ui, "KITSUITE_MENU_BG", __mcr, 1.5f/1000f, "1 0 0 0.9");
 
     // === Slots grid ===
     var R = _config.MainMenuRect;
@@ -639,8 +645,9 @@ AddButton(ui, "KITSUITE_CARD_TOOL", "0.06 0.38", "0.46 0.44", "0.25 0.25 0.25 0.
             
             var __cr = kit.CloseRect ?? new float[]{0.96f,0.94f,0.995f,0.99f};
                         // UI_LOCKED — соблюдай правило наложения CUI согласно BIO
-AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[3]}", "0.2 0.2 0.2 0.95", "X",
+AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[3]}", "0 0 0 0", "",
                 $"{nameof(Console_KS_CloseCard)}");
+            if (this._debug) AddBorder(ui, "KITSUITE_CARD_BG", __cr, 1.5f/1000f, "1 0 0 0.9");
 
             
             CuiHelper.AddUi(player, ui);
@@ -1214,6 +1221,9 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
         {
             return new KitDef
             {
+                CardArtKey = src.CardArtKey,
+                CloseRect = (src.CloseRect != null && src.CloseRect.Length == 4) ? new float[] { src.CloseRect[0], src.CloseRect[1], src.CloseRect[2], src.CloseRect[3] } : new float[] { 0.96f, 0.94f, 0.995f, 0.99f },
+                EditRect = (src.EditRect != null && src.EditRect.Length == 4) ? new float[] { src.EditRect[0], src.EditRect[1], src.EditRect[2], src.EditRect[3] } : new float[] { 0.02f, 0.01f, 0.14f, 0.06f },
                 Name = src.Name,
                 Permission = src.Permission,
                 CooldownSeconds = src.CooldownSeconds,
@@ -1272,7 +1282,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             var player = arg.Player();
             if (player == null || !IsAdmin(player)) return;
             int sel = 0; if (arg.Args != null && arg.Args.Length >= 1) int.TryParse(arg.Args[0], out sel);
-            sel = Mathf.Clamp(sel, 0, 5);
+            sel = Mathf.Clamp(sel, 0, 6);
             _menuSelSlot[player.userID] = sel;
             DrawMenuEditor(player);
         }
@@ -1284,9 +1294,17 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             if (arg.Args == null || arg.Args.Length < 2) return;
             string dir = arg.Args[0];
             float step; if (!float.TryParse(arg.Args[1], out step)) return;
-            if (_config.MenuCells == null || _config.MenuCells.Length != 6) return;
             int sel = 0; if (_menuSelSlot.TryGetValue(player.userID, out var tmp)) sel = tmp;
-            var r = _config.MenuCells[sel] ?? (_config.MenuCells[sel] = new float[]{0.06f,0.05f,0.30f,0.20f});
+            float[] r;
+            if (sel == 6)
+            {
+                r = _config.MenuCloseRect ?? (_config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f });
+            }
+            else
+            {
+                if (_config.MenuCells == null || _config.MenuCells.Length != 6) return;
+                r = _config.MenuCells[sel] ?? (_config.MenuCells[sel] = new float[]{0.06f,0.05f,0.30f,0.20f});
+            }
             if (dir == "+x") { r[0]+=step; r[2]+=step; }
             else if (dir == "-x") { r[0]-=step; r[2]-=step; }
             else if (dir == "+y") { r[1]+=step; r[3]+=step; }
@@ -1301,9 +1319,17 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             if (arg.Args == null || arg.Args.Length < 2) return;
             string dir = arg.Args[0];
             float step; if (!float.TryParse(arg.Args[1], out step)) return;
-            if (_config.MenuCells == null || _config.MenuCells.Length != 6) return;
             int sel = 0; if (_menuSelSlot.TryGetValue(player.userID, out var tmp)) sel = tmp;
-            var r = _config.MenuCells[sel] ?? (_config.MenuCells[sel] = new float[]{0.06f,0.05f,0.30f,0.20f});
+            float[] r;
+            if (sel == 6)
+            {
+                r = _config.MenuCloseRect ?? (_config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f });
+            }
+            else
+            {
+                if (_config.MenuCells == null || _config.MenuCells.Length != 6) return;
+                r = _config.MenuCells[sel] ?? (_config.MenuCells[sel] = new float[]{0.06f,0.05f,0.30f,0.20f});
+            }
             if (dir == "+w") { r[2]+=step; } else if (dir == "-w") { r[2]-=step; }
             else if (dir == "+h") { r[3]+=step; } else if (dir == "-h") { r[3]-=step; }
             ClampRectF01(r); SaveConfig(); DrawMenuEditor(player);
@@ -1320,6 +1346,13 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                 _config.MenuCells = new float[6][];
 
             int sel = 0; if (_menuSelSlot.TryGetValue(player.userID, out var tmp)) sel = tmp;
+            if (sel == 6)
+            {
+                _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
+                SaveConfig();
+                DrawMenuEditor(player);
+                return;
+            }
             int rows = 2, cols = 3, rr = sel/cols, cc = sel%cols;
             float gap = 0.02f;
 
@@ -1622,6 +1655,7 @@ private static void AddBorder(CuiElementContainer ui, string parent, float[] rec
                     AddLabel(ui, host, "LUCIFER CLAIM", "0.05 0.05", "0.95 0.95", 18, "1 1 1 1", TextAnchor.MiddleCenter);
                 }
                 if (_config.MenuBackgroundKey == null) _config.MenuBackgroundKey = string.Empty;
+                if (_config.MenuCloseRect == null || _config.MenuCloseRect.Length != 4) _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
                 if (_config.MenuBackgroundUrl == null) _config.MenuBackgroundUrl = string.Empty;
             }
             catch {}
@@ -1924,6 +1958,11 @@ timer.Once(0.2f, () =>
                 _config.MainMenuRect = new float[] { 0.12f, 0.18f, 0.88f, 0.88f };
                 changed = true;
             }
+            if (_config.MenuCloseRect == null || _config.MenuCloseRect.Length != 4)
+            {
+                _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
+                changed = true;
+            }
             // Initialize missing MenuCells to a uniform 2x3 grid inside MainMenuRect
             {
                 int rows = 2, cols = 3; float gap = 0.02f;
@@ -2053,13 +2092,25 @@ timer.Once(0.2f, () =>
             OpenCard(player, slot);
         }
 
+        [ConsoleCommand("Console_KS_ToggleGlobalDebug")]
+        private void Console_KS_ToggleGlobalDebug(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Connection?.player as BasePlayer;
+            if (player == null || !IsAdmin(player)) return;
+            _debug = !_debug;
+            _config.DebugHighlight = _debug;
+            SaveConfig();
+            OpenMenu(player);
+        }
+
         [ConsoleCommand("Console_KS_ToggleDebug")]
         private void Console_KS_ToggleDebug(ConsoleSystem.Arg arg)
         {
             var player = arg.Connection?.player as BasePlayer;
             if (player == null || !IsAdmin(player)) return;
-            _config.DebugHighlight = !_config.DebugHighlight;
-            SaveConfig();
+            _debug = !_debug;
+            player.ChatMessage($"[BLOODHELL] Debug UI: {(_debug ? "ON" : "OFF")}");
+            OpenMenu(player);
             if (arg.Args != null && arg.Args.Length > 0 && int.TryParse(arg.Args[0], out var slot))
                 OpenCard(player, slot);
         }
@@ -2236,6 +2287,7 @@ private void DrawOutline(CuiElementContainer cont, string parent, float[] r, str
     AddButton(ui, "KITSUITE_MENU_TOOL", "0.06 0.74", "0.30 0.80", "0.25 0.25 0.25 0.95", "Kit4", "Console_KS_MenuSelSlot 3");
     AddButton(ui, "KITSUITE_MENU_TOOL", "0.36 0.74", "0.60 0.80", "0.25 0.25 0.25 0.95", "Kit5", "Console_KS_MenuSelSlot 4");
     AddButton(ui, "KITSUITE_MENU_TOOL", "0.66 0.74", "0.90 0.80", "0.25 0.25 0.25 0.95", "Kit6", "Console_KS_MenuSelSlot 5");
+    AddButton(ui, "KITSUITE_MENU_TOOL", "0.66 0.68", "0.90 0.74", "0.25 0.25 0.25 0.95", "Закрыть X", "Console_KS_MenuSelSlot 6");
 
     // B) Move selected card
     AddLabel(ui, "KITSUITE_MENU_TOOL", "Сдвиг выбранной карточки", "0.06 0.66", "0.94 0.70", 12, "1 1 1 0.85", TextAnchor.MiddleLeft);
@@ -2274,7 +2326,12 @@ private void DrawOutline(CuiElementContainer cont, string parent, float[] r, str
     var R = _config.MainMenuRect;
     float rx = R[0], ry = R[1], rw = Mathf.Clamp01(R[2]-R[0]), rh = Mathf.Clamp01(R[3]-R[1]);
     int sel = 0; if (_menuSelSlot.TryGetValue(player.userID, out var s)) sel = s;
-    if (_config.MenuCells != null && sel >= 0 && sel < 6)
+    if (sel == 6)
+    {
+        var cr = _config.MenuCloseRect ?? new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
+        DrawOutline(ui, "KITSUITE_MENU_BG", cr, "MENU_SEL", "1 0 0 0.9");
+    }
+    else if (_config.MenuCells != null && sel >= 0 && sel < 6)
     {
         var cr = _config.MenuCells[sel];
         if (cr != null && cr.Length == 4)
