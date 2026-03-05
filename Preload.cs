@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Preload", "BLOODHELL", "1.1.0")]
+    [Info("Preload", "BLOODHELL", "1.1.1")]
     [Description("Standalone image/icon preloader for ImageLibrary (for kits/UI). Supports auto-scan of oxide/data.")]
     public class Preload : CovalencePlugin
     {
@@ -17,16 +17,21 @@ namespace Oxide.Plugins
 
         [PluginReference] private Plugin ImageLibrary;
 
+        private bool _firstPlayerPreloadStarted;
+
         #region Configuration
 
         private ConfigData _config;
 
         private class ConfigData
         {
-            public string Version = "1.1.0";
+            public string Version = "1.1.1";
 
             // Auto-run after server starts
             public bool AutoPreloadOnServerInitialized = true;
+
+            // Auto-run once when first player connects/spawns (helps hide unloaded icon flash)
+            public bool AutoPreloadOnFirstPlayer = true;
 
             // Also scan oxide/data for images (PNG/JPG) and register them with keys by filename
             public bool AutoScanDataDirectory = true;
@@ -96,6 +101,29 @@ namespace Oxide.Plugins
                     StartPreload(null, includePlayers: _config.IncludeConnectedPlayersInventories, doScan: _config.AutoScanDataDirectory);
                 });
             }
+        }
+
+        private void OnPlayerConnected(BasePlayer player)
+        {
+            TryStartFirstPlayerPreload();
+        }
+
+        private void OnPlayerRespawned(BasePlayer player)
+        {
+            TryStartFirstPlayerPreload();
+        }
+
+        private void TryStartFirstPlayerPreload()
+        {
+            if (_firstPlayerPreloadStarted) return;
+            if (!_config.AutoPreloadOnFirstPlayer) return;
+
+            _firstPlayerPreloadStarted = true;
+            timer.Once(0.1f, () =>
+            {
+                Puts("[Preload] First-player auto-preload starting...");
+                StartPreload(null, includePlayers: true, doScan: _config.AutoScanDataDirectory);
+            });
         }
 
         #endregion
