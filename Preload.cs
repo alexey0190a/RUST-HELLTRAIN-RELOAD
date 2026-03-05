@@ -105,11 +105,8 @@ namespace Oxide.Plugins
         private void OnPlayerConnected(BasePlayer player)
         {
             if (!_config.AutoPreloadOnPlayerConnected) return;
-            timer.Once(0.1f, () =>
-            {
-                Puts($"[Preload] Player-connect auto-preload starting for {player?.UserIDString}...");
-                StartPreload(null, includePlayers: true, doScan: _config.AutoScanDataDirectory);
-            });
+            Puts($"[Preload] Player-connect fast warmup starting for {player?.UserIDString}...");
+            StartPreload(null, includePlayers: false, doScan: false);
         }
 
         #endregion
