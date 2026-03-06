@@ -937,7 +937,11 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             double next = GetCooldown(player.userID, slot);
             if (next > now)
             {
-                reason = "Ты слепой или тупой? НЕ ВИДИШЬ <color=#ff0000>КУЛЛДАУН</color> У ТЕБЯ!!!";
+                int remain = Mathf.CeilToInt((float)(next - now));
+                int min = remain / 60;
+                int sec = remain % 60;
+                string timer = min > 0 ? $"{min} мин {sec} сек" : $"{sec} сек";
+                reason = $"Перезарядка : ты сможешь заново получить набор через <color=#ff2400>{timer}</color>.";
                 return false;
             }
             // Items present?
