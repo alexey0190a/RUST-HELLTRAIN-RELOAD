@@ -117,7 +117,7 @@ Vis.Entities(center, radius, ents, -1);
             }
         }
 
-        Pool.FreeList(ref ents);
+        Pool.Free(ref ents);
 
         if (best != null)
         {
@@ -218,7 +218,7 @@ private bool TryKillBlockingTrainAheadWhenStuck(TrainEngine engine, ref float ne
             }
         }
 
-        Pool.FreeList(ref ents);
+        Pool.Free(ref ents);
 
         if (best == null) return false;
 
@@ -338,7 +338,7 @@ for (float sd = startDist; sd <= endDist; sd += step)
 }
 finally
 {
-    Pool.FreeList(ref samples);
+    Pool.Free(ref samples);
 }
 
                     
@@ -1092,7 +1092,7 @@ private void CleanupOrphanedHelltrainEntities(string reason)
     }
     finally
     {
-        Pool.FreeList(ref snapshot);
+        Pool.Free(ref snapshot);
     }
 
     if (killed > 0)
@@ -2861,7 +2861,7 @@ private void SpawnExplosionFXAndDamage()
             e.OnAttacked(hi);
         }
 
-        Pool.FreeList(ref ents);
+        Pool.Free(ref ents);
     }
 }
 
@@ -5100,7 +5100,7 @@ private void CmdWipeAllCars(BasePlayer player, string cmd, string[] args)
             if (car != null && !car.IsDestroyed) snapshot.Add(car);
         }
         foreach (var car in snapshot) { car.Kill(); killed++; }
-        Pool.FreeList(ref snapshot);
+        Pool.Free(ref snapshot);
 
         // чистим локальные трекеры
         _spawnedCars.Clear();
@@ -5143,7 +5143,7 @@ private void CcmdWipeAllCars(ConsoleSystem.Arg arg)
             if (car != null && !car.IsDestroyed) snapshot.Add(car);
         }
         foreach (var car in snapshot) { car.Kill(); killed++; }
-        Pool.FreeList(ref snapshot);
+        Pool.Free(ref snapshot);
 
         _spawnedCars.Clear();
         _spawnedTrainEntities.Clear();
@@ -6349,7 +6349,7 @@ private void CmdHtCleanup(BasePlayer player, string command, string[] args)
 
         int killed = 0;
         foreach (var te in snapshot) { te.Kill(); killed++; }
-        Pool.FreeList(ref snapshot);
+        Pool.Free(ref snapshot);
 
         // локальные трекеры
         _spawnedCars.Clear();
