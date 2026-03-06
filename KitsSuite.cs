@@ -802,7 +802,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             }
 
             var kit = _config.Kits[slot];
-            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!"); return; }
+            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "Недоступно : к сожалению твой инвентарь не резиновый,прежде чем попробовать снова освободи его!"); return; }
             SetCooldown(player.userID, slot, kit.CooldownSeconds);
             var giveMessage = (slot >= 0 && slot <= 5 && !string.IsNullOrWhiteSpace(kit.GiveMessage))
                 ? kit.GiveMessage
