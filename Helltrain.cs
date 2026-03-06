@@ -66,7 +66,7 @@ private bool TryClearBlockingTrainAhead(TrainEngine engine, ref float nextTryAt)
         var fwd = engine.transform.forward;
         var center = p + fwd * ahead;
 
-        var ents = Pool.GetList<BaseEntity>();
+        var ents = Pool.Get<List<BaseEntity>>();
         // -1 = все слои (самый безопасный вариант без угадывания Mask.Vehicle_* имён)
 Vis.Entities(center, radius, ents, -1);
 
@@ -192,7 +192,7 @@ private bool TryKillBlockingTrainAheadWhenStuck(TrainEngine engine, ref float ne
         var fwd = engine.transform.forward;
         var center = p + fwd * ahead;
 
-        var ents = Pool.GetList<BaseEntity>();
+        var ents = Pool.Get<List<BaseEntity>>();
         Vis.Entities(center, radius, ents, -1);
 
         TrainCar best = null;
@@ -280,7 +280,7 @@ if (curLen < requiredLen)
         var seen = new HashSet<TrainCar>();
 
        // 1) Строим "линию коридора" по сплайну на всю длину чистки
-var samples = Pool.GetList<Vector3>();
+var samples = Pool.Get<List<Vector3>>();
 try
 {
     // ВАЖНО: строим коридор строго в пределах длины spline, иначе GetPosition(sd) начинает "врать"
@@ -1071,7 +1071,7 @@ private void CleanupOrphanedHelltrainEntities(string reason)
     int killed = 0;
 
     // Snapshot to avoid modifying collection while iterating
-    var snapshot = Pool.GetList<BaseNetworkable>();
+    var snapshot = Pool.Get<List<BaseNetworkable>>();
     try
     {
         snapshot.AddRange(BaseNetworkable.serverEntities);
@@ -2844,7 +2844,7 @@ private void SpawnExplosionFXAndDamage()
         );
 
         // AoE-урон по окрестным сущностям (8м радиус)
-        var ents = Pool.GetList<BaseCombatEntity>();
+        var ents = Pool.Get<List<BaseCombatEntity>>();
         Vis.Entities(car.transform.position, 8f, ents, Rust.Layers.Mask.Default);
 
         foreach (var e in ents)
@@ -5093,7 +5093,7 @@ private void CmdWipeAllCars(BasePlayer player, string cmd, string[] args)
     try
     {
         // снимок всех TrainCar
-        var snapshot = Pool.GetList<TrainCar>();
+        var snapshot = Pool.Get<List<TrainCar>>();
         foreach (var bn in BaseNetworkable.serverEntities)
         {
             var car = bn as TrainCar;
@@ -5136,7 +5136,7 @@ private void CcmdWipeAllCars(ConsoleSystem.Arg arg)
     int killed = 0;
     try
     {
-        var snapshot = Pool.GetList<TrainCar>();
+        var snapshot = Pool.Get<List<TrainCar>>();
         foreach (var bn in BaseNetworkable.serverEntities)
         {
             var car = bn as TrainCar;
@@ -6343,7 +6343,7 @@ private void CmdHtCleanup(BasePlayer player, string command, string[] args)
         }
 
         // глобально: безопасный снапшот
-        var snapshot = Pool.GetList<TrainEngine>();
+        var snapshot = Pool.Get<List<TrainEngine>>();
         foreach (var te in UnityEngine.Object.FindObjectsOfType<TrainEngine>())
             if (te != null && !te.IsDestroyed) snapshot.Add(te);
 
