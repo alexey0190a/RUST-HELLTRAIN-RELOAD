@@ -66,7 +66,7 @@ private bool TryClearBlockingTrainAhead(TrainEngine engine, ref float nextTryAt)
         var fwd = engine.transform.forward;
         var center = p + fwd * ahead;
 
-        var ents = Pool.GetList<BaseEntity>();
+        var ents = Pool.Get<List<BaseEntity>>();
         // -1 = все слои (самый безопасный вариант без угадывания Mask.Vehicle_* имён)
 Vis.Entities(center, radius, ents, -1);
 
@@ -117,7 +117,7 @@ Vis.Entities(center, radius, ents, -1);
             }
         }
 
-        Pool.FreeList(ref ents);
+        Pool.FreeUnmanaged(ref ents);
 
         if (best != null)
         {
@@ -192,7 +192,7 @@ private bool TryKillBlockingTrainAheadWhenStuck(TrainEngine engine, ref float ne
         var fwd = engine.transform.forward;
         var center = p + fwd * ahead;
 
-        var ents = Pool.GetList<BaseEntity>();
+        var ents = Pool.Get<List<BaseEntity>>();
         Vis.Entities(center, radius, ents, -1);
 
         TrainCar best = null;
@@ -218,7 +218,7 @@ private bool TryKillBlockingTrainAheadWhenStuck(TrainEngine engine, ref float ne
             }
         }
 
-        Pool.FreeList(ref ents);
+        Pool.FreeUnmanaged(ref ents);
 
         if (best == null) return false;
 
@@ -280,7 +280,7 @@ if (curLen < requiredLen)
         var seen = new HashSet<TrainCar>();
 
        // 1) Строим "линию коридора" по сплайну на всю длину чистки
-var samples = Pool.GetList<Vector3>();
+var samples = Pool.Get<List<Vector3>>();
 try
 {
     // ВАЖНО: строим коридор строго в пределах длины spline, иначе GetPosition(sd) начинает "врать"
@@ -338,7 +338,7 @@ for (float sd = startDist; sd <= endDist; sd += step)
 }
 finally
 {
-    Pool.FreeList(ref samples);
+    Pool.FreeUnmanaged(ref samples);
 }
 
                     
@@ -1071,7 +1071,7 @@ private void CleanupOrphanedHelltrainEntities(string reason)
     int killed = 0;
 
     // Snapshot to avoid modifying collection while iterating
-    var snapshot = Pool.GetList<BaseNetworkable>();
+    var snapshot = Pool.Get<List<BaseNetworkable>>();
     try
     {
         snapshot.AddRange(BaseNetworkable.serverEntities);
@@ -1092,7 +1092,7 @@ private void CleanupOrphanedHelltrainEntities(string reason)
     }
     finally
     {
-        Pool.FreeList(ref snapshot);
+        Pool.FreeUnmanaged(ref snapshot);
     }
 
     if (killed > 0)
@@ -2512,7 +2512,7 @@ public FixedScheduleSettings FixedSchedule { get; set; } = new FixedScheduleSett
         public string SuccessfulDelivery { get; set; } = "✅ {trainName} успешно разгрузился";
         
                 [JsonProperty("Следующий поезд")]
-        public string NextTrain { get; set; } = "⏳ Следующий поезд через {minutes} {minutesWord}";
+        public string NextTrain { get; set; } = "Следующий <color=#ff0000>HELLTRAIN</color> ожидается через {minutes}. Следите за новостями. {minutesWord}";
     }
 
 // STABILITY: cowcatcher ...
@@ -2812,8 +2812,11 @@ private void UpdateTrainZoneMarker()
         _trainNameMarker.SendNetworkUpdate();
     }
 
-    if (!string.IsNullOrEmpty(label))
-        Puts($"[TRAIN MARKER] {label}");
+    
+if (!string.IsNullOrEmpty(label))
+{
+    // Puts($"[TRAIN MARKER] {label}");
+}
 }
 
 private void DestroyTrainZoneMarker()
@@ -2844,7 +2847,7 @@ private void SpawnExplosionFXAndDamage()
         );
 
         // AoE-урон по окрестным сущностям (8м радиус)
-        var ents = Pool.GetList<BaseCombatEntity>();
+        var ents = Pool.Get<List<BaseCombatEntity>>();
         Vis.Entities(car.transform.position, 8f, ents, Rust.Layers.Mask.Default);
 
         foreach (var e in ents)
@@ -2861,7 +2864,7 @@ private void SpawnExplosionFXAndDamage()
             e.OnAttacked(hi);
         }
 
-        Pool.FreeList(ref ents);
+        Pool.FreeUnmanaged(ref ents);
     }
 }
 
@@ -3117,7 +3120,7 @@ private void StartRespawnTimer(float? overrideMinutes = null)
                 .Replace("{minutesWord}", minutesWord);
 
             Server.Broadcast(message);
-            Puts($"⏳ FixedSchedule: следующий поезд через {minutes:F0} минут (UTC={_nextRespawnUtc.Value:O})");
+            Puts($"FixedSchedule: Следующий <color=#ff0000>HELLTRAIN</color> ожидается через {minutes:F0} минут, следите за новостями!  (UTC={_nextRespawnUtc.Value:O})");
             return;
         }
     }
@@ -5093,14 +5096,14 @@ private void CmdWipeAllCars(BasePlayer player, string cmd, string[] args)
     try
     {
         // снимок всех TrainCar
-        var snapshot = Pool.GetList<TrainCar>();
+        var snapshot = Pool.Get<List<TrainCar>>();
         foreach (var bn in BaseNetworkable.serverEntities)
         {
             var car = bn as TrainCar;
             if (car != null && !car.IsDestroyed) snapshot.Add(car);
         }
         foreach (var car in snapshot) { car.Kill(); killed++; }
-        Pool.FreeList(ref snapshot);
+        Pool.FreeUnmanaged(ref snapshot);
 
         // чистим локальные трекеры
         _spawnedCars.Clear();
@@ -5136,14 +5139,14 @@ private void CcmdWipeAllCars(ConsoleSystem.Arg arg)
     int killed = 0;
     try
     {
-        var snapshot = Pool.GetList<TrainCar>();
+        var snapshot = Pool.Get<List<TrainCar>>();
         foreach (var bn in BaseNetworkable.serverEntities)
         {
             var car = bn as TrainCar;
             if (car != null && !car.IsDestroyed) snapshot.Add(car);
         }
         foreach (var car in snapshot) { car.Kill(); killed++; }
-        Pool.FreeList(ref snapshot);
+        Pool.FreeUnmanaged(ref snapshot);
 
         _spawnedCars.Clear();
         _spawnedTrainEntities.Clear();
@@ -6343,13 +6346,13 @@ private void CmdHtCleanup(BasePlayer player, string command, string[] args)
         }
 
         // глобально: безопасный снапшот
-        var snapshot = Pool.GetList<TrainEngine>();
+        var snapshot = Pool.Get<List<TrainEngine>>();
         foreach (var te in UnityEngine.Object.FindObjectsOfType<TrainEngine>())
             if (te != null && !te.IsDestroyed) snapshot.Add(te);
 
         int killed = 0;
         foreach (var te in snapshot) { te.Kill(); killed++; }
-        Pool.FreeList(ref snapshot);
+        Pool.FreeUnmanaged(ref snapshot);
 
         // локальные трекеры
         _spawnedCars.Clear();
@@ -6983,7 +6986,7 @@ marker.savedKits = obj.kits != null ? new List<string>(obj.kits) : new List<stri
 if (npc.net != null)
 {
     _eventNpcNetIds.Add(npc.net.ID);
-    Puts($"[ALARM DEBUG] Track NPC NOW: id={npc.net.ID} prefab={npc.PrefabName} npcType={marker.npcType}");
+    //Puts($"[ALARM DEBUG] Track NPC NOW: id={npc.net.ID} prefab={npc.PrefabName} npcType={marker.npcType}");
 }
 else
 {
