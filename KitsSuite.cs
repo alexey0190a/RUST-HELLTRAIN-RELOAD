@@ -1744,22 +1744,22 @@ private void PlayFallbackJingle(BasePlayer player)
 
 private object GiveKit(BaseEntity entity, string kitName)
 {
-    Puts($"[GiveKit] Вызван! entity={entity?.ShortPrefabName ?? "null"}, kitName={kitName}");
+    // Puts($"[GiveKit] Вызван! entity={entity?.ShortPrefabName ?? "null"}, kitName={kitName}");
     
     if (entity == null || string.IsNullOrEmpty(kitName))
     {
-        Puts($"[GiveKit] ❌ Отклонён: entity={entity != null}, kitName='{kitName}'");
+        // Puts($"[GiveKit] ❌ Отклонён: entity={entity != null}, kitName='{kitName}'");
         return null;
     }
 
     var kit = _config?.Kits?.FirstOrDefault(k => k != null && string.Equals(k.Name, kitName.Trim(), StringComparison.OrdinalIgnoreCase));
     if (kit == null)
     {
-        Puts($"[GiveKit] ❌ Кит '{kitName}' не найден!");
+        // Puts($"[GiveKit] ❌ Кит '{kitName}' не найден!");
         return null;
     }
     
-    Puts($"[GiveKit] ✅ Кит '{kitName}' найден, выдаём...");
+    // Puts($"[GiveKit] ✅ Кит '{kitName}' найден, выдаём...");
 
     // ============================================
     // ✅ NPC - БЕЗ ПРОВЕРКИ ПРАВ!
@@ -1767,33 +1767,33 @@ private object GiveKit(BaseEntity entity, string kitName)
     var npc = entity as ScientistNPC;
     if (npc != null)
     {
-        Puts($"[GiveKit] 📦 Выдаём кит NPC (без проверки пермишнов)...");
+        // Puts($"[GiveKit] 📦 Выдаём кит NPC (без проверки пермишнов)...");
         
         timer.Once(0.2f, () =>
         {
             if (npc == null || npc.IsDestroyed)
             {
-                Puts($"[GiveKit] ⚠️ NPC уничтожен до выдачи кита!");
+                // Puts($"[GiveKit] ⚠️ NPC уничтожен до выдачи кита!");
                 return;
             }
             
-            Puts($"[GiveKit] 🔧 Main: {kit.Main?.Count ?? 0} предметов");
+            // Puts($"[GiveKit] 🔧 Main: {kit.Main?.Count ?? 0} предметов");
             TryGiveListNPC(npc, kit.Main);
             
-            Puts($"[GiveKit] 🔧 Belt: {kit.Belt?.Count ?? 0} предметов");
+            // Puts($"[GiveKit] 🔧 Belt: {kit.Belt?.Count ?? 0} предметов");
             TryGiveListNPC(npc, kit.Belt);
             
-            Puts($"[GiveKit] 🔧 Wear: {kit.Wear?.Count ?? 0} предметов");
+            // Puts($"[GiveKit] 🔧 Wear: {kit.Wear?.Count ?? 0} предметов");
             TryGiveListNPC(npc, kit.Wear);
             
             int total = npc.inventory.containerMain.itemList.Count 
                       + npc.inventory.containerBelt.itemList.Count 
                       + npc.inventory.containerWear.itemList.Count;
             
-            Puts($"[GiveKit] ✅ Итого у NPC: {total} предметов");
+            // Puts($"[GiveKit] ✅ Итого у NPC: {total} предметов");
         });
         
-        Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к NPC.");
+        // Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к NPC.");
         return true;
     }
 
@@ -1806,21 +1806,21 @@ private object GiveKit(BaseEntity entity, string kitName)
         // ✅ Проверяем пермишн ТОЛЬКО для игроков!
         if (!string.IsNullOrEmpty(kit.Permission) && !permission.UserHasPermission(player.UserIDString, kit.Permission) && !IsAdmin(player))
         {
-            Puts($"[GiveKit] ❌ У игрока нет прав: {kit.Permission}");
+            // Puts($"[GiveKit] ❌ У игрока нет прав: {kit.Permission}");
             return null;
         }
 
         if (GiveKit(player, kit))
         {
-            Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к игроку '{player.displayName}'.");
+            // Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к игроку '{player.displayName}'.");
             return true;
         }
         
-        Puts($"[GiveKit] ❌ Не удалось выдать кит игроку (нет места?)");
+        // Puts($"[GiveKit] ❌ Не удалось выдать кит игроку (нет места?)");
         return null;
     }
 
-    Puts($"[GiveKit] ❌ Неизвестный тип entity: {entity.GetType().Name}");
+    // Puts($"[GiveKit] ❌ Неизвестный тип entity: {entity.GetType().Name}");
     return null;
 }
 
@@ -1828,7 +1828,7 @@ private object GiveKit(BaseEntity entity, string kitName)
 {
     if (npc == null || list == null) return;
     
-    Puts($"[KS] TryGiveListNPC: {list.Count} items to give");
+    // Puts($"[KS] TryGiveListNPC: {list.Count} items to give");
     
     foreach (var e in list)
     {
@@ -1878,7 +1878,7 @@ private object GiveKit(BaseEntity entity, string kitName)
         {
             int magCount = (e.Magazine > 0) ? e.Magazine : held.primaryMagazine.capacity;
             held.primaryMagazine.contents = Mathf.Clamp(magCount, 0, held.primaryMagazine.capacity);
-            Puts($"[KS] Filled magazine: {e.Shortname} -> {held.primaryMagazine.contents}/{held.primaryMagazine.capacity}");
+            // Puts($"[KS] Filled magazine: {e.Shortname} -> {held.primaryMagazine.contents}/{held.primaryMagazine.capacity}");
         }
         
         // Определяем контейнер
@@ -1910,7 +1910,7 @@ private object GiveKit(BaseEntity entity, string kitName)
         
         if (placed)
         {
-            Puts($"[KS] ✅ Placed: {e.Shortname} in {e.Container ?? "main"}");
+            // Puts($"[KS] ✅ Placed: {e.Shortname} in {e.Container ?? "main"}");
         }
         else
         {
