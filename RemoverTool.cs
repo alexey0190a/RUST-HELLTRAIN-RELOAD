@@ -1143,7 +1143,7 @@ namespace Oxide.Plugins
             private BaseEntity GetTargetEntity()
             {
                 BaseEntity target = null;
-                List<RaycastHit> hitInfos = Pool.GetList<RaycastHit>();
+                List<RaycastHit> hitInfos = Pool.Get<List<RaycastHit>>();
                 GamePhysics.TraceAll(Player.eyes.HeadRay(), 0f, hitInfos, _distance, LAYER_TARGET);
                 foreach (var hitInfo in hitInfos)
                 {
@@ -1595,7 +1595,7 @@ namespace Oxide.Plugins
 
         private static bool CanOpenAllLocks(BasePlayer player, BaseEntity targetEntity)
         {
-            var decayEntities = Pool.GetList<DecayEntity>();
+            var decayEntities = Pool.Get<List<DecayEntity>>();
             var building = targetEntity.GetBuildingPrivilege()?.GetBuilding() ?? (targetEntity as DecayEntity)?.GetBuilding();
             if (building != null)
             {
@@ -1612,7 +1612,7 @@ namespace Oxide.Plugins
                     var lockEntity = decayEntity.GetSlot(BaseEntity.Slot.Lock) as BaseLock;
                     if (lockEntity != null && !OnTryToOpen(player, lockEntity))
                     {
-                        Pool.FreeList(ref decayEntities);
+                        Pool.FreeUnmanaged(ref decayEntities);
                         return false;
                     }
                 }
@@ -1886,7 +1886,7 @@ namespace Oxide.Plugins
             {
                 return true;
             }
-            var collect = Pool.GetList<Item>();
+            var collect = Pool.Get<List<Item>>();
             try
             {
                 foreach (var entry in price)
@@ -2407,7 +2407,7 @@ namespace Oxide.Plugins
         {
             var current = 0;
             var checkFrom = Pool.Get<Queue<Vector3>>();
-            var nearbyEntities = Pool.GetList<T>();
+            var nearbyEntities = Pool.Get<List<T>>();
             removeList.Add(sourceEntity);
             checkFrom.Enqueue(sourceEntity.transform.position);
             while (checkFrom.Count > 0)
