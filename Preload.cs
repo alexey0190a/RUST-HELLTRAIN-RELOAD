@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Preload", "BLOODHELL", "1.1.0")]
+    [Info("Preload", "BLOODHELL", "1.1.2")]
     [Description("Standalone image/icon preloader for ImageLibrary (for kits/UI). Supports auto-scan of oxide/data.")]
     public class Preload : CovalencePlugin
     {
@@ -17,16 +17,20 @@ namespace Oxide.Plugins
 
         [PluginReference] private Plugin ImageLibrary;
 
+
         #region Configuration
 
         private ConfigData _config;
 
         private class ConfigData
         {
-            public string Version = "1.1.0";
+            public string Version = "1.1.2";
 
             // Auto-run after server starts
             public bool AutoPreloadOnServerInitialized = true;
+
+            // Auto-run on each player connection (1 player = 1 warmup trigger)
+            public bool AutoPreloadOnPlayerConnected = true;
 
             // Also scan oxide/data for images (PNG/JPG) and register them with keys by filename
             public bool AutoScanDataDirectory = true;
@@ -96,6 +100,13 @@ namespace Oxide.Plugins
                     StartPreload(null, includePlayers: _config.IncludeConnectedPlayersInventories, doScan: _config.AutoScanDataDirectory);
                 });
             }
+        }
+
+        private void OnPlayerConnected(BasePlayer player)
+        {
+            if (!_config.AutoPreloadOnPlayerConnected) return;
+            Puts($"[Preload] Player-connect fast warmup starting for {player?.UserIDString}...");
+            StartPreload(null, includePlayers: false, doScan: _config.AutoScanDataDirectory);
         }
 
         #endregion
