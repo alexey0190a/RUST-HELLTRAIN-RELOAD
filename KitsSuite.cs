@@ -149,11 +149,11 @@ namespace Oxide.Plugins
         {
             if (string.IsNullOrEmpty(shortname)) return null;
             if (shortname.StartsWith("rifle.", StringComparison.OrdinalIgnoreCase))
-                return new List<string>{ "weapon.mod.holosight", "weapon.mod.lasersight", "weapon.mod.muzzlebrake" };
+                return new List<string>{ "weapon.mod.8x.scope", "weapon.mod.silencer", "weapon.mod.lasersight" };
             if (shortname.StartsWith("smg.", StringComparison.OrdinalIgnoreCase))
-                return new List<string>{ "weapon.mod.holosight", "weapon.mod.lasersight" };
+                return new List<string>{ "weapon.mod.8x.scope", "weapon.mod.silencer", "weapon.mod.lasersight" };
             if (shortname.StartsWith("lmg.", StringComparison.OrdinalIgnoreCase))
-                return new List<string>{ "weapon.mod.holosight", "weapon.mod.lasersight" };
+                return new List<string>{ "weapon.mod.8x.scope", "weapon.mod.silencer", "weapon.mod.lasersight" };
             // keep pistols/shotguns clean by default to avoid incompat
             return null;
         }
