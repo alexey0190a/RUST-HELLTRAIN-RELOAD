@@ -63,7 +63,7 @@ namespace Oxide.Plugins
         public class GeneralCfg
         {
             public bool Announce = true;
-            public int GlobalCooldownSeconds = 5400;
+            public int GlobalCooldownSeconds = 7600;
             public int ActiveHeliLimit = 2;
             public bool CleanOnUnload = true;
             public string SpawnMode = "WaterRing";
@@ -88,7 +88,6 @@ namespace Oxide.Plugins
             public bool Enabled = true;
             public int CheckPeriodSeconds = 60;
             public int ActiveLimit = 1;
-            public int CooldownMinutesOnDeath = 60;
             public int TTLMinutes = 30;
             public int SecondHeliChanceDenominator = 12;
             public bool RandomTier = true;
@@ -113,7 +112,7 @@ namespace Oxide.Plugins
                 General = new GeneralCfg
                 {
                     Announce = true,
-                    GlobalCooldownSeconds = 5400,
+                    GlobalCooldownSeconds = 7600,
                     ActiveHeliLimit = 2,
                     CleanOnUnload = true,
                     SpawnMode = "WaterRing",
@@ -131,7 +130,6 @@ namespace Oxide.Plugins
                     Enabled = true,
                     CheckPeriodSeconds = 60,
                     ActiveLimit = 1,
-                    CooldownMinutesOnDeath = 60,
                     TTLMinutes = 30,
                     SecondHeliChanceDenominator = 12,
                     RandomTier = true,
@@ -372,7 +370,7 @@ namespace Oxide.Plugins
             }
         }
 
-        // улетел/киломанулся → Finished (без КД)
+        // улетел/киломанулся → Finished (с КД)
         private void OnEntityKill(BaseNetworkable networkable)
         {
             var be = networkable as BaseEntity;
@@ -387,6 +385,7 @@ namespace Oxide.Plugins
                 var tier = GetTier(ah.TierId);
                 Announce(tier, TierLine(config.Messages.Finished, tier, tier.FinishedMsg));
                 active.Remove(netId);
+                autopilotLastDeathTime = CurrentTime();
             }
 
             forcedCrashPos.Remove(netId);
@@ -735,8 +734,8 @@ rep = timer.Every(0.1f, () => {
             if (config.Autopilot.Debug)
             {
                 Puts("[HeliTiers] Autopilot ON. ActiveLimit=" + config.Autopilot.ActiveLimit
-                    + ", TTL=" + config.Autopilot.TTLMinutes + "m, CD=" + config.Autopilot.CooldownMinutesOnDeath
-                    + "m, Check=" + config.Autopilot.CheckPeriodSeconds + "s");
+                    + ", TTL=" + config.Autopilot.TTLMinutes + "m, CD=" + config.General.GlobalCooldownSeconds
+                    + "s, Check=" + config.Autopilot.CheckPeriodSeconds + "s");
             }
         }
 
@@ -782,7 +781,7 @@ rep = timer.Every(0.1f, () => {
         {
             if (autopilotLastDeathTime <= 0) return true;
             var since = CurrentTime() - autopilotLastDeathTime;
-            return since >= config.Autopilot.CooldownMinutesOnDeath * 60f;
+            return since >= config.General.GlobalCooldownSeconds;
         }
 
         private void RememberAutopilotPick(string tierId)
