@@ -20,6 +20,7 @@ namespace Oxide.Plugins
 
         private ConfigData _config;
         private readonly Dictionary<ulong, string> _activeTabByPlayer = new Dictionary<ulong, string>();
+        private readonly Dictionary<ulong, int> _eventsPageByPlayer = new Dictionary<ulong, int>();
         private readonly Dictionary<ulong, EditorState> _editorStateByPlayer = new Dictionary<ulong, EditorState>();
 
         private class ConfigData
@@ -73,6 +74,18 @@ namespace Oxide.Plugins
             {
                 AnchorMin = "0.80 0.935",
                 AnchorMax = "0.945 0.985"
+            };
+
+            public RectConfig EventsPrevButton = new RectConfig
+            {
+                AnchorMin = "0.62 0.06",
+                AnchorMax = "0.70 0.12"
+            };
+
+            public RectConfig EventsNextButton = new RectConfig
+            {
+                AnchorMin = "0.72 0.06",
+                AnchorMax = "0.80 0.12"
             };
 
             public float EditorStep = 0.005f;
@@ -136,6 +149,7 @@ namespace Oxide.Plugins
             EnsureConfig();
             cmd.AddChatCommand("info", this, nameof(CmdInfo));
             cmd.AddConsoleCommand("serverinfo.ui", this, nameof(CmdUi));
+            cmd.AddConsoleCommand("serverinfo.events.page", this, nameof(CmdEventsPage));
             cmd.AddConsoleCommand("serverinfo.close", this, nameof(CmdClose));
             cmd.AddConsoleCommand("serverinfo.editor", this, nameof(CmdEditor));
         }
@@ -171,6 +185,16 @@ namespace Oxide.Plugins
             if (_config.Ui.SettingsButton == null)
             {
                 _config.Ui.SettingsButton = new RectConfig { AnchorMin = "0.80 0.935", AnchorMax = "0.945 0.985" };
+                changed = true;
+            }
+            if (_config.Ui.EventsPrevButton == null)
+            {
+                _config.Ui.EventsPrevButton = new RectConfig { AnchorMin = "0.62 0.06", AnchorMax = "0.70 0.12" };
+                changed = true;
+            }
+            if (_config.Ui.EventsNextButton == null)
+            {
+                _config.Ui.EventsNextButton = new RectConfig { AnchorMin = "0.72 0.06", AnchorMax = "0.80 0.12" };
                 changed = true;
             }
             if (_config.Ui.EditorStep <= 0f)
@@ -301,6 +325,30 @@ namespace Oxide.Plugins
             DestroyUi(player);
         }
 
+        private void CmdEventsPage(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+
+            if (!_activeTabByPlayer.TryGetValue(player.userID, out var activeTab) || !activeTab.Equals("events", StringComparison.OrdinalIgnoreCase)) return;
+            if (arg.Args == null || arg.Args.Length == 0) return;
+
+            var direction = arg.Args[0].ToLowerInvariant();
+            var maxPage = GetEventsMaxPage();
+            if (maxPage <= 1) return;
+
+            var page = GetCurrentEventsPage(player.userID);
+            if (direction == "next") page++;
+            else if (direction == "prev") page--;
+            else return;
+
+            if (page < 1) page = maxPage;
+            if (page > maxPage) page = 1;
+
+            _eventsPageByPlayer[player.userID] = page;
+            OpenUi(player, "events");
+        }
+
         private void CmdEditor(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
@@ -399,6 +447,7 @@ namespace Oxide.Plugins
 
             var selected = ResolveTab(tabKey);
             _activeTabByPlayer[player.userID] = selected.Key;
+            var eventsPage = GetCurrentEventsPage(player.userID);
 
             DestroyUi(player);
 
@@ -420,13 +469,14 @@ namespace Oxide.Plugins
             }, UiOverlay, UiMain);
 
             AddImageElement(container, root, _config.Ui.LeftPanelImageKey, _config.Ui.LeftPanelFallbackUrl, _config.Ui.LeftPanelArea.AnchorMin, _config.Ui.LeftPanelArea.AnchorMax, "ServerInfo.LeftPanel");
-            AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
-            var contentImageKey = ResolveContentImageKey(selected);
+            var contentImageKey = ResolveContentImageKey(selected, eventsPage);
             var contentFallbackUrl = ResolveContentFallbackUrl(selected);
             AddImageElement(container, root, contentImageKey, contentFallbackUrl, _config.Ui.ContentArea.AnchorMin, _config.Ui.ContentArea.AnchorMax, "ServerInfo.Content");
+            AddImageElement(container, root, _config.Ui.FrameImageKey, _config.Ui.FrameFallbackUrl, "0 0", "1 1", "ServerInfo.Frame");
             AddImageElement(container, root, _config.Ui.CloseImageKey, _config.Ui.CloseFallbackUrl, _config.Ui.CloseButton.AnchorMin, _config.Ui.CloseButton.AnchorMax, "ServerInfo.Close.Image");
 
             AddTabButtons(container, root, selected.Key);
+            AddEventsPagerButtons(container, root, selected.Key, _editorStateByPlayer.ContainsKey(player.userID));
             AddCloseButton(container, root);
 
             if (HasAdmin(player))
@@ -484,6 +534,31 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = _config.Ui.CloseButton.AnchorMin, AnchorMax = _config.Ui.CloseButton.AnchorMax },
                 Text = { Text = "", FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "1 1 1 0" }
             }, parent, "ServerInfo.Close");
+        }
+
+        private void AddEventsPagerButtons(CuiElementContainer container, string parent, string selectedKey, bool editorMode)
+        {
+            if (!selectedKey.Equals("events", StringComparison.OrdinalIgnoreCase)) return;
+            if (!editorMode && GetEventsMaxPage() <= 1) return;
+
+            var buttonColor = editorMode ? "0.2 0.8 1 0.35" : "1 1 1 0";
+            var textColor = editorMode ? "1 1 1 0.95" : "1 1 1 0";
+            var prevText = editorMode ? "<" : "";
+            var nextText = editorMode ? ">" : "";
+
+            container.Add(new CuiButton
+            {
+                Button = { Color = buttonColor, Command = "serverinfo.events.page prev" },
+                RectTransform = { AnchorMin = _config.Ui.EventsPrevButton.AnchorMin, AnchorMax = _config.Ui.EventsPrevButton.AnchorMax },
+                Text = { Text = prevText, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = textColor }
+            }, parent, "ServerInfo.Events.Prev");
+
+            container.Add(new CuiButton
+            {
+                Button = { Color = buttonColor, Command = "serverinfo.events.page next" },
+                RectTransform = { AnchorMin = _config.Ui.EventsNextButton.AnchorMin, AnchorMax = _config.Ui.EventsNextButton.AnchorMax },
+                Text = { Text = nextText, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = textColor }
+            }, parent, "ServerInfo.Events.Next");
         }
 
         private void AddSettingsButton(CuiElementContainer container, string parent)
@@ -552,16 +627,20 @@ namespace Oxide.Plugins
             if (index == 0) return "close";
             var tabIndex = index - 1;
             if (tabIndex >= 0 && tabIndex < _config.Tabs.Count) return $"tab:{_config.Tabs[tabIndex].Key}";
+            if (index == _config.Tabs.Count + 1) return "events_prev";
+            if (index == _config.Tabs.Count + 2) return "events_next";
             return "close";
         }
 
-        private int GetEditableTargetCount() => _config.Tabs.Count + 1;
+        private int GetEditableTargetCount() => _config.Tabs.Count + 3;
 
         private RectConfig GetTargetRect(int index)
         {
             if (index == 0) return _config.Ui.CloseButton;
             var tabIndex = index - 1;
             if (tabIndex >= 0 && tabIndex < _config.Tabs.Count) return _config.Tabs[tabIndex].ButtonRect;
+            if (index == _config.Tabs.Count + 1) return _config.Ui.EventsPrevButton;
+            if (index == _config.Tabs.Count + 2) return _config.Ui.EventsNextButton;
             return _config.Ui.CloseButton;
         }
 
@@ -661,9 +740,23 @@ namespace Oxide.Plugins
             }
         }
 
-        private string ResolveContentImageKey(TabConfig tab)
+        private string ResolveContentImageKey(TabConfig tab, int eventsPage = 1)
         {
             if (tab == null) return null;
+
+            if (tab.Key.Equals("events", StringComparison.OrdinalIgnoreCase))
+            {
+                if (eventsPage < 1) eventsPage = 1;
+
+                var pageSpecific = BuildEventsPageKey(tab, eventsPage);
+                if (!string.IsNullOrEmpty(pageSpecific) && !string.IsNullOrEmpty(GetPng(pageSpecific))) return pageSpecific;
+
+                if (eventsPage == 1)
+                {
+                    var pageOneAlt = BuildEventsPageKey(tab, 0);
+                    if (!string.IsNullOrEmpty(pageOneAlt) && !string.IsNullOrEmpty(GetPng(pageOneAlt))) return pageOneAlt;
+                }
+            }
 
             if (!string.IsNullOrEmpty(tab.ContentImageKey) && !string.IsNullOrEmpty(GetPng(tab.ContentImageKey))) return tab.ContentImageKey;
             if (!string.IsNullOrEmpty(GetPng(tab.ImageKey))) return tab.ImageKey;
@@ -677,6 +770,44 @@ namespace Oxide.Plugins
             if (!string.IsNullOrEmpty(GetPng(tab.Key))) return tab.Key;
 
             return !string.IsNullOrEmpty(tab.ContentImageKey) ? tab.ContentImageKey : tab.ImageKey;
+        }
+
+        private int GetCurrentEventsPage(ulong userId)
+        {
+            if (!_eventsPageByPlayer.TryGetValue(userId, out var page) || page < 1)
+            {
+                page = 1;
+                _eventsPageByPlayer[userId] = page;
+            }
+
+            return page;
+        }
+
+        private int GetEventsMaxPage()
+        {
+            var tab = _config.Tabs.Find(t => t.Key.Equals("events", StringComparison.OrdinalIgnoreCase));
+            if (tab == null) return 1;
+
+            var max = 1;
+            for (var i = 2; i <= 20; i++)
+            {
+                var key = BuildEventsPageKey(tab, i);
+                if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(GetPng(key))) break;
+                max = i;
+            }
+
+            return max;
+        }
+
+        private string BuildEventsPageKey(TabConfig tab, int page)
+        {
+            if (tab == null) return null;
+
+            if (!string.IsNullOrEmpty(tab.ContentImageKey))
+                return page <= 1 ? tab.ContentImageKey : $"{tab.ContentImageKey}_{page}";
+
+            var baseKey = $"serverinfo_content_{tab.Key}";
+            return page <= 1 ? baseKey : $"{baseKey}_{page}";
         }
 
         private string ResolveContentFallbackUrl(TabConfig tab)

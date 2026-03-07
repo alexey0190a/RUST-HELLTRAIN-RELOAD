@@ -98,6 +98,18 @@ namespace Oxide.Plugins
             }
         }
 
+        private void OnPlayerConnected(BasePlayer player)
+        {
+            if (!_config.AutoPreloadOnServerInitialized) return;
+            if (player == null || !player.IsConnected) return;
+
+            timer.Once(5f, () =>
+            {
+                if (player == null || !player.IsConnected) return;
+                StartPreload(null, includePlayers: _config.IncludeConnectedPlayersInventories, doScan: _config.AutoScanDataDirectory, targetPlayerId: player.userID);
+            });
+        }
+
         #endregion
 
         #region Chat / Console Commands
@@ -128,7 +140,7 @@ namespace Oxide.Plugins
 
         #region Core
 
-        private void StartPreload(IPlayer caller, bool includePlayers, bool doScan)
+        private void StartPreload(IPlayer caller, bool includePlayers, bool doScan, ulong targetPlayerId = 0)
         {
             if (ImageLibrary == null)
             {
@@ -182,7 +194,7 @@ namespace Oxide.Plugins
             }
 
             Reply(caller, $"[Preload] В очередь поставлено {queue.Count} элементов. Начинаю прогрев...");
-            ProcessQueue(caller, queue, 0, 0, 0);
+            ProcessQueue(caller, queue, 0, 0, 0, targetPlayerId);
         }
 
         private int ScanDataDirectory(HashSet<string> uniq, List<string> queue)
@@ -255,7 +267,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void ProcessQueue(IPlayer caller, List<string> queue, int index, int ok, int fail)
+        private void ProcessQueue(IPlayer caller, List<string> queue, int index, int ok, int fail, ulong targetPlayerId = 0)
         {
             if (index >= queue.Count)
             {
@@ -271,7 +283,9 @@ namespace Oxide.Plugins
             try
             {
                 // Ensure image exists in cache by key (shortname or custom key)
-                var res = ImageLibrary.Call("GetImage", key);
+                var res = targetPlayerId != 0
+                    ? ImageLibrary.Call("GetImage", key, 0UL, targetPlayerId)
+                    : ImageLibrary.Call("GetImage", key);
                 if (IsValidImageId(res)) success = true;
                 else success = res != null;
             }
@@ -287,7 +301,7 @@ namespace Oxide.Plugins
             }
 
             timer.Once(Mathf.Max(0.01f, _config.BatchDelaySeconds), () =>
-                ProcessQueue(caller, queue, index + 1, ok, fail));
+                ProcessQueue(caller, queue, index + 1, ok, fail, targetPlayerId));
         }
 
         private bool IsValidImageId(object obj)
