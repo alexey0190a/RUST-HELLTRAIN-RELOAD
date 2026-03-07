@@ -93,6 +93,7 @@ namespace Oxide.Plugins
             public string Name = "";
             public string Permission = "";
             public int CooldownSeconds = 600;
+            public string GiveMessage = "";
 
             // Full-card PNG (covers entire card BG)
             public string CardArtUrl = "";
@@ -235,6 +236,7 @@ namespace Oxide.Plugins
                     if (_config.Kits[i].ActionRect == null || _config.Kits[i].ActionRect.Length != 4)
                         _config.Kits[i].ActionRect = new float[] { 0.06f, 0.05f, 0.94f, 0.17f };
                     if (_config.Kits[i].CardArtUrl == null) _config.Kits[i].CardArtUrl = "";
+                    if (_config.Kits[i].GiveMessage == null) _config.Kits[i].GiveMessage = string.Empty;
                 }
                 if (_config.MenuBackgroundKey == null) _config.MenuBackgroundKey = string.Empty;
                 if (_config.MenuCloseRect == null || _config.MenuCloseRect.Length != 4) _config.MenuCloseRect = new float[] { 0.96f, 0.94f, 0.995f, 0.99f };
@@ -800,9 +802,12 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             }
 
             var kit = _config.Kits[slot];
-            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "И что мне, теперь засунуть все тебе это в <color=#ff0000>ЖОПУ</color>?\nМесто освободи балбес!" + (!string.IsNullOrEmpty(_lastGiveFailReason) ? "\n" + _lastGiveFailReason : string.Empty)); return; }
+            if (!GiveKit(player, kit)) { SafeDestroyAllUI(player); player.ChatMessage(Prefix + "Недоступно : к сожалению твой инвентарь не резиновый,прежде чем попробовать снова освободи его!"); return; }
             SetCooldown(player.userID, slot, kit.CooldownSeconds);
-            player.ChatMessage(Prefix + "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>");
+            var giveMessage = (slot >= 0 && slot <= 5 && !string.IsNullOrWhiteSpace(kit.GiveMessage))
+                ? kit.GiveMessage
+                : "Ты получил набор! А теперь иди и <color=#ff0000>КРОМСАЙ ВСЕХ В ТРУХУ!</color>";
+            player.ChatMessage(Prefix + giveMessage);
             
             
             SafeDestroyAllUI(player);
@@ -932,7 +937,11 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
             double next = GetCooldown(player.userID, slot);
             if (next > now)
             {
-                reason = "Ты слепой или тупой? НЕ ВИДИШЬ <color=#ff0000>КУЛЛДАУН</color> У ТЕБЯ!!!";
+                int remain = Mathf.CeilToInt((float)(next - now));
+                int min = remain / 60;
+                int sec = remain % 60;
+                string timer = min > 0 ? $"{min} мин {sec} сек" : $"{sec} сек";
+                reason = $"Перезарядка : ты сможешь заново получить набор через <color=#ff2400>{timer}</color>.";
                 return false;
             }
             // Items present?
@@ -1055,7 +1064,7 @@ AddButton(ui, "KITSUITE_CARD_HITBOX", $"{__cr[0]} {__cr[1]}", $"{__cr[2]} {__cr[
                             if (occupied != null && occupied.info != null)
                                 occupiedInfo = $", занято: {occupied.info.shortname} x{occupied.amount}";
                         }
-                        _lastGiveFailReason = $"[KS DEBUG] Не влез предмет: {e.Shortname} x{amountLeft} (stack {def.stackable}, контейнер {e.Container}, слот {e.Slot}{occupiedInfo})";
+                        _lastGiveFailReason = string.Empty;
                         item.Remove();
                         // rollback everything
                         foreach (var it in created)
@@ -1735,22 +1744,22 @@ private void PlayFallbackJingle(BasePlayer player)
 
 private object GiveKit(BaseEntity entity, string kitName)
 {
-    Puts($"[GiveKit] Вызван! entity={entity?.ShortPrefabName ?? "null"}, kitName={kitName}");
+    // Puts($"[GiveKit] Вызван! entity={entity?.ShortPrefabName ?? "null"}, kitName={kitName}");
     
     if (entity == null || string.IsNullOrEmpty(kitName))
     {
-        Puts($"[GiveKit] ❌ Отклонён: entity={entity != null}, kitName='{kitName}'");
+        // Puts($"[GiveKit] ❌ Отклонён: entity={entity != null}, kitName='{kitName}'");
         return null;
     }
 
     var kit = _config?.Kits?.FirstOrDefault(k => k != null && string.Equals(k.Name, kitName.Trim(), StringComparison.OrdinalIgnoreCase));
     if (kit == null)
     {
-        Puts($"[GiveKit] ❌ Кит '{kitName}' не найден!");
+        // Puts($"[GiveKit] ❌ Кит '{kitName}' не найден!");
         return null;
     }
     
-    Puts($"[GiveKit] ✅ Кит '{kitName}' найден, выдаём...");
+    // Puts($"[GiveKit] ✅ Кит '{kitName}' найден, выдаём...");
 
     // ============================================
     // ✅ NPC - БЕЗ ПРОВЕРКИ ПРАВ!
@@ -1758,33 +1767,33 @@ private object GiveKit(BaseEntity entity, string kitName)
     var npc = entity as ScientistNPC;
     if (npc != null)
     {
-        Puts($"[GiveKit] 📦 Выдаём кит NPC (без проверки пермишнов)...");
+        // Puts($"[GiveKit] 📦 Выдаём кит NPC (без проверки пермишнов)...");
         
         timer.Once(0.2f, () =>
         {
             if (npc == null || npc.IsDestroyed)
             {
-                Puts($"[GiveKit] ⚠️ NPC уничтожен до выдачи кита!");
+                // Puts($"[GiveKit] ⚠️ NPC уничтожен до выдачи кита!");
                 return;
             }
             
-            Puts($"[GiveKit] 🔧 Main: {kit.Main?.Count ?? 0} предметов");
+            // Puts($"[GiveKit] 🔧 Main: {kit.Main?.Count ?? 0} предметов");
             TryGiveListNPC(npc, kit.Main);
             
-            Puts($"[GiveKit] 🔧 Belt: {kit.Belt?.Count ?? 0} предметов");
+            // Puts($"[GiveKit] 🔧 Belt: {kit.Belt?.Count ?? 0} предметов");
             TryGiveListNPC(npc, kit.Belt);
             
-            Puts($"[GiveKit] 🔧 Wear: {kit.Wear?.Count ?? 0} предметов");
+            // Puts($"[GiveKit] 🔧 Wear: {kit.Wear?.Count ?? 0} предметов");
             TryGiveListNPC(npc, kit.Wear);
             
             int total = npc.inventory.containerMain.itemList.Count 
                       + npc.inventory.containerBelt.itemList.Count 
                       + npc.inventory.containerWear.itemList.Count;
             
-            Puts($"[GiveKit] ✅ Итого у NPC: {total} предметов");
+            // Puts($"[GiveKit] ✅ Итого у NPC: {total} предметов");
         });
         
-        Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к NPC.");
+        // Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к NPC.");
         return true;
     }
 
@@ -1797,21 +1806,21 @@ private object GiveKit(BaseEntity entity, string kitName)
         // ✅ Проверяем пермишн ТОЛЬКО для игроков!
         if (!string.IsNullOrEmpty(kit.Permission) && !permission.UserHasPermission(player.UserIDString, kit.Permission) && !IsAdmin(player))
         {
-            Puts($"[GiveKit] ❌ У игрока нет прав: {kit.Permission}");
+            // Puts($"[GiveKit] ❌ У игрока нет прав: {kit.Permission}");
             return null;
         }
 
         if (GiveKit(player, kit))
         {
-            Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к игроку '{player.displayName}'.");
+            // Puts($"[GiveKit] ✅ Применён кит '{kit.Name}' к игроку '{player.displayName}'.");
             return true;
         }
         
-        Puts($"[GiveKit] ❌ Не удалось выдать кит игроку (нет места?)");
+        // Puts($"[GiveKit] ❌ Не удалось выдать кит игроку (нет места?)");
         return null;
     }
 
-    Puts($"[GiveKit] ❌ Неизвестный тип entity: {entity.GetType().Name}");
+    // Puts($"[GiveKit] ❌ Неизвестный тип entity: {entity.GetType().Name}");
     return null;
 }
 
@@ -1819,7 +1828,7 @@ private object GiveKit(BaseEntity entity, string kitName)
 {
     if (npc == null || list == null) return;
     
-    Puts($"[KS] TryGiveListNPC: {list.Count} items to give");
+    // Puts($"[KS] TryGiveListNPC: {list.Count} items to give");
     
     foreach (var e in list)
     {
@@ -1869,7 +1878,7 @@ private object GiveKit(BaseEntity entity, string kitName)
         {
             int magCount = (e.Magazine > 0) ? e.Magazine : held.primaryMagazine.capacity;
             held.primaryMagazine.contents = Mathf.Clamp(magCount, 0, held.primaryMagazine.capacity);
-            Puts($"[KS] Filled magazine: {e.Shortname} -> {held.primaryMagazine.contents}/{held.primaryMagazine.capacity}");
+            // Puts($"[KS] Filled magazine: {e.Shortname} -> {held.primaryMagazine.contents}/{held.primaryMagazine.capacity}");
         }
         
         // Определяем контейнер
@@ -1901,7 +1910,7 @@ private object GiveKit(BaseEntity entity, string kitName)
         
         if (placed)
         {
-            Puts($"[KS] ✅ Placed: {e.Shortname} in {e.Container ?? "main"}");
+            // Puts($"[KS] ✅ Placed: {e.Shortname} in {e.Container ?? "main"}");
         }
         else
         {
