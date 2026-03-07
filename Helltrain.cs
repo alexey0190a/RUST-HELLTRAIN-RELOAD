@@ -19,6 +19,14 @@ namespace Oxide.Plugins
     [Description("Поезд для ивентов с фракциями и лутом")]
     public class Helltrain : RustPlugin
     {
+		private new void Puts(string message)
+		{
+			if (config != null && config.DisableConsoleNotifications)
+				return;
+
+			base.Puts(message);
+		}
+
 		private void EventLog(string message)
 		{
 			LogToFile("Helltrain", message, this);
@@ -2178,7 +2186,9 @@ private static string NormalizeLayoutName(string name)
 
 private class ConfigData
 {
-	
+	[JsonProperty("Отключить консольные оповещения")]
+	public bool DisableConsoleNotifications { get; set; } = true;
+
     [JsonProperty("EditorDecorPrefabs")]
     public Dictionary<string, string> EditorDecorPrefabs { get; set; } = new Dictionary<string, string>();
 	

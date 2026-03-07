@@ -1,4 +1,5 @@
 {
+  "Отключить консольные оповещения": true,
   "LootTimerRanges": {
     "BANDIT": {
       "Min": 250,
