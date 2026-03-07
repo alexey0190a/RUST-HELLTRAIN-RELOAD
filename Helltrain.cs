@@ -1835,16 +1835,16 @@ private void OnCrateHack(HackableLockedCrate crate, BasePlayer player)
     _alarmTriggered = true;
     TriggerAlarmSoundOnTrain();
 
-    Puts($"[ALARM] triggered by OnCrateHack (first laptop set): crate={(crate?.net != null ? crate.net.ID.Value.ToString() : "no-net")} faction={_activeFactionKey}");
+    // Puts($"[ALARM] triggered by OnCrateHack (first laptop set): crate={(crate?.net != null ? crate.net.ID.Value.ToString() : "no-net")} faction={_activeFactionKey}");
 }
 
 private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 {
     if (_suppressHooks) return;
-	Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
+	// Puts($"[ALARM DEBUG] Death: prefab={entity?.PrefabName} type={entity?.GetType().Name} faction={_activeFactionKey}");
 
 var marker = entity?.GetComponent<NPCTypeMarker>();
-Puts($"[ALARM DEBUG] Marker={(marker != null ? "YES" : "NO")}");
+// Puts($"[ALARM DEBUG] Marker={(marker != null ? "YES" : "NO")}");
 
     var engine = entity as TrainEngine;
     if (engine == null) return;
@@ -4578,7 +4578,7 @@ if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
 _alarmArmTimer = timer.Once(5f, () =>
 {
     _alarmArmed = true;
-    Puts("[ALARM] armed (NPC window passed)");
+    // Puts("[ALARM] armed (NPC window passed)");
 });
 
     if (activeHellTrain != null && !activeHellTrain.IsDestroyed)
@@ -6241,7 +6241,7 @@ if (_alarmArmTimer != null) { _alarmArmTimer.Destroy(); _alarmArmTimer = null; }
 _alarmArmTimer = timer.Once(5f, () =>
 {
     _alarmArmed = true;
-    Puts("[ALARM] armed (NPC window passed)");
+    // Puts("[ALARM] armed (NPC window passed)");
 });
 
     SendReply(player, $"🚂 Запуск Helltrain: faction={faction}, composition={compositionName}");
@@ -6990,7 +6990,7 @@ if (npc.net != null)
 }
 else
 {
-    Puts($"[ALARM DEBUG] Track NPC NOW: no-net prefab={npc.PrefabName} npcType={marker.npcType}");
+    // Puts($"[ALARM DEBUG] Track NPC NOW: no-net prefab={npc.PrefabName} npcType={marker.npcType}");
 }
 
     
@@ -7519,11 +7519,11 @@ marker.npcType = "slot_npc";
 if (npc.net != null)
 {
     _eventNpcNetIds.Add(npc.net.ID);
-    Puts($"[ALARM DEBUG] Track SLOT NPC: id={npc.net.ID} prefab={npc.PrefabName} kit={kitKey}");
+    // Puts($"[ALARM DEBUG] Track SLOT NPC: id={npc.net.ID} prefab={npc.PrefabName} kit={kitKey}");
 }
 else
 {
-    Puts($"[ALARM DEBUG] Track SLOT NPC: no-net prefab={npc.PrefabName} kit={kitKey}");
+    // Puts($"[ALARM DEBUG] Track SLOT NPC: no-net prefab={npc.PrefabName} kit={kitKey}");
 }
 
 var result = KitsSuite?.Call("GiveKit", (BaseEntity)npc, kitKey);
