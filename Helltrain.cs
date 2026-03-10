@@ -236,8 +236,9 @@ void PreSpawnClearTrainsCorridor(TrainTrackSpline track, float distOnSpline, int
 {
     try
     {
-        if (track == null) return;
-        if (config == null || !config.PreSpawnClearEnabled) return;
+        if (track == null) { Puts("[Helltrain] PreSpawnClear: SKIP track=null"); return; }
+        if (config == null) { Puts("[Helltrain] PreSpawnClear: SKIP config=null"); return; }
+        if (!config.PreSpawnClearEnabled) { Puts("[Helltrain] PreSpawnClear: SKIP disabled"); return; }
 
         float halfWidth = Mathf.Clamp(config.PreSpawnClearHalfWidthMeters, 1.5f, 12f);
 
@@ -3776,6 +3777,8 @@ private IEnumerator BuildTrainWithPreSpawnClear(
     TrainTrackSpline targetTrack,
     float targetDist)
 {
+    Puts($"[Helltrain] PreSpawnClear: ENTER token={buildToken} comp={compositionKey} track={(targetTrack!=null?targetTrack.name:\"null\")} dist={targetDist:0.0} wagons={wagons?.Count ?? 0}");
+
     // 1) Чистим путь
     PreSpawnClearTrainsCorridor(targetTrack, targetDist, wagons.Count, $"composition={compositionKey}");
 
