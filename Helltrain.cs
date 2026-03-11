@@ -2558,8 +2558,20 @@ public float PreSpawnClearForwardMeters { get; set; } = 50f;
 public float PreSpawnClearStepMeters { get; set; } = 12f;
 
 // Смещение точки отсчёта по spline вперёд, чтобы считать именно "от носа"
-[JsonProperty("PreSpawnClearNoseOffsetMeters")]
-public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
+    [JsonProperty("PreSpawnClearNoseOffsetMeters")]
+    public float PreSpawnClearNoseOffsetMeters { get; set; } = 0f;
+
+	// How many turrets to spawn out of available TurretSlots (0..N), weighted.
+	// Keys are counts, values are weights.
+	[JsonProperty("COBLAB Heavy Turret Count Weights")]
+	public Dictionary<int, float> CoblabHeavyTurretCountWeights { get; set; } = new Dictionary<int, float>
+	{
+		[0] = 0.05f,
+		[1] = 0.15f,
+		[2] = 0.35f,
+		[3] = 0.30f,
+		[4] = 0.15f
+	};
 }
 
 
@@ -6715,9 +6727,64 @@ private void ApplyHeavyForCar(int carIndex, TrainCar wagonCar, TrainLayout layou
         int ammoAmt = config.Generator.CoblabHeavyTurretAmmoAmount;
         if (ammoAmt < 500) ammoAmt = 500;
 
+        string factionUpper = (layout?.faction ?? string.Empty).ToUpperInvariant();
+        bool isCoblab = factionUpper == "COBLAB";
+
+        // COBLAB-only: pick how many turrets to spawn (0..slots.Count) by weights.
+        int spawnCount = slots.Count;
+        if (isCoblab)
+        {
+            var weights = config?.CoblabHeavyTurretCountWeights;
+            double total = 0;
+            if (weights != null && weights.Count > 0)
+            {
+                foreach (var kv in weights)
+                {
+                    if (kv.Key < 0 || kv.Key > slots.Count) continue;
+                    total += Mathf.Max(0.0001f, kv.Value);
+                }
+            }
+
+            if (total > 0.0001)
+            {
+                double roll = UnityEngine.Random.Range(0f, 1f) * total;
+                int picked = slots.Count;
+                foreach (var kv in weights)
+                {
+                    if (kv.Key < 0 || kv.Key > slots.Count) continue;
+                    roll -= Mathf.Max(0.0001f, kv.Value);
+                    if (roll <= 0)
+                    {
+                        picked = kv.Key;
+                        break;
+                    }
+                }
+                spawnCount = Mathf.Clamp(picked, 0, slots.Count);
+            }
+        }
+
+        // Choose which slot indices to spawn into (random subset of size spawnCount).
+        var chosen = new HashSet<int>();
+        if (spawnCount > 0 && spawnCount < slots.Count)
+        {
+            var indices = new List<int>(slots.Count);
+            for (int idx = 0; idx < slots.Count; idx++) indices.Add(idx);
+            for (int a = indices.Count - 1; a > 0; a--)
+            {
+                int b = UnityEngine.Random.Range(0, a + 1);
+                int tmp = indices[a];
+                indices[a] = indices[b];
+                indices[b] = tmp;
+            }
+            for (int i = 0; i < spawnCount; i++) chosen.Add(indices[i]);
+        }
+
         int spawned = 0;
         for (int i = 0; i < slots.Count && spawned < desiredCount; i++)
         {
+            if (spawnCount == 0) break;
+            if (spawnCount < slots.Count && !chosen.Contains(i)) continue;
+
             var s = slots[i];
             if (s == null) continue;
 
